@@ -7,12 +7,17 @@ export interface JoinMapPayload { mapId:MapId; nickname:string; appearance:Appea
 export interface MovementPayload { mapId:MapId; x:number; y:number; direction:Direction; isMoving:boolean }
 export interface ChatMessage { id:string; mapId:MapId; senderId:string; nickname:string; message:string; createdAt:number; channel:'nearby'|'group' }
 export interface DirectRequest { requestId:string; from:Pick<PlayerState,'id'|'nickname'|'appearance'>; toId:string }
-export interface DirectRoom { id:string; participants:Array<Pick<PlayerState,'id'|'nickname'|'appearance'>> }
-export interface DirectMessage { id:string; directRoomId:string; senderId:string; nickname:string; message:string; createdAt:number }
+export interface DirectRoomMeetingPlace {roomId:string;placeId:string;placeName:string;category:string;address:string;roadAddress?:string;externalUrl?:string;selectedByUserId:string;selectedByNickname:string;selectedAt:string;status:'proposed'|'confirmed'|'cancelled'}
+export interface DirectRoom { id:string; participants:Array<Pick<PlayerState,'id'|'nickname'|'appearance'|'matchProfile'>>; active:boolean; acceptedAt:number;meetingPlace?:DirectRoomMeetingPlace }
+export interface DirectRecommendationPlace { id:string;name:string;category:string;address:string;roadAddress?:string;phone?:string;externalUrl?:string;longitude?:number;latitude?:number;distanceMeters?:number;source:'kakao'|'mock';recommendationReason:string }
+export interface DirectRecommendation { recommendationId:string;summary:string;basis?:{activity:string;region:string;rejectedCategories:string[];mood:string[];regionNotice?:string};places:DirectRecommendationPlace[];provider?:{ai:'openai'|'mock';place:'kakao'|'mock';fallbackUsed:boolean;fallbackReason?:string};debug?:{intent:string;rejectedCategories:string[];queries:string[];rawResultCount:number;compatibleResultCount:number;filteredOutCount:number;provider:'kakao'|'mock';fallbackUsed:boolean;expandedRegion:boolean} }
+export interface DirectMessage { id:string; directRoomId:string; senderId:string; nickname:string; message:string; createdAt:number; type:'user'|'system'|'ai-recommendation'|'system-meeting-place'; deleted?:boolean; recommendation?:DirectRecommendation;meetingPlace?:DirectRoomMeetingPlace|null;previousMeetingPlace?:DirectRoomMeetingPlace }
 export interface GroupRoom { id:string; name:string; ownerId:string; memberIds:string[]; mapId:MapId }
 export interface ServerToClientEvents {
  currentMapUsers:(players:PlayerState[])=>void; userJoined:(player:PlayerState)=>void; userMoved:(player:PlayerState)=>void; userLeft:(id:string)=>void; onlineUsersUpdated:(players:PlayerState[])=>void;
  nearbyChat:(message:ChatMessage)=>void; directChatRequested:(request:DirectRequest)=>void; directChatRejected:(data:{requestId:string;byId:string})=>void; directChatStarted:(room:DirectRoom)=>void; directMessageReceived:(message:DirectMessage)=>void; directChatClosed:(data:{directRoomId:string;byId:string})=>void;
+ directRecommendationStarted:(data:{directRoomId:string;stage:'analyzing'|'searching'})=>void; directRecommendationCompleted:(data:{directRoomId:string;message:DirectMessage})=>void; directRecommendationFailed:(data:{directRoomId:string;category:'permission'|'message_shortage'|'cooldown'|'openai'|'kakao_authentication'|'place_empty'|'network'|'unknown';message:string})=>void;
+ directMeetingPlaceUpdated:(data:{roomId:string;meetingPlace:DirectRoomMeetingPlace|null})=>void;
  groupCreated:(group:GroupRoom)=>void; groupUpdated:(group:GroupRoom)=>void; errorMessage:(message:string)=>void;
 }
 export interface ClientToServerEvents {

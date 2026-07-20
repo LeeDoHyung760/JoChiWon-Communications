@@ -1,5 +1,54 @@
 # AI · 서버 · 프론트엔드 역할 분리 및 동작 구조
 
+## 외부 API 설정
+
+비밀키는 브라우저가 아니라 백엔드의 `server/.env`에서만 관리합니다. 먼저 예제 파일을 복사합니다.
+
+Windows CMD:
+
+```bat
+copy server\.env.example server\.env
+```
+
+PowerShell:
+
+```powershell
+Copy-Item server/.env.example server/.env
+```
+
+`server/.env`에서 아래 두 값만 로컬에서 입력하고 자동 선택 설정을 유지합니다.
+
+```env
+OPENAI_API_KEY=
+KAKAO_REST_API_KEY=
+AI_PROVIDER=auto
+PLACE_PROVIDER=auto
+```
+
+카카오 로그인까지 실제로 연결할 때만 `KAKAO_REDIRECT_URI`와 `KAKAO_CLIENT_SECRET`이 추가로 필요합니다. 카카오 Local 장소 검색에는 REST API 키만 필요합니다.
+
+```sh
+npm run dev
+npm run verify:providers
+```
+
+환경변수를 변경한 뒤에는 실행 중인 Node 서버를 재시작해야 합니다. 개발 환경에서는 `GET http://localhost:3001/api/health/providers`로도 선택 상태를 확인할 수 있습니다.
+
+- 두 키 모두 있음: OpenAI + 카카오
+- OpenAI 키만 있음: OpenAI + Mock 장소
+- 카카오 키만 있음: Mock 분석 + 카카오 장소
+- 두 키 모두 없음: 전체 Mock 모드
+
+`ALLOW_MOCK_FALLBACK=true`이면 외부 API 오류 시 해당 기능만 안전한 Mock으로 전환됩니다. 실제 키를 GitHub, README, 채팅, 프론트엔드 `.env`, `VITE_` 변수 또는 `.env.example`에 넣지 마세요. 로그와 API 응답에도 키를 노출하지 않습니다.
+
+실제 `.env`를 이미 추적 중이라면 파일은 삭제하지 않고 Git 추적만 해제합니다.
+
+```sh
+git rm --cached server/.env
+```
+
+실제 API 키가 Git 기록에 들어갔다면 즉시 해당 키를 폐기하고 새 키를 발급해야 합니다.
+
 이 문서는 이 저장소를 처음 보는 사람도 **프론트엔드, 서버, AI 기능이 어디까지 담당하고 서로 어떤 데이터를 주고받는지** 이해할 수 있도록 현재 구현을 기준으로 정리한 문서입니다.
 
 ## 1. 한눈에 보는 전체 구조
@@ -84,7 +133,7 @@ shared/socket-events.ts      프론트와 서버가 함께 쓰는 Socket.IO 타�
 - 상대 프로필 선택
 - 1:1 채팅 요청, 수락, 거절
 - 매칭 유사도 표시
-- 장소 추천 모달
+- 1:1 채팅방 내부 AI 장소 추천
 
 ### 3.3 매칭률 요청
 
@@ -94,15 +143,14 @@ shared/socket-events.ts      프론트와 서버가 함께 쓰는 Socket.IO 타�
 
 ### 3.4 장소 추천 요청과 사용자 동의
 
-`src/components/RecommendationPanel.tsx`는 사용자가 **동의하고 추천받기** 버튼을 누른 뒤에만 추천 요청을 보냅니다.
+`src/components/DirectRecommendation.tsx`는 수락된 1:1 채팅방 안에서 사용자가 **동의하고 추천받기** 버튼을 누른 뒤에만 추천 요청을 보냅니다.
 
 전송되는 정보는 다음과 같습니다.
 
-- 현재 사용자와 같은 맵에 보이는 사용자들의 닉네임, MBTI, 관심사, 이용 목적, 선호 장소
-- 최근 주변/그룹 채팅 중 최대 20개
-- 현재 맵 ID와 화면에 표시된 지역명
+- 실제 `directRoomId`
+- 선택적인 추가 요청 문장
 
-이메일이나 카카오 ID는 전송하지 않습니다. 메시지는 프론트에서 최근 20개로 제한하고, 서버에서도 다시 개수와 길이를 제한합니다.
+프론트는 메시지 배열을 전송하지 않습니다. 서버가 해당 방의 참여자·활성 상태를 확인하고 서버 메모리 저장소에서 실제 일반 메시지 최대 20개를 조회합니다. 이메일, 카카오 ID, GPS 좌표, Socket ID는 OpenAI에 전달하지 않습니다.
 
 ## 4. 서버가 담당하는 것
 
@@ -113,12 +161,11 @@ shared/socket-events.ts      프론트와 서버가 함께 쓰는 Socket.IO 타�
 | API | 역할 |
 |---|---|
 | `POST /api/matching/score` | 두 사용자 프로필의 매칭률 계산 |
-| `POST /api/ai/analyze-conversation` | 프로필과 최근 대화에서 추천 조건 추출 |
 | `POST /api/places/search` | 검색어로 장소를 찾고 필요하면 점수 계산 |
-| `POST /api/recommendations/generate` | 분석 결과와 장소 후보로 추천 문구 생성 |
-| `POST /api/recommendations/from-chat` | 대화 분석 → 장소 검색 → 순위 계산 → 문구 생성을 한 번에 실행 |
+| `POST /api/direct-rooms/:directRoomId/recommendations` | 서버가 1:1 대화를 조회해 분석·검색하고 두 참여자에게 추천 전송 |
+| `GET /api/health/providers` | 개발 환경에서 Provider 설정과 최근 안전 진단 확인 |
 
-프론트의 장소 추천 버튼은 마지막 통합 API인 `POST /api/recommendations/from-chat`을 사용합니다.
+프론트의 장소 추천 버튼은 1:1 채팅방 전용 API만 사용합니다.
 
 ### 4.2 입력값 정제
 
@@ -309,21 +356,48 @@ Kakao 또는 Mock에서 가져온 후보는 `server/src/services/places/placeSco
 
 ## 9. 장소 추천 전체 흐름
 
-`POST /api/recommendations/from-chat` 한 번의 요청은 아래 순서로 처리됩니다.
+`POST /api/direct-rooms/:directRoomId/recommendations` 요청은 아래 순서로 처리됩니다.
 
 ```text
-1. 사용자가 추천 모달에서 분석에 동의
-2. 프론트가 참여자 프로필 + 최근 채팅 최대 20개 전송
-3. 서버가 인원, 문자열 길이, 메시지 개수를 재검증
-4. OpenAI 또는 규칙 기반 로직이 공통 관심사/분위기/검색어 추출
-5. Kakao Local API 또는 Mock 데이터에서 실제 장소 후보 검색
-6. 서버 고정식으로 모든 장소 후보 점수 계산
-7. 상위 3개 선정
-8. OpenAI 또는 기본 템플릿이 추천 이유 작성
-9. 프론트가 장소명, 주소, 전화번호, 카카오 링크, 추천 이유 표시
+1. 두 사용자가 1:1 채팅 요청을 수락하고 대화
+2. 참여자가 채팅방 안에서 분석 동의
+3. 서버가 방 권한과 활성 상태를 검사하고 실제 일반 메시지 최대 20개 조회
+4. OpenAI 또는 규칙 기반 로직이 공통 관심사·분위기·검색어만 추출
+5. Kakao Local API 또는 Mock 데이터에서 장소 후보 검색
+6. 서버가 필터링·점수화하고 상위 3개 선정
+7. `ai-recommendation` Socket.IO 메시지를 두 참여자에게 동시에 전송
+8. 채팅 메시지 목록 안에 카카오맵 링크가 있는 추천 카드 표시
 ```
 
 즉, 추천 결과는 `AI가 아무 장소나 답변하는 구조`가 아니라 **분석 → 실제 검색 → 서버 점수화 → 설명 생성**의 네 단계로 구성됩니다.
+
+### 9.1 추천 카드와 모임 장소 등록
+
+1:1 채팅방의 추천 카드에는 다음 기능이 있습니다.
+
+- **카카오맵에서 보기**: Kakao Local API가 반환한 `place_url`을 새 탭에서 엽니다. Mock 장소는 장소명과 주소를 이용한 카카오맵 검색 페이지를 엽니다.
+- **모임 장소로 선택**: 확인 창을 거친 뒤 해당 장소를 채팅방의 모임 장소로 등록합니다.
+- **장소 변경**: 다른 추천 카드에서 장소를 선택하면 기존 장소를 새 장소로 변경합니다.
+- **등록 해제**: 채팅방 상단 모임 장소 배너에서 현재 등록을 해제합니다.
+
+모임 장소 등록 요청은 브라우저가 보낸 장소명이나 주소를 신뢰하지 않습니다. 서버가 발급한 `recommendationId`와 `placeId`를 이용해 30분 동안 보관된 추천 결과에서 원본 장소를 다시 확인합니다. 방 참여자, 활성 상태, 차단 관계도 서버에서 검사합니다.
+
+등록·변경·해제 결과는 `directMeetingPlaceUpdated` Socket.IO 이벤트와 `system-meeting-place` 공지 메시지로 두 참여자에게 동시에 전달됩니다. 현재 장소는 서버 메모리에 저장되므로 서버 프로세스가 유지되는 동안 재조회할 수 있지만, 서버를 재시작하면 사라집니다.
+
+관련 API는 다음과 같습니다.
+
+| API | 역할 |
+|---|---|
+| `GET /api/direct-rooms/:directRoomId/meeting-place` | 현재 모임 장소 조회 |
+| `PUT /api/direct-rooms/:directRoomId/meeting-place` | 추천 결과의 장소를 모임 장소로 등록 또는 변경 |
+| `DELETE /api/direct-rooms/:directRoomId/meeting-place` | 모임 장소 등록 해제 |
+
+추천 및 모임 장소 통합 동작은 다음 명령으로 확인할 수 있습니다.
+
+```sh
+npm run verify:direct-recommendation
+npm run verify:meeting-place
+```
 
 ## 10. Mock 모드와 실제 API 모드
 
@@ -332,9 +406,11 @@ Kakao 또는 Mock에서 가져온 후보는 `server/src/services/places/placeSco
 ```env
 OPENAI_API_KEY=
 KAKAO_REST_API_KEY=
-AI_PROVIDER=mock
-PLACE_PROVIDER=mock
+AI_PROVIDER=auto
+PLACE_PROVIDER=auto
 ```
+
+`auto`는 키가 있으면 실제 Provider를, 없으면 Mock을 선택합니다. 따라서 키만 채우고 서버를 재시작하면 코드 수정 없이 실제 연동으로 전환됩니다.
 
 ### Mock 모드
 
@@ -351,17 +427,17 @@ PLACE_PROVIDER=mock
 ### 실제 연동 모드
 
 ```env
-AI_PROVIDER=openai
-PLACE_PROVIDER=kakao
-OPENAI_API_KEY=발급받은_OpenAI_API_키
-KAKAO_REST_API_KEY=발급받은_Kakao_REST_API_키
+AI_PROVIDER=auto
+PLACE_PROVIDER=auto
+OPENAI_API_KEY=
+KAKAO_REST_API_KEY=
 ```
 
-- OpenAI API 키: 대화 분석과 추천 문구 생성에 사용
+- OpenAI API 키: 실제 장소명이 아닌 대화의 장소 검색 조건 추출에 사용
 - Kakao REST API 키: 실제 장소 검색에 사용
 - 키는 프론트 환경 변수가 아니라 서버의 `.env`에만 둡니다.
 
-OpenAI와 Kakao 중 하나만 실제 공급자로 설정하는 혼합 모드도 가능합니다. 예를 들어 AI 분석은 Mock으로 두고 장소만 Kakao에서 검색할 수 있습니다.
+키가 하나만 있으면 해당 Provider만 실제 연동되는 혼합 모드가 자동으로 적용됩니다. `mock`, `openai`, `kakao`를 명시해 선택을 강제할 수도 있습니다.
 
 외부 API 호출 실패, 잘못된 응답, JSON 형식 불일치가 발생하면 요청 전체를 바로 실패시키지 않고 각각 규칙 기반 분석, Mock 장소, 기본 추천 문구로 대체합니다.
 
@@ -369,8 +445,9 @@ OpenAI와 Kakao 중 하나만 실제 공급자로 설정하는 혼합 모드도 
 
 - 대화 분석은 사용자가 추천 버튼에서 동의한 경우에만 실행됩니다.
 - 최근 대화는 최대 20개, 메시지당 최대 500자로 제한됩니다.
-- OpenAI 분석용 사용자 데이터에는 닉네임, MBTI, 관심사, 이용 목적, 선호 장소만 포함됩니다.
-- 추천 문구 생성 시에는 점수가 계산된 장소의 ID, 이름, 카테고리, 주소, 전화번호만 전달합니다.
+- OpenAI 분석용 참여자는 participantA/B로 익명화하며 공개 관심사, 만남 목적, 선호 장소만 포함합니다.
+- 실제 장소는 Kakao Local API에서만 가져오며 Kakao 장소나 GPS 좌표를 OpenAI에 전달하지 않습니다.
+- 추천 결과는 해당 1:1 채팅방의 두 참여자에게 Socket.IO로 동시에 표시됩니다.
 - 전체 채팅 원문이나 외부 API 오류 내용을 서버 로그에 기록하도록 구현되어 있지 않습니다.
 - 현재 채팅방과 접속자 상태는 서버 메모리에만 있으며 서버 재시작 시 사라집니다.
 - API 키는 Git에 올리지 않고 `server/.env`에서 서버만 읽습니다.

@@ -1,1 +1,44 @@
-{"name":"yeogi-saram-isseum","private":true,"version":"0.2.0","type":"module","scripts":{"dev":"concurrently -n WEB,SERVER -c green,cyan \"vite\" \"tsx watch server/src/index.ts\"","dev:web":"vite","dev:server":"tsx watch server/src/index.ts","build":"tsc -b && vite build && tsc -p server/tsconfig.json","start:server":"node server/dist/server/src/index.js","preview":"vite preview"},"dependencies":{"@vitejs/plugin-react":"latest","vite":"latest","typescript":"latest","react":"latest","react-dom":"latest","phaser":"^3.90.0","lucide-react":"latest","express":"^5.1.0","socket.io":"^4.8.1","socket.io-client":"^4.8.1","cors":"^2.8.5"},"devDependencies":{"@types/react":"latest","@types/react-dom":"latest","@types/express":"^5.0.3","@types/cors":"^2.8.19","@types/node":"^24.0.0","concurrently":"^9.2.0","tsx":"^4.20.0"}}
+{
+  "name": "yeogi-saram-isseum",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n WEB,SERVER -c green,cyan \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "vite",
+    "dev:web": "vite",
+    "dev:server": "npm --prefix server run dev",
+    "verify:providers": "npm --prefix server run verify:providers",
+    "verify:direct-recommendation": "npm --prefix server run verify:direct-recommendation",
+    "verify:meeting-place": "npm --prefix server run verify:meeting-place",
+    "verify:place-intents": "npm --prefix server run verify:place-intents",
+    "build": "tsc -b && vite build && tsc -p server/tsconfig.json",
+    "start:server": "node server/dist/server/src/index.js",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^5.1.0",
+    "lucide-react": "latest",
+    "openai": "^6.48.0",
+    "phaser": "^3.90.0",
+    "react": "latest",
+    "react-dom": "latest",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "typescript": "latest",
+    "vite": "latest",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.0",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "concurrently": "^9.2.0",
+    "tsx": "^4.20.0"
+  }
+}
