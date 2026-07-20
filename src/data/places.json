@@ -1,0 +1,8 @@
+[
+ {"id":"p1","name":"조치원 골목 로스터리","category":"카페","tags":["커피","대화","디저트"],"region":"station","description":"조치원역 근처, 오래 머물기 좋은 작은 로스터리입니다.","groupFriendly":true},
+ {"id":"p2","name":"복숭아 식탁","category":"음식점","tags":["한식","점심","지역재료"],"region":"market","description":"세종 지역 식재료로 든든한 한 끼를 내는 식당입니다.","groupFriendly":true},
+ {"id":"p3","name":"세종전통시장","category":"전통시장","tags":["장보기","먹거리","로컬"],"region":"market","description":"다양한 먹거리와 상점이 이어지는 조치원의 대표 시장입니다.","groupFriendly":true},
+ {"id":"p4","name":"조천 산책길","category":"산책","tags":["산책","휴식","야외"],"region":"station","description":"물길을 따라 천천히 걷기 좋은 편안한 코스입니다.","groupFriendly":false},
+ {"id":"p5","name":"청년문화창작소","category":"문화공간","tags":["전시","공연","청년"],"region":"culture","description":"청년들의 전시와 작은 공연이 열리는 창작 공간입니다.","groupFriendly":true},
+ {"id":"p6","name":"모두의 공부방","category":"스터디","tags":["스터디","모임","와이파이"],"region":"culture","description":"함께 공부하거나 프로젝트 회의를 하기 좋은 공간입니다.","groupFriendly":true}
+]
