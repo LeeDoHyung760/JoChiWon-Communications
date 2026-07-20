@@ -1,66 +1,53 @@
 # 여기 사람 있음
 
-조치원을 배경으로 한 아이소메트릭 2.5D 소셜 메타버스 MVP입니다. React + TypeScript + Vite 안에 Phaser 3 게임 월드를 통합했습니다. 현재 버전은 외부 서비스 없이 더미 데이터와 `localStorage`만 사용합니다.
+React + Phaser + Express + Socket.IO 기반 조치원 메타버스입니다. 사용자 매칭은 자체 점수 알고리즘으로 처리하고, 대화 분석/추천 문장은 OpenAI, 실제 장소 검색은 Kakao Local REST API를 선택적으로 사용합니다.
 
-## 실행 방법
+## 실행
 
 ```bash
 npm install
+copy server\.env.example server\.env
 npm run dev
 ```
 
-`npm run dev`는 Vite 웹 클라이언트(`http://localhost:5173`)와 Socket.IO 서버(`http://localhost:3001`)를 동시에 실행합니다. 각각 실행하려면 `npm run dev:web`, `npm run dev:server`를 별도 터미널에서 실행합니다. 서버 주소가 다르면 `VITE_SOCKET_URL`, 허용할 웹 주소가 다르면 `CLIENT_ORIGIN` 환경 변수를 설정합니다. `GET http://localhost:3001/health`로 서버 상태를 확인할 수 있습니다.
+기본값은 API 키가 전혀 필요 없는 Mock 모드입니다. 웹은 `http://localhost:5173`, 서버는 `http://localhost:3001`에서 실행됩니다.
 
-프로덕션 빌드는 `npm run build`, 빌드 미리보기는 `npm run preview`로 실행합니다.
+## 환경 변수
 
-## 현재 구현 기능
+`server/.env.example`을 `server/.env`로 복사해 설정합니다. `.env`는 Git에서 제외되며 키는 서버에서만 읽습니다.
 
-- 랜딩 → 카카오 형태 Mock 로그인 → 프로필/캐릭터 생성 → 게임 진입 흐름
-- 닉네임, MBTI, 관심사와 캐릭터 파츠 선택 및 localStorage 저장
-- 교체 가능한 `assetManifest` 기반 머리/얼굴/상의/하의 레이어
-- Phaser 3 아이소메트릭 스타일 월드, WASD/방향키 이동, 추적 카메라
-- 조치원역·세종전통시장·청년문화거리 건물, 충돌 영역 및 순환 포털
-- 서로 다른 프로필을 가진 더미 사용자 3명과 온라인 목록
-- 캐릭터 클릭 프로필 카드, 채팅 입력과 4초 말풍선
-- 충녕이 임시 NPC, 도움말 UI와 더미 장소 무작위 추천
-- mapId별 Socket.IO 실시간 위치·방향·보행 상태 동기화와 원격 캐릭터 보간
-- 접속/퇴장 동기화, 근거리 채팅 말풍선·채팅 패널
-- 1:1 대화 신청/수락/거절과 메모리 기반 그룹 채팅방 생성·참여
-- 도로로 연결된 조치원역·전통시장·문화거리·조천공원, 연결 다리와 기차역 구조물
-- 카페·음식점·전통시장·산책·문화공간·스터디 JSON 장소 데이터
-
-## 프로젝트 구조
-
-```text
-src/
-  components/     재사용 React UI와 캐릭터 미리보기
-  pages/          사용자 흐름별 페이지
-  game/
-    scenes/       Phaser Scene과 월드 구성
-    entities/     캐릭터/NPC 등 게임 객체 팩토리
-    systems/      향후 충돌·대화·네트워크 시스템
-  data/           더미 사용자, 장소 JSON, 에셋 매니페스트
-  types/          공통 TypeScript 타입
-  hooks/          localStorage 등 React 훅
-  stores/         프로필 기본값과 저장 키
-  assets/         추후 실제 이미지/오디오 에셋
+```env
+OPENAI_API_KEY=
+KAKAO_REST_API_KEY=
+AI_PROVIDER=mock
+PLACE_PROVIDER=mock
 ```
 
-## 향후 구현 기능
+- Mock 시연: `AI_PROVIDER=mock`, `PLACE_PROVIDER=mock`
+- 실제 연동: `AI_PROVIDER=openai`, `PLACE_PROVIDER=kakao`로 변경하고 각 키 입력
+- OpenAI 키: [OpenAI API Keys](https://platform.openai.com/api-keys)
+- Kakao REST API 키: [Kakao Developers](https://developers.kakao.com/)에서 앱 생성 후 **앱 키 > REST API 키** 확인
 
-- 실제 타일맵과 조치원 건축물/캐릭터 스프라이트 교체
-- 캐릭터 애니메이션, 미니맵, 모바일 조이스틱, 접근성 개선
-- 친구·그룹·대화 신청, 신고/차단, 운영자 도구
-- 장소 상세 정보와 길찾기, 실제 운영시간 및 이벤트 연동
+OpenAI와 Kakao 중 하나만 실제 공급자로 설정하는 혼합 모드도 가능합니다. 키가 비어 있거나 외부 API가 실패하면 자동으로 규칙 기반 분석과 `server/src/data/mockPlaces.json`을 사용합니다.
 
-## AI 모델 설계
+## 추천 및 개인정보 보호
 
-충녕이는 이후 장소 데이터와 지역 행사 문서를 검색하는 RAG 구조로 확장합니다. 클라이언트가 관심사·현재 구역·그룹 여부를 서버에 보내면, 서버가 허용된 장소 후보를 필터링하고 모델은 추천 이유만 생성하게 합니다. 구조화 JSON 출력, 출처 표시, 개인정보 제거, 유해 입력 필터와 응답 캐시를 적용하며 AI 키는 절대 브라우저에 두지 않습니다.
+사용자가 **충녕이에게 장소 추천받기**를 누르고 동의한 경우에만 최근 메시지 최대 20개가 서버로 전송됩니다. 이메일, 카카오 ID 등 불필요한 개인정보는 보내지 않습니다. 서버 로그에는 전체 채팅 원문이나 API 키를 기록하지 않습니다.
 
-## 소셜 로그인 계획
+매칭은 관심사 Jaccard 60%, 이용 목적 Jaccard 25%, MBTI 참고 15%로 계산합니다. 장소는 카테고리 35%, 공통 관심사 25%, 검색어 관련성 20%, 거리 10%, 그룹 적합성 10%로 계산해 상위 3개만 보여줍니다. OpenAI는 장소를 만들지 않고 Kakao/Mock에서 선정된 장소에 대한 문장만 작성합니다.
 
-백엔드에서 Kakao OAuth Authorization Code 흐름과 PKCE를 처리합니다. 콜백에서 내부 사용자 계정과 연결하고 HttpOnly/Secure/SameSite 쿠키 기반 세션을 발급합니다. 프로필 최소 수집, 동의 철회, 계정 탈퇴와 토큰 폐기 흐름을 함께 구현합니다. 현재 카카오 버튼은 UI 체험용 Mock입니다.
+## API
 
-## 실시간 멀티플레이 계획
+- `POST /api/matching/score`
+- `POST /api/ai/analyze-conversation`
+- `POST /api/places/search`
+- `POST /api/recommendations/generate`
+- `POST /api/recommendations/from-chat`
 
-권위 있는 서버(authoritative server)와 WebSocket 기반 룸을 구역별로 운영합니다. 클라이언트는 입력을 보내고 서버는 위치·충돌을 검증해 스냅샷을 전파합니다. 원격 플레이어는 보간하고 로컬 플레이어는 예측/보정합니다. 채팅 rate limit, 접속 복구, 관심 영역(AOI), Redis 룸 상태와 영속 DB를 단계적으로 도입합니다.
+## 검증
+
+```bash
+npm run build
+```
+
+Mock UI 확인은 `npm run dev` 후 프로필에서 관심사·이용 목적·선호 장소를 선택하고, 게임 화면의 충녕이 버튼에서 동의 → 로딩 → 추천 카드 → 투표/다른 장소 추천 흐름을 확인합니다.

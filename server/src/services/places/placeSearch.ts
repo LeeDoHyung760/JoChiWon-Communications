@@ -1,0 +1,10 @@
+import mockPlaces from '../../data/mockPlaces.json' with { type: 'json' };
+import type { PlaceCandidate } from '../../types/recommendation.js';
+
+function normalize(document: Record<string,unknown>): PlaceCandidate { return {id:String(document.id??''),placeName:String(document.place_name??document.placeName??''),categoryName:String(document.category_name??document.categoryName??''),addressName:String(document.address_name??document.addressName??''),roadAddressName:String(document.road_address_name??document.roadAddressName??''),phone:String(document.phone??''),placeUrl:String(document.place_url??document.placeUrl??''),x:String(document.x??''),y:String(document.y??''),distance:String(document.distance??''),tags:Array.isArray(document.tags)?document.tags as string[]:undefined,groupFriendly:document.groupFriendly===true}; }
+export function getMockPlaces(): PlaceCandidate[]{return (mockPlaces as Array<Record<string,unknown>>).map(normalize);}
+const local=(place:PlaceCandidate)=>`${place.addressName} ${place.roadAddressName} ${place.placeName}`.includes('조치원')||`${place.addressName} ${place.roadAddressName}`.includes('세종특별자치시');
+export async function searchPlaces(keywords:string[]):Promise<PlaceCandidate[]>{
+  if(process.env.PLACE_PROVIDER!=='kakao'||!process.env.KAKAO_REST_API_KEY)return getMockPlaces();
+  try{const results=await Promise.all(keywords.slice(0,5).map(async keyword=>{const url=new URL('https://dapi.kakao.com/v2/local/search/keyword.json');url.searchParams.set('query',keyword);url.searchParams.set('size','15');const response=await fetch(url,{headers:{Authorization:`KakaoAK ${process.env.KAKAO_REST_API_KEY}`}});if(!response.ok)throw new Error(`Kakao request failed (${response.status})`);const data=await response.json() as {documents?:Array<Record<string,unknown>>};return (data.documents??[]).map(normalize)}));const unique=[...new Map(results.flat().filter(local).map(place=>[place.id,place])).values()];return unique.length?unique:getMockPlaces()}catch(error){console.warn('Place search fallback:',error instanceof Error?error.message:'unknown error');return getMockPlaces()}
+}
