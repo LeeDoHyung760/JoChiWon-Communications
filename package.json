@@ -12,11 +12,14 @@
     "verify:direct-recommendation": "npm --prefix server run verify:direct-recommendation",
     "verify:meeting-place": "npm --prefix server run verify:meeting-place",
     "verify:place-intents": "npm --prefix server run verify:place-intents",
+    "inspect:character": "node scripts/inspectCharacter.mjs",
+    "test:character": "node scripts/testCharacterMotion.mjs",
     "build": "tsc -b && vite build && tsc -p server/tsconfig.json",
     "start:server": "node server/dist/server/src/index.js",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/model-viewer": "^4.3.1",
     "@vitejs/plugin-react": "latest",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
@@ -28,6 +31,7 @@
     "react-dom": "latest",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
+    "three": "^0.183.2",
     "typescript": "latest",
     "vite": "latest",
     "zod": "^4.4.3"
@@ -38,6 +42,7 @@
     "@types/node": "^24.0.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@types/three": "^0.185.1",
     "concurrently": "^9.2.0",
     "tsx": "^4.20.0"
   }

@@ -10,6 +10,7 @@ export class RoomStore {
  addDirectMessage(message:DirectMessage){const messages=this.directMessages.get(message.directRoomId)??[];messages.push(message);this.directMessages.set(message.directRoomId,messages.slice(-200));return message}
  recentUserMessages(roomId:string,limit=20){return (this.directMessages.get(roomId)??[]).filter(message=>message.type==='user'&&!message.deleted&&message.message.trim()).sort((a,b)=>a.createdAt-b.createdAt).slice(-limit)}
  saveRecommendation(roomId:string,places:DirectRecommendationPlace[]){const recommendationId=crypto.randomUUID();this.recommendationCache.set(recommendationId,{roomId,places,expiresAt:Date.now()+30*60_000});return recommendationId}
+ recentRecommendedPlaceIds(roomId:string){const now=Date.now(),ids=new Set<string>();for(const [key,cached] of this.recommendationCache){if(cached.expiresAt<=now){this.recommendationCache.delete(key);continue}if(cached.roomId===roomId)for(const place of cached.places)ids.add(place.id)}return ids}
  getRecommendedPlace(recommendationId:string,roomId:string,placeId:string){const cached=this.recommendationCache.get(recommendationId);if(!cached||cached.roomId!==roomId||cached.expiresAt<=Date.now()){if(cached)this.recommendationCache.delete(recommendationId);return {category:'expired' as const}}const place=cached.places.find(item=>item.id===placeId);return place?{category:'ok' as const,place}:{category:'invalid' as const}}
 }
 export const roomStore=new RoomStore();

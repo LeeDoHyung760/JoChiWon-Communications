@@ -6,7 +6,7 @@ import type { ConversationAnalysis, ConversationMessage, PlaceCandidate, Recomme
 import { ExternalProviderError, type ConversationAnalysisProvider, type ExternalErrorKind } from '../types.js';
 
 const analysisSchema = z.object({
-  activity:z.enum(['movie','cafe','food','walk','other']),
+  activity:z.enum(['movie','boardgame','cafe','food','walk','leisure','other']),
   sharedInterests: z.array(z.string()).max(10), preferredMood: z.array(z.string()).max(5),
   placeCategories: z.array(z.string()).min(1).max(5), meetingIntent: z.string().min(1).max(200),
   rejectedCategories:z.array(z.string()).max(5),searchKeywords: z.array(z.string()).min(1).max(5), summary: z.string().min(1).max(300),
@@ -35,7 +35,7 @@ export class OpenAIConversationAnalysisProvider implements ConversationAnalysisP
     const safeMessages = messages.slice(-env.MAX_ANALYSIS_MESSAGES).map(({ senderId,message }) => ({ role:senderId&&senderId===users[1]?.id?'participantB':'participantA', content:message.slice(0,500) }));
     try {
       const result = await this.client.chat.completions.parse({ model: env.OPENAI_MODEL, max_completion_tokens:1500, response_format: zodResponseFormat(analysisSchema, 'conversation_analysis'), messages: [
-        { role: 'system', content: '두 사용자의 대화에서 최종 합의된 활동을 추출하세요. activity는 movie,cafe,food,walk,other 중 하나입니다. 노노, 아니, ㄴㄴ, 싫어 같은 응답은 직전 제안을 rejectedCategories에 넣고, 응, ㅇㅇ, 좋아, 그래, 콜은 직전 제안을 최종 활동으로 확정합니다. 실제 상호명은 만들지 마세요. 업종은 검색어에서 반드시 유지하세요.' },
+        { role: 'system', content: '두 사용자의 대화에서 최종 합의된 활동을 추출하세요. activity는 movie,boardgame,cafe,food,walk,leisure,other 중 하나입니다. 보드게임 카페는 반드시 boardgame입니다. 음식점/카페/보드게임/영화/산책/여가처럼 구체적인 장소 활동이 없으면 반드시 other입니다. 사용자 프로필만으로 카페를 추측하지 마세요. 조용함, 차분함 같은 분위기 표현은 preferredMood에 보존하세요. 실제 상호명은 만들지 마세요.' },
         { role: 'user', content: JSON.stringify({ roomId:mapId,zoneName:areaName,userRequest:userRequest?.slice(0,300),participants:safeUsers,recentMessages:safeMessages }) },
       ] });
       const parsed = result.choices[0]?.message.parsed;

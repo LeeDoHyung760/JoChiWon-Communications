@@ -1,81 +1,63 @@
 import '@google/model-viewer';
+import type { ModelViewerElement } from '@google/model-viewer';
 import Phaser from 'phaser';
 import { getPart } from '../../data/assetManifest';
 import chungnyeongIdleModel from '../../assets/characters/chungnyeong_idle.glb?url';
 import chungnyeongWalkModel from '../../assets/characters/chungnyeong_walk.glb?url';
 import chungnyeongRunModel from '../../assets/characters/chungnyeong_run.glb?url';
 import type { CharacterModel,CharacterParts } from '../../types';
-const hex=(c:string)=>Number(c.replace('#','0x'));
-const chungnyeongModelByState = {
-  idle: chungnyeongIdleModel,
-  walk: chungnyeongWalkModel,
-  run: chungnyeongRunModel,
-} as const;
-export interface AvatarContainer extends Phaser.GameObjects.Container { bodyLayer:Phaser.GameObjects.Container; limbs:{leftArm:Phaser.GameObjects.Rectangle;rightArm:Phaser.GameObjects.Rectangle;leftLeg:Phaser.GameObjects.Rectangle;rightLeg:Phaser.GameObjects.Rectangle} }
-export function createAvatar(scene:Phaser.Scene,x:number,y:number,parts:CharacterParts,name:string,scale=1,model:CharacterModel='custom'){
- const root=scene.add.container(x,y) as AvatarContainer;const bodyLayer=scene.add.container(0,0);const skin=hex(getPart('face',parts.face).color),top=hex(getPart('top',parts.top).color),bottom=hex(getPart('bottom',parts.bottom).color);
- const isChungnyeong=model==='chungnyeong',legColor=isChungnyeong?0x3c3028:bottom,bodyColor=isChungnyeong?0xb52d2b:top;
- const shadow=scene.add.ellipse(0,10,isChungnyeong?46:38,14,0x192d2a,.22),leftLeg=scene.add.rectangle(-8,0,10,25,legColor).setOrigin(.5,0),rightLeg=scene.add.rectangle(8,0,10,25,legColor).setOrigin(.5,0),body=scene.add.rectangle(0,-22,isChungnyeong?38:28,isChungnyeong?34:28,bodyColor).setStrokeStyle(2,isChungnyeong?0x6e1818:0xffffff,.35),leftArm=scene.add.rectangle(isChungnyeong?-25:-20,-22,isChungnyeong?11:8,31,isChungnyeong?bodyColor:skin).setOrigin(.5,0),rightArm=scene.add.rectangle(isChungnyeong?25:20,-22,isChungnyeong?11:8,31,isChungnyeong?bodyColor:skin).setOrigin(.5,0),face=scene.add.circle(0,isChungnyeong?-50:-43,isChungnyeong?15:13,skin),hair=scene.add.arc(0,isChungnyeong?-55:-47,isChungnyeong?16:14,190,350,false,isChungnyeong?0x593421:hex(getPart('hair',parts.hair).color)),eyes=scene.add.text(0,isChungnyeong?-50:-44,isChungnyeong?'• ᴗ •':'• •',{fontSize:isChungnyeong?'8px':'8px',color:'#263238'}).setOrigin(.5),label=scene.add.text(0,isChungnyeong?-88:-72,name,{fontFamily:'Arial, sans-serif',fontSize:'12px',color:'#173b36',backgroundColor:'#ffffffdd',padding:{x:6,y:3}}).setOrigin(.5);
- const extras:Phaser.GameObjects.GameObject[]=[];let domAvatar:Phaser.GameObjects.DOMElement|undefined;let modelEl:HTMLElement|undefined;
- if(isChungnyeong){
-   extras.push(scene.add.rectangle(0,-37,30,5,0x5a3522),scene.add.circle(0,-69,8,0x5a3522),scene.add.rectangle(0,-76,8,10,0x5a3522),scene.add.circle(-17,-29,6,0xb48b2b).setStrokeStyle(2,0x6d4d0f),scene.add.circle(17,-29,6,0xb48b2b).setStrokeStyle(2,0x6d4d0f));
-   modelEl=document.createElement('model-viewer');
-   modelEl.src=chungnyeongModelByState.idle;
-   modelEl.alt='충녕이 3D 캐릭터';
-   modelEl.setAttribute('camera-controls','');
-   modelEl.setAttribute('disable-zoom','');
-   modelEl.setAttribute('interaction-prompt','none');
-   modelEl.setAttribute('shadow-intensity','1');
-   modelEl.setAttribute('environment-image','neutral');
-   modelEl.setAttribute('camera-orbit','25deg 78deg auto');
-   modelEl.setAttribute('animation-name','NlaTrack');
-   modelEl.setAttribute('animation-loop','true');
-   modelEl.setAttribute('animation-crossfade-duration','150');
-   modelEl.className='phaser-chungnyeong-model';
-   modelEl.style.width='128px';
-   modelEl.style.height='160px';
-   modelEl.style.pointerEvents='none';
-   modelEl.addEventListener('load',()=>{
-     const viewer=(modelEl as any);
-     console.log('[Chungnyeong model loaded] availableAnimations', viewer.availableAnimations);
-     if(viewer.availableAnimations?.length){
-       viewer.animationName='NlaTrack';
-     }
-   });
-   domAvatar=scene.add.dom(0,-45,modelEl).setOrigin(0.5,0.5).setDepth(1000);
- }
- if(isChungnyeong){root.add([shadow,domAvatar!,label]);}else{bodyLayer.add([leftLeg,rightLeg,leftArm,rightArm,body,...extras,face,hair,eyes]);root.add([shadow,bodyLayer,label]);}
- root.bodyLayer=bodyLayer;root.limbs={leftArm,rightArm,leftLeg,rightLeg};root.setData('isChungnyeong',isChungnyeong);root.setData('modelViewer',modelEl);root.setData('animationState','idle');root.setData('currentDirection','down');root.setData('isMoving',false);root.setData('moveStartTime',0);root.setScale(scale).setSize(isChungnyeong?80:42,isChungnyeong?120:78).setInteractive();return root;
+import type { MotionState } from '../../../shared/socket-events';
+import { characterDebugEnabled,characterSettings } from '../character/characterSettings';
+import { smoothAngle,yawDegrees } from '../character/characterMotion';
+
+const hex=(color:string)=>Number(color.replace('#','0x'));
+const modelByState:Record<MotionState,string>={idle:chungnyeongIdleModel,walk:chungnyeongWalkModel,run:chungnyeongRunModel};
+export const CHARACTER_ANIMATION_CLIP='NlaTrack';
+export const CHARACTER_MODEL_FILES={idle:'chungnyeong_idle.glb',walk:'chungnyeong_walk.glb',run:'chungnyeong_run.glb'} as const;
+let lastDebugPublished=0;
+
+export interface AvatarMotionUpdate{targetYaw:number;movementX:number;movementY:number;motionState:MotionState}
+export interface AvatarContainer extends Phaser.GameObjects.Container{
+  bodyLayer:Phaser.GameObjects.Container;
+  limbs:{leftArm:Phaser.GameObjects.Rectangle;rightArm:Phaser.GameObjects.Rectangle;leftLeg:Phaser.GameObjects.Rectangle;rightLeg:Phaser.GameObjects.Rectangle};
+  modelElement?:ModelViewerElement;modelVisual?:Phaser.GameObjects.DOMElement;debugGraphics?:Phaser.GameObjects.Graphics;
 }
-export function animateAvatar(avatar:AvatarContainer,isMoving:boolean,time:number,direction:DirectionLike='down'){
+
+export function createAvatar(scene:Phaser.Scene,x:number,y:number,parts:CharacterParts,name:string,scale=1,model:CharacterModel='chungnyeong'){
+  const root=scene.add.container(x,y) as AvatarContainer,bodyLayer=scene.add.container(0,0);
+  const skin=hex(getPart('face',parts.face).color),top=hex(getPart('top',parts.top).color),bottom=hex(getPart('bottom',parts.bottom).color),is3d=model==='chungnyeong';
+  const legColor=is3d?0x3c3028:bottom,bodyColor=is3d?0xb52d2b:top;
+  const shadow=scene.add.ellipse(0,10,is3d?46:38,14,0x192d2a,.22),leftLeg=scene.add.rectangle(-8,0,10,25,legColor).setOrigin(.5,0),rightLeg=scene.add.rectangle(8,0,10,25,legColor).setOrigin(.5,0),body=scene.add.rectangle(0,-22,is3d?38:28,is3d?34:28,bodyColor).setStrokeStyle(2,is3d?0x6e1818:0xffffff,.35),leftArm=scene.add.rectangle(is3d?-25:-20,-22,is3d?11:8,31,is3d?bodyColor:skin).setOrigin(.5,0),rightArm=scene.add.rectangle(is3d?25:20,-22,is3d?11:8,31,is3d?bodyColor:skin).setOrigin(.5,0),face=scene.add.circle(0,is3d?-50:-43,is3d?15:13,skin),hair=scene.add.arc(0,is3d?-55:-47,is3d?16:14,190,350,false,is3d?0x593421:hex(getPart('hair',parts.hair).color)),eyes=scene.add.text(0,is3d?-50:-44,is3d?'• ᴗ •':'• •',{fontSize:'8px',color:'#263238'}).setOrigin(.5),label=scene.add.text(0,is3d?-88:-72,name,{fontFamily:'Arial, sans-serif',fontSize:'12px',color:'#173b36',backgroundColor:'#ffffffdd',padding:{x:6,y:3}}).setOrigin(.5);
+  if(is3d){
+    const element=document.createElement('model-viewer') as ModelViewerElement;element.src=modelByState.idle;element.alt='충녕이 3D 캐릭터';element.className='phaser-chungnyeong-model';
+    element.setAttribute('interaction-prompt','none');element.setAttribute('shadow-intensity','1');element.setAttribute('environment-image','neutral');element.setAttribute('camera-orbit','0deg 78deg auto');element.setAttribute('animation-name',CHARACTER_ANIMATION_CLIP);element.setAttribute('autoplay','');
+    Object.assign(element.style,{width:'128px',height:'160px',pointerEvents:'none',background:'transparent'});
+    element.addEventListener('load',()=>{const clips=element.availableAnimations;console.log('[Character] GLB loaded',{src:element.src,availableAnimations:clips});if(!clips.includes(CHARACTER_ANIMATION_CLIP))console.error(`[Character] ${CHARACTER_ANIMATION_CLIP} animation not found. Available animations: ${clips.join(', ')}`);else{element.animationName=CHARACTER_ANIMATION_CLIP;element.play({repetitions:Infinity,pingpong:false})}});
+    element.addEventListener('error',event=>console.error('[Character] GLB load error',{src:element.src,event}));
+    root.modelElement=element;root.modelVisual=scene.add.dom(0,characterSettings.visualOffsetY,element).setOrigin(.5).setDepth(1000);root.add([shadow,root.modelVisual,label]);
+    if(characterDebugEnabled){root.debugGraphics=scene.add.graphics().setDepth(2000);root.add(root.debugGraphics)}
+  }else{bodyLayer.add([leftLeg,rightLeg,leftArm,rightArm,body,face,hair,eyes]);root.add([shadow,bodyLayer,label])}
+  root.bodyLayer=bodyLayer;root.limbs={leftArm,rightArm,leftLeg,rightLeg};root.setData('isChungnyeong',is3d);root.setData('motionState','idle');root.setData('visualYaw',0);root.setData('targetYaw',0);root.setScale(scale).setSize(is3d?80:42,is3d?120:78).setInteractive();return root;
+}
+
+export function animateAvatar(avatar:AvatarContainer,update:AvatarMotionUpdate,deltaSeconds:number){
+  const {targetYaw,movementX,movementY,motionState}=update;
   if(avatar.getData('isChungnyeong')){
-    const prevMoving=avatar.getData('isMoving') as boolean;
-    const prevDirection=avatar.getData('currentDirection') as DirectionLike;
-    const prevState=avatar.getData('animationState') as string;
-    if(isMoving && !prevMoving){avatar.setData('moveStartTime',time)}
-    avatar.setData('isMoving',isMoving);
-    avatar.setData('currentDirection',direction);
-    const start=avatar.getData('moveStartTime') as number;
-    const elapsed=isMoving?Math.max(0,time-start):0;
-    const nextState=isMoving?elapsed>=1500?'run':'walk':'idle';
-    if(nextState!==prevState||direction!==prevDirection){
-      avatar.setData('animationState',nextState);
-      const modelEl=avatar.getData('modelViewer') as HTMLElement|undefined;
-      if(modelEl?.tagName==='MODEL-VIEWER'){
-        const nextModelSrc=chungnyeongModelByState[nextState];
-        if(modelEl.getAttribute('src')!==nextModelSrc){
-          modelEl.setAttribute('src',nextModelSrc);
-        }
-        modelEl.setAttribute('animation-name','NlaTrack');
-        modelEl.setAttribute('animation-loop','true');
-        modelEl.setAttribute('animation-crossfade-duration','150');
-        const orbit=direction==='down'?'25deg 78deg auto':direction==='left'?'-90deg 78deg auto':direction==='right'?'90deg 78deg auto':'180deg 78deg auto';
-        modelEl.setAttribute('camera-orbit',orbit);
-      }
+    const currentYaw=smoothAngle(avatar.getData('visualYaw')??targetYaw,targetYaw,characterSettings.rotationSpeed,deltaSeconds);
+    avatar.setData('visualYaw',currentYaw);avatar.setData('targetYaw',targetYaw);
+    const element=avatar.modelElement,previous=avatar.getData('motionState') as MotionState;
+    if(element){
+      element.cameraOrbit=`${yawDegrees(-currentYaw+characterSettings.modelForwardOffset)}deg 78deg auto`;
+      element.timeScale=motionState==='walk'?characterSettings.walkAnimationTimeScale:motionState==='run'?characterSettings.runAnimationTimeScale:1;
+      if(previous!==motionState){element.src=modelByState[motionState];avatar.setData('motionState',motionState)}
     }
-    avatar.bodyLayer.setScale(direction==='left'?-1:1,1);
+    avatar.modelVisual?.setPosition(0,characterSettings.visualOffsetY).setScale(characterSettings.visualScale);
+    if(avatar.debugGraphics){
+      const graphics=avatar.debugGraphics.clear(),draw=(yaw:number,color:number,length:number)=>{const x=Math.sin(yaw)*length,y=Math.cos(yaw)*length;graphics.lineStyle(3,color,1).lineBetween(0,0,x,y).fillStyle(color,1).fillTriangle(x,y,x+Math.sin(yaw+2.5)*9,y+Math.cos(yaw+2.5)*9,x+Math.sin(yaw-2.5)*9,y+Math.cos(yaw-2.5)*9)};
+      draw(currentYaw,0xff4d4d,58);if(movementX||movementY)draw(Math.atan2(movementX,movementY),0x35a7ff,45);
+    }
+    if(characterDebugEnabled&&!avatar.getData('network-user')&&performance.now()-lastDebugPublished>100){lastDebugPublished=performance.now();window.dispatchEvent(new CustomEvent('character-debug-frame',{detail:{file:CHARACTER_MODEL_FILES[motionState],position:{x:avatar.x,y:avatar.y},yaw:currentYaw,targetYaw,motionState,clip:CHARACTER_ANIMATION_CLIP,movement:{x:movementX,y:movementY},speed:motionState==='run'?characterSettings.runSpeed:motionState==='walk'?characterSettings.walkSpeed:0,deltaTime:deltaSeconds,availableClips:[CHARACTER_ANIMATION_CLIP],rootMotionDetected:false}}))}
     return;
   }
-  const swing=isMoving?Math.sin(time*.015)*24:0;avatar.limbs.leftArm.setAngle(swing);avatar.limbs.rightArm.setAngle(-swing);avatar.limbs.leftLeg.setAngle(-swing*.55);avatar.limbs.rightLeg.setAngle(swing*.55);avatar.bodyLayer.setScale(direction==='left'?-1:1,1)
+  const swing=motionState==='idle'?0:Math.sin(performance.now()*.015)*24;avatar.limbs.leftArm.setAngle(swing);avatar.limbs.rightArm.setAngle(-swing);avatar.limbs.leftLeg.setAngle(-swing*.55);avatar.limbs.rightLeg.setAngle(swing*.55);avatar.bodyLayer.setScale(movementX<0?-1:1,1);
 }
-type DirectionLike='up'|'down'|'left'|'right';

@@ -1,10 +1,11 @@
 export type MapId = 'town' | 'jochwon-station' | 'traditional-market' | 'jochwon-park' | 'college-street';
 export type Direction = 'up' | 'down' | 'left' | 'right';
+export type MotionState = 'idle' | 'walk' | 'run';
 export interface Appearance { hair:string; face:string; top:string; bottom:string }
 export interface PublicMatchProfile { mbti:string; interests:string[]; usagePurposes:string[]; preferredPlaceCategories:string[] }
-export interface PlayerState { id:string; mapId:MapId; x:number; y:number; direction:Direction; isMoving:boolean; nickname:string; appearance:Appearance; matchProfile?:PublicMatchProfile }
+export interface PlayerState { id:string; mapId:MapId; x:number; y:number; direction:Direction; isMoving:boolean; yaw:number; motionState:MotionState; timestamp:number; nickname:string; appearance:Appearance; matchProfile?:PublicMatchProfile }
 export interface JoinMapPayload { mapId:MapId; nickname:string; appearance:Appearance; x:number; y:number; matchProfile?:PublicMatchProfile }
-export interface MovementPayload { mapId:MapId; x:number; y:number; direction:Direction; isMoving:boolean }
+export interface MovementPayload { mapId:MapId; x:number; y:number; direction:Direction; isMoving:boolean; yaw:number; motionState:MotionState; timestamp:number }
 export interface ChatMessage { id:string; mapId:MapId; senderId:string; nickname:string; message:string; createdAt:number; channel:'nearby'|'group' }
 export interface DirectRequest { requestId:string; from:Pick<PlayerState,'id'|'nickname'|'appearance'>; toId:string }
 export interface DirectRoomMeetingPlace {roomId:string;placeId:string;placeName:string;category:string;address:string;roadAddress?:string;externalUrl?:string;selectedByUserId:string;selectedByNickname:string;selectedAt:string;status:'proposed'|'confirmed'|'cancelled'}

@@ -11,11 +11,8 @@ export function ruleBasedAnalysis(users: RecommendationUser[], messages: Convers
   const interests = users.map((user) => normalizeValues(user.interests));
   const sharedInterests = interests.length > 1 ? interests[0].filter((value) => interests.slice(1).every((list) => list.includes(value))) : (interests[0] ?? []);
   const placeCategories = Object.entries(categoryTerms).map(([category, terms]) => ({ category, score: terms.reduce((sum, term) => sum + Number(text.includes(term)), 0) + Number(sharedInterests.some((value) => terms.some((term) => value.includes(term)))) * 2 })).filter(({ score }) => score > 0).sort((a, b) => b.score - a.score).slice(0, 2).map(({ category }) => category);
-  if (!placeCategories.length) placeCategories.push(...normalizeValues(users.flatMap((user) => user.preferredPlaceCategories)).slice(0, 2));
-  if (!placeCategories.length) placeCategories.push('카페');
   const preferredMood = Object.entries(moodTerms).filter(([, terms]) => terms.some((term) => text.includes(term))).map(([mood]) => mood).slice(0, 2);
-  if (!preferredMood.length) preferredMood.push('대화하기 좋은');
-  const meetingIntent = normalizeValues(users.flatMap((user) => user.usagePurposes ?? user.meetingPurposes ?? []))[0] ?? '가볍게 대화하기';
+  const meetingIntent = normalizeValues(users.flatMap((user) => user.usagePurposes ?? user.meetingPurposes ?? []))[0] ?? '';
   return resolveConversationIntent({ sharedInterests, preferredMood, placeCategories, meetingIntent, searchKeywords: placeCategories.slice(0,3).map((category) => `${areaName} ${category}`), summary: `${preferredMood.join(', ')} 분위기에서 ${meetingIntent}에 어울리는 장소를 찾습니다.`,activity:'other',rejectedCategories:[] },messages,areaName);
 }
 
