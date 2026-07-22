@@ -9,7 +9,7 @@ const once = <T>(socket: Client, event: keyof ServerToClientEvents) => new Promi
 });
 const connect = (nickname: string) => new Promise<Client>((resolve, reject) => {
   const socket: Client = io(base, { transports: ['websocket'] });
-  socket.once('connect', () => { socket.emit('joinMap', { mapId: 'jochwon-station', nickname, appearance: { hair: 'short', face: 'smile', top: 'green', bottom: 'navy' }, x: 100, y: 100 }); resolve(socket); });
+  socket.once('connect', () => { socket.emit('joinMap', { mapId: 'jochwon-station', nickname, appearance: { hair: 'short', face: 'smile', top: 'green', bottom: 'navy' }, model:'chungnyeong', x: 100, y: 100 }); resolve(socket); });
   socket.once('connect_error', reject);
 });
 const meetingRequest = (method: 'PUT' | 'DELETE', roomId: string, socketId: string, body?: object) => fetch(`${base}/api/direct-rooms/${encodeURIComponent(roomId)}/meeting-place`, { method, headers: { 'Content-Type': 'application/json', 'X-Socket-Id': socketId }, ...(body ? { body: JSON.stringify(body) } : {}) });
