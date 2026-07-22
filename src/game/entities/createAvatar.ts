@@ -5,8 +5,8 @@ import { getPart } from '../../data/assetManifest';
 import chungnyeongIdleModel from '../../assets/characters/chungnyeong_idle.glb?url';
 import chungnyeongWalkModel from '../../assets/characters/chungnyeong_walk.glb?url';
 import chungnyeongRunModel from '../../assets/characters/chungnyeong_run.glb?url';
-import girl1Model from '../../assets/characters/girl1.glb?url';
-import boy1Model from '../../assets/characters/boy1.glb?url';
+import girl1Model from '../../assets/characters/girl1_3종.glb?url';
+import boy1Model from '../../assets/characters/boy1_3종.glb?url';
 import type { CharacterModel,CharacterParts } from '../../types';
 import type { MotionState } from '../../../shared/socket-events';
 import { characterDebugEnabled,characterSettings } from '../character/characterSettings';
@@ -19,8 +19,19 @@ const modelByState:{[K in Exclude<CharacterModel,'custom'>]:Record<MotionState,s
   boy1:{idle:boy1Model,walk:boy1Model,run:boy1Model}
 };
 export const CHARACTER_ANIMATION_CLIP='NlaTrack';
+const animationClipByState:{[K in Exclude<CharacterModel,'custom'>]:Record<MotionState,string>}={
+  chungnyeong:{idle:'NlaTrack',walk:'NlaTrack',run:'NlaTrack'},
+  girl1:{idle:'NlaTrack.001',walk:'NlaTrack',run:'NlaTrack.002'},
+  boy1:{idle:'NlaTrack.001',walk:'NlaTrack.002',run:'NlaTrack'}
+};
 export const CHARACTER_MODEL_FILES={idle:'chungnyeong_idle.glb',walk:'chungnyeong_walk.glb',run:'chungnyeong_run.glb'} as const;
 let lastDebugPublished=0;
+
+function playModelAnimation(element:ModelViewerElement,model:Exclude<CharacterModel,'custom'>,motionState:MotionState){
+  const clip=animationClipByState[model][motionState],clips=element.availableAnimations;
+  if(clips.length&&!clips.includes(clip)){console.error(`[Character] ${clip} animation not found. Available animations: ${clips.join(', ')}`);return}
+  element.animationName=clip;element.currentTime=0;element.play({repetitions:Infinity,pingpong:false});
+}
 
 export interface AvatarMotionUpdate{targetYaw:number;movementX:number;movementY:number;motionState:MotionState}
 export interface AvatarContainer extends Phaser.GameObjects.Container{
@@ -40,12 +51,12 @@ export function createAvatar(scene:Phaser.Scene,x:number,y:number,parts:Characte
     element.src=modelState.idle;
     element.alt=`${model} 3D 캐릭터`;
     element.className='phaser-character-model';
-    element.setAttribute('interaction-prompt','none');element.setAttribute('shadow-intensity','1');element.setAttribute('environment-image','neutral');element.setAttribute('camera-orbit','0deg 78deg auto');element.setAttribute('animation-name',CHARACTER_ANIMATION_CLIP);element.setAttribute('autoplay','');
+    element.setAttribute('interaction-prompt','none');element.setAttribute('shadow-intensity','1');element.setAttribute('environment-image','neutral');element.setAttribute('camera-orbit','0deg 78deg auto');element.setAttribute('animation-name',animationClipByState[model as Exclude<CharacterModel,'custom'>].idle);element.setAttribute('autoplay','');
     Object.assign(element.style,{width:'128px',height:'160px',pointerEvents:'none',background:'transparent'});
-    element.addEventListener('load',()=>{const clips=element.availableAnimations;console.log('[Character] GLB loaded',{src:element.src,availableAnimations:clips});if(!clips.includes(CHARACTER_ANIMATION_CLIP))console.error(`[Character] ${CHARACTER_ANIMATION_CLIP} animation not found. Available animations: ${clips.join(', ')}`);else{element.animationName=CHARACTER_ANIMATION_CLIP;element.play({repetitions:Infinity,pingpong:false})}});
+    element.addEventListener('load',()=>{const motionState=(root.getData('motionState')??'idle') as MotionState;console.log('[Character] GLB loaded',{src:element.src,availableAnimations:element.availableAnimations});playModelAnimation(element,model as Exclude<CharacterModel,'custom'>,motionState)});
     element.addEventListener('error',event=>console.error('[Character] GLB load error',{src:element.src,event}));
     root.modelElement=element;root.modelVisual=scene.add.dom(0,characterSettings.visualOffsetY,element).setOrigin(.5).setDepth(1000);root.add([shadow,root.modelVisual,label]);
-    root.setData('characterModel',model);
+    root.setData('characterModel',model);root.setData('modelSource',modelState.idle);
     if(characterDebugEnabled){root.debugGraphics=scene.add.graphics().setDepth(2000);root.add(root.debugGraphics)}
   }else{bodyLayer.add([leftLeg,rightLeg,leftArm,rightArm,body,face,hair,eyes]);root.add([shadow,bodyLayer,label])}
   root.bodyLayer=bodyLayer;root.limbs={leftArm,rightArm,leftLeg,rightLeg};root.setData('isChungnyeong',is3d);root.setData('motionState','idle');root.setData('visualYaw',0);root.setData('targetYaw',0);root.setScale(scale).setSize(is3d?80:42,is3d?120:78).setInteractive();return root;
@@ -56,20 +67,23 @@ export function animateAvatar(avatar:AvatarContainer,update:AvatarMotionUpdate,d
   if(avatar.getData('isChungnyeong')){
     const currentYaw=smoothAngle(avatar.getData('visualYaw')??targetYaw,targetYaw,characterSettings.rotationSpeed,deltaSeconds);
     avatar.setData('visualYaw',currentYaw);avatar.setData('targetYaw',targetYaw);
-    const element=avatar.modelElement,previous=avatar.getData('motionState') as MotionState;
+    const element=avatar.modelElement,previous=avatar.getData('motionState') as MotionState,model=avatar.getData('characterModel') as Exclude<CharacterModel,'custom'>;
     if(element){
-      const model=avatar.getData('characterModel') as Exclude<CharacterModel,'custom'>;
       const modelState=modelByState[model];
       element.cameraOrbit=`${yawDegrees(-currentYaw+characterSettings.modelForwardOffset)}deg 78deg auto`;
       element.timeScale=motionState==='walk'?characterSettings.walkAnimationTimeScale:motionState==='run'?characterSettings.runAnimationTimeScale:1;
-      if(previous!==motionState){element.src=modelState[motionState];avatar.setData('motionState',motionState)}
+      if(previous!==motionState){
+        const nextSource=modelState[motionState];avatar.setData('motionState',motionState);
+        if(avatar.getData('modelSource')!==nextSource){avatar.setData('modelSource',nextSource);element.src=nextSource}
+        else playModelAnimation(element,model,motionState);
+      }
     }
     avatar.modelVisual?.setPosition(0,characterSettings.visualOffsetY).setScale(characterSettings.visualScale);
     if(avatar.debugGraphics){
       const graphics=avatar.debugGraphics.clear(),draw=(yaw:number,color:number,length:number)=>{const x=Math.sin(yaw)*length,y=Math.cos(yaw)*length;graphics.lineStyle(3,color,1).lineBetween(0,0,x,y).fillStyle(color,1).fillTriangle(x,y,x+Math.sin(yaw+2.5)*9,y+Math.cos(yaw+2.5)*9,x+Math.sin(yaw-2.5)*9,y+Math.cos(yaw-2.5)*9)};
       draw(currentYaw,0xff4d4d,58);if(movementX||movementY)draw(Math.atan2(movementX,movementY),0x35a7ff,45);
     }
-    if(characterDebugEnabled&&!avatar.getData('network-user')&&performance.now()-lastDebugPublished>100){lastDebugPublished=performance.now();window.dispatchEvent(new CustomEvent('character-debug-frame',{detail:{file:CHARACTER_MODEL_FILES[motionState],position:{x:avatar.x,y:avatar.y},yaw:currentYaw,targetYaw,motionState,clip:CHARACTER_ANIMATION_CLIP,movement:{x:movementX,y:movementY},speed:motionState==='run'?characterSettings.runSpeed:motionState==='walk'?characterSettings.walkSpeed:0,deltaTime:deltaSeconds,availableClips:[CHARACTER_ANIMATION_CLIP],rootMotionDetected:false}}))}
+    if(characterDebugEnabled&&!avatar.getData('network-user')&&performance.now()-lastDebugPublished>100){lastDebugPublished=performance.now();window.dispatchEvent(new CustomEvent('character-debug-frame',{detail:{file:model==='girl1'?'girl1_3종.glb':model==='boy1'?'boy1_3종.glb':CHARACTER_MODEL_FILES[motionState],position:{x:avatar.x,y:avatar.y},yaw:currentYaw,targetYaw,motionState,clip:animationClipByState[model][motionState],movement:{x:movementX,y:movementY},speed:motionState==='run'?characterSettings.runSpeed:motionState==='walk'?characterSettings.walkSpeed:0,deltaTime:deltaSeconds,availableClips:element?.availableAnimations??[],rootMotionDetected:false}}))}
     return;
   }
   const swing=motionState==='idle'?0:Math.sin(performance.now()*.015)*24;avatar.limbs.leftArm.setAngle(swing);avatar.limbs.rightArm.setAngle(-swing);avatar.limbs.leftLeg.setAngle(-swing*.55);avatar.limbs.rightLeg.setAngle(swing*.55);avatar.bodyLayer.setScale(movementX<0?-1:1,1);

@@ -1,127 +1,69 @@
-export function LandingPage({onStart}:{onStart:()=>void}){
-  const featureCards=[
-    {title:'실제 위치 기반 입장', description:'세종 호수공원 중심으로 동네를 선택하고 현장 여부로 안전하게 입장합니다.'},
-    {title:'주변 사용자 채팅', description:'동네 이웃과 간편한 대화로 만남을 주선해 보세요.'},
-    {title:'캐릭터 커스터마이징', description:'나만의 아바타로 멀티버스에 들어가는 재미를 높입니다.'},
-    {title:'동아리 및 모임 생성', description:'관심사 기반 소모임을 만들어 오프라인 만남을 확장해요.'},
-  ];
+import { ArrowRight, Coffee, MapPin, Play, Sparkles, Trees, Users } from 'lucide-react';
+import stationImage from '../assets/maps/jochwon-station/building.svg';
+import marketImage from '../assets/maps/traditional-market/building.svg';
+import parkImage from '../assets/maps/jochwon-park/building.svg';
+import './LandingPage.css';
 
-  const flowSteps=[
-    {number:'01', title:'회원가입', detail:'간단한 정보 입력으로 바로 시작하세요.'},
-    {number:'02', title:'캐릭터 만들기', detail:'나만의 캐릭터를 꾸며서 입장 준비 완료.'},
-    {number:'03', title:'위치 인증', detail:'현장 인증은 위치 노출 없이 안전하게 처리됩니다.'},
-    {number:'04', title:'멀티버스 입장', detail:'동네 이웃과 만나고 대화를 이어가 보세요.'},
-  ];
+type LandingPageProps={onStart:()=>void};
 
-  return (
-    <main className="landing landing-shell">
-      <div className="landing-container">
-        <header className="landing-topbar">
-          <div className="landing-logo">
-            <span className="brand-mark">●</span>
-            <div>
-              <strong>여기 사람 있음</strong>
-              <span>세종 로컬 멀티버스</span>
+const places=[
+  {name:'조치원역',description:'새로운 이웃과 만나는 시작점',people:'18명',image:stationImage},
+  {name:'전통시장',description:'맛있는 이야기가 모이는 곳',people:'12명',image:marketImage},
+  {name:'호수공원',description:'함께 걷기 좋은 산책길',people:'26명',image:parkImage}
+];
+
+export function LandingPage({onStart}:LandingPageProps){
+  return <main className="welcome-page">
+    <section className="welcome-card">
+      <header className="welcome-header">
+        <a href="#welcome" className="welcome-brand" aria-label="여기 사람 있음 홈">
+          <span className="welcome-brand-face">🧑🏻‍🌾</span>
+          <span><strong>여기 사람 있음</strong><small>세종 로컬 멀티버스</small></span>
+        </a>
+        <nav className="welcome-nav" aria-label="주요 메뉴"><a href="#welcome">홈</a><a href="#places">동네</a><a href="#neighbors">이웃</a></nav>
+        <button type="button" className="welcome-login" onClick={onStart}>로그인</button>
+      </header>
+
+      <div className="welcome-hero" id="welcome">
+        <div className="welcome-copy">
+          <span className="welcome-kicker"><Sparkles size={17}/> 같이 걸어요, 조치원!</span>
+          <h1>오늘, 우리 동네에서<br/><em>함께할 사람을</em> 찾아요.</h1>
+          <p>산책, 커피, 취미처럼 가벼운 일상부터<br/>가까운 동네 이웃과 시작해보세요.</p>
+          <div className="welcome-actions">
+            <button type="button" className="welcome-primary" onClick={onStart}><Play size={20} fill="currentColor"/> 멀티버스 입장하기</button>
+            <button type="button" className="welcome-secondary" onClick={onStart}><span>🧑🏻‍🌾</span> 내 캐릭터 만들기</button>
+          </div>
+          <div className="welcome-stats" id="neighbors">
+            <span><Users size={17}/><b>42명</b><small>지금 접속 중</small></span>
+            <span><Coffee size={17}/><b>3개</b><small>진행 중인 모임</small></span>
+          </div>
+        </div>
+
+        <div className="welcome-preview" aria-label="조치원 멀티버스 미리보기">
+          <div className="welcome-preview-glow"/>
+          <span className="welcome-spark spark-one">✧</span><span className="welcome-spark spark-two">◇</span>
+          <div className="welcome-town-card">
+            <div className="welcome-town-sky"><span/><span/></div>
+            <div className="welcome-town-ground">
+              <img src={stationImage} alt="" className="welcome-building building-station"/>
+              <img src={marketImage} alt="" className="welcome-building building-market"/>
+              <span className="welcome-tree tree-one">🌳</span><span className="welcome-tree tree-two">🌲</span>
+              <span className="welcome-person person-one">👦🏻</span><span className="welcome-person person-two">👧🏻</span><span className="welcome-person person-three">🧑🏻</span>
             </div>
+            <div className="welcome-town-label"><MapPin size={15} fill="currentColor"/><span><strong>조치원 중심 마을</strong><small>지금 42명의 이웃이 함께해요</small></span></div>
           </div>
-          <div className="landing-actions-row">
-            <button className="ghost small" onClick={onStart}>로그인</button>
-            <button className="primary small" onClick={onStart}>멀티버스 입장</button>
-          </div>
-        </header>
-
-        <section className="landing-hero">
-          <div className="hero-copy">
-            <span className="eyebrow">세종 호수공원 기반 로컬 멀티버스</span>
-            <h1>오늘, 우리 동네에서<br/><em>함께할 사람을 찾아요.</em></h1>
-            <p>
-              멀리 가지 않아도 괜찮아요. 산책, 커피, 취미처럼 가벼운 일상부터
-              이웃과 시작해 보세요.
-            </p>
-            <div className="hero-cta">
-              <button className="primary large" onClick={onStart}>내 동네 입장하기 <span>→</span></button>
-              <button className="ghost large" onClick={onStart}>동네 둘러보기</button>
-            </div>
-            <div className="hero-meta">
-              <div>
-                <strong>42명</strong>
-                <span>현재 이웃이 만남을 기다리고 있어요</span>
-              </div>
-              <div>
-                <strong>현장 인증</strong>
-                <span>위치 비공개로 안전하게</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="hero-visual">
-            <div className="visual-bg-circle visual-bg-circle-1" />
-            <div className="visual-bg-circle visual-bg-circle-2" />
-            <div className="hero-card">
-              <div className="hero-card-top">
-                <small>지금 활동 중</small>
-                <span>42명이 이웃을 찾고 있어요</span>
-              </div>
-              <div className="hero-map">
-                <div className="hero-map-pin">여기</div>
-                <div className="hero-map-dot dot-coffee">☕</div>
-                <div className="hero-map-dot dot-photo">📸</div>
-                <div className="hero-map-dot dot-walk">🚶</div>
-              </div>
-              <div className="hero-card-footer">
-                <div>
-                  <strong>호수 한 바퀴</strong>
-                  <span>18:30 · 3명 참여</span>
-                </div>
-                <div>
-                  <strong>최근 접속</strong>
-                  <span>지금 바로 입장해 보세요</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="landing-section">
-          <div className="section-head">
-            <small>오늘의 세종</small>
-            <h2>가까운 동네부터 둘러보세요</h2>
-          </div>
-          <div className="feature-grid">
-            {featureCards.map((item)=> (
-              <article className="feature-card" key={item.title}>
-                <strong>{item.title}</strong>
-                <p>{item.description}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="landing-section">
-          <div className="section-head">
-            <small>이용 흐름</small>
-            <h2>간단한 4단계로 시작해요</h2>
-          </div>
-          <div className="process-grid">
-            {flowSteps.map((step)=> (
-              <article className="process-card" key={step.number}>
-                <div className="process-number">{step.number}</div>
-                <strong>{step.title}</strong>
-                <p>{step.detail}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="landing-cta-bottom">
-          <div>
-            <p className="cta-label">지금 바로 시작하기</p>
-            <h2>세종 로컬 멀티버스에<br/><em>바로 입장해 보세요.</em></h2>
-            <p>회원가입 → 캐릭터 생성 → 위치 인증 → 멀티버스 입장까지, 한 번에 경험할 수 있어요.</p>
-          </div>
-          <button className="primary xlarge" onClick={onStart}>서비스 시작하기</button>
-        </section>
+          <div className="welcome-chat chat-one">산책 같이 할래요? 🙂</div>
+          <div className="welcome-chat chat-two">카페 같이 가요! ☕</div>
+        </div>
       </div>
-    </main>
-  );
+
+      <section className="welcome-places" id="places">
+        <div className="welcome-section-title"><span><Trees size={20}/><strong>우리 동네 핫플레이스</strong></span><small>가까운 곳부터 둘러보세요</small></div>
+        <div className="welcome-place-grid">{places.map(place=><button type="button" className="welcome-place" key={place.name} onClick={onStart}>
+          <span className="welcome-place-image" style={{backgroundImage:`url(${place.image})`}}><i><Users size={12}/>{place.people}</i></span>
+          <span className="welcome-place-copy"><span><strong>{place.name}</strong><small>{place.description}</small></span><ArrowRight size={19}/></span>
+        </button>)}</div>
+      </section>
+    </section>
+  </main>;
 }
