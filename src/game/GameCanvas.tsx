@@ -1,2 +1,32 @@
-import { memo,useEffect,useRef,useState } from 'react';import Phaser from 'phaser';import { WorldScene } from './scenes/WorldScene';import { gameEvents } from './events';import { socket } from './systems/socketClient';import type { UserProfile } from '../types';import { CharacterDebugPanel } from '../components/CharacterDebugPanel';import { preloadCharacterAssets } from './preloadGameAssets';
-export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}){const ref=useRef<HTMLDivElement>(null),[loading,setLoading]=useState(true),[loadError,setLoadError]=useState('');useEffect(()=>{let cancelled=false,dispose:(()=>void)|undefined;void preloadCharacterAssets().then(()=>{if(cancelled||!ref.current)return;setLoading(false);const enrich=()=>socket.emit('joinMap',{mapId:'town',nickname:profile.nickname,appearance:profile.character,model:profile.model,matchProfile:{mbti:profile.mbti,interests:profile.interests,usagePurposes:profile.usagePurposes,preferredPlaceCategories:profile.preferredPlaceCategories},x:1200,y:1050});socket.once('currentMapUsers',enrich);const game=new Phaser.Game({type:Phaser.AUTO,parent:ref.current,width:1100,height:700,backgroundColor:'#dfece7',dom:{createContainer:true},physics:{default:'arcade'},scale:{mode:Phaser.Scale.RESIZE,autoCenter:Phaser.Scale.CENTER_BOTH}});if(game.domContainer)game.domContainer.style.zIndex='2';game.scene.add('world',WorldScene,true,{profile});dispose=()=>{socket.off('currentMapUsers',enrich);gameEvents.removeAllListeners('show-bubble');game.destroy(true)}}).catch(error=>{if(!cancelled)setLoadError(error instanceof Error?error.message:String(error))});return()=>{cancelled=true;dispose?.()}},[profile]);return <><div className="game-canvas" ref={ref}/>{loading&&<div className="game-loading"><i/><b>3D 캐릭터를 준비하고 있어요</b><small>{loadError||'첫 이동부터 걷기와 달리기가 자연스럽게 재생되도록 모델을 불러오는 중입니다.'}</small></div>}<CharacterDebugPanel/></>});
+import { memo,useEffect,useRef,useState } from 'react';
+import Phaser from 'phaser';
+import { WorldScene } from './scenes/WorldScene';
+import { gameEvents } from './events';
+import { socket } from './systems/socketClient';
+import type { UserProfile } from '../types';
+import { CharacterDebugPanel } from '../components/CharacterDebugPanel';
+import { LAKE_PARK_SPAWN,VillageMapRenderer } from './renderers/VillageMapRenderer';
+
+export const GameCanvas=memo(function GameCanvas({profile,fullAccess}:{profile:UserProfile;fullAccess:boolean}){
+  const ref=useRef<HTMLDivElement>(null),[loading,setLoading]=useState(true),[loadError,setLoadError]=useState('');
+  useEffect(()=>{
+    if(!ref.current)return;
+    let cancelled=false;
+    const villageRenderer=new VillageMapRenderer(ref.current,profile);
+    void villageRenderer.ready.then(()=>{if(!cancelled)setLoading(false)}).catch(error=>{if(!cancelled)setLoadError(error instanceof Error?error.message:String(error))});
+    const enrich=()=>socket.emit('joinMap',{mapId:'town',nickname:profile.nickname,appearance:profile.character,model:profile.model,matchProfile:{mbti:profile.mbti,interests:profile.interests,usagePurposes:profile.usagePurposes,preferredPlaceCategories:profile.preferredPlaceCategories},x:LAKE_PARK_SPAWN.x,y:LAKE_PARK_SPAWN.z});
+    socket.once('currentMapUsers',enrich);
+    const game=new Phaser.Game({type:Phaser.AUTO,parent:ref.current,width:1100,height:700,transparent:true,backgroundColor:'rgba(0,0,0,0)',dom:{createContainer:true},physics:{default:'arcade'},scale:{mode:Phaser.Scale.RESIZE,autoCenter:Phaser.Scale.CENTER_BOTH}});
+    game.canvas.classList.add('phaser-world-canvas');
+    if(game.domContainer)game.domContainer.style.zIndex='3';
+    game.scene.add('world',WorldScene,true,{profile,villageRenderer,fullAccess});
+    return()=>{
+      cancelled=true;
+      socket.off('currentMapUsers',enrich);
+      gameEvents.removeAllListeners('show-bubble');
+      game.destroy(true);
+      villageRenderer.destroy();
+    };
+  },[profile,fullAccess]);
+  return <><div className="game-canvas" ref={ref}/>{loading&&<div className="game-loading" role="status" aria-live="polite"><div className="game-loading-brand"><span>🧑🏻‍🌾</span><div><b>여기 사람 있음</b><small>SEJONG LOCAL MULTIVERSE</small></div></div><div className="game-loading-center"><i/><span>세종호수공원</span><h1>입장 중...</h1><p>{loadError||'호수공원과 캐릭터를 준비하고 있어요.'}</p><div className="game-loading-progress"><em/></div></div></div>}<CharacterDebugPanel/></>;
+});

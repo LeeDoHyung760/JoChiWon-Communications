@@ -1,0 +1,111 @@
+.game-page{position:relative;height:100vh;overflow:hidden;background:#dfeae5;color:#173b36}
+.game-page .game-layout{position:relative;height:100vh;padding:0;overflow:hidden}
+.game-page .game-canvas{width:100%;height:100%}
+.game-page .game-loading{position:fixed;z-index:500;inset:0;width:100vw;height:100vh;padding:28px;background:radial-gradient(circle at 50% 42%,#edf8f3 0,#dceee5 47%,#c9e2d5 100%);display:flex;align-items:center;justify-content:center;color:#173f3a}
+.game-loading-brand{position:absolute;left:30px;top:28px;display:flex;align-items:center;gap:10px}
+.game-loading-brand>span{width:43px;height:43px;display:grid;place-items:center;border-radius:50%;background:rgba(255,255,255,.72);font-size:25px;box-shadow:0 7px 20px rgba(36,91,74,.08)}
+.game-loading-brand>div{display:flex;flex-direction:column}
+.game-loading-brand b{font-size:14px}
+.game-loading-brand small{margin-top:2px;color:#6f9187;font-size:7px;font-weight:900;letter-spacing:.1em}
+.game-loading-center{width:min(410px,calc(100vw - 48px));display:flex;flex-direction:column;align-items:center;text-align:center}
+.game-page .game-loading-center>i{width:54px;height:54px;border:5px solid rgba(65,145,120,.2);border-top-color:#388f76;border-right-color:#62aa94;border-radius:50%;animation:spin .8s linear infinite}
+.game-loading-center>span{margin-top:22px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.62);color:#3c8973;font-size:9px;font-weight:900}
+.game-loading-center h1{margin:8px 0 5px;color:#173f3a;font-size:30px;letter-spacing:-.055em}
+.game-loading-center p{margin:0;color:#708b83;font-size:11px;font-weight:650}
+.game-loading-progress{width:190px;height:4px;margin-top:23px;overflow:hidden;border-radius:999px;background:rgba(49,118,96,.14)}
+.game-loading-progress em{display:block;width:45%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#348a72,#74b8a2);animation:world-loading 1.35s ease-in-out infinite}
+@keyframes world-loading{0%{transform:translateX(-110%)}100%{transform:translateX(330%)}}
+
+.world-location-chip,.world-exit,.game-page .online,.game-page .chat-panel,.game-page .chat{border:1px solid rgba(221,234,228,.9);background:rgba(255,255,255,.9);box-shadow:0 14px 38px rgba(28,67,57,.16);backdrop-filter:blur(16px)}
+.world-location-chip{position:absolute;z-index:35;left:20px;top:20px;min-width:245px;height:58px;padding:8px 11px;display:flex;align-items:center;gap:9px;border-radius:18px}
+.world-location-chip>span{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;background:#e8f5f0;color:#35866f}
+.world-location-chip>div{min-width:0;display:flex;flex:1;flex-direction:column}
+.world-location-chip small{color:#82938f;font-size:8px;font-weight:800}
+.world-location-chip b{overflow:hidden;margin-top:2px;color:#214640;font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.world-location-chip i{padding:5px 8px;border-radius:999px;font-size:7px;font-style:normal;font-weight:900;white-space:nowrap}
+.world-location-chip .world-pass{background:#dff3eb;color:#2d8067}
+.world-location-chip .demo-pass{background:#fff0dc;color:#a66f25}
+.world-exit{position:absolute;z-index:35;right:20px;top:20px;height:40px;padding:0 13px;display:flex;align-items:center;gap:6px;border-radius:13px;color:#5b716c;font-size:10px;font-weight:900}
+.world-exit:hover{border-color:#afcfc4;background:#fff;color:#2f7b66}
+
+.game-page .online{position:absolute;z-index:30;right:20px;top:76px;width:286px;height:auto;max-height:calc(100vh - 96px);padding:14px;border-radius:22px;overflow:auto}
+.online-heading{display:flex;align-items:center;gap:9px;padding:3px 3px 12px;border-bottom:1px solid #e7eeeb}
+.online-heading>span{width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:#e7f4ef;color:#378970}
+.online-heading>div{min-width:0;display:flex;flex:1;flex-direction:column}
+.online-heading small{color:#6aa391;font-size:7px;font-weight:900;letter-spacing:.09em}
+.online-heading h3{margin:1px 0 0;color:#234843;font-size:14px}
+.online-heading>b{min-width:29px;height:24px;display:grid;place-items:center;border-radius:999px;background:#3e927a;color:#fff;font-size:9px}
+.online-list{padding-top:7px}
+.game-page .online button,.game-page .online .me{width:100%;min-height:57px;padding:5px 7px;display:flex;align-items:center;gap:8px;border:0;border-radius:13px;background:transparent;text-align:left;position:relative}
+.game-page .online button:hover{background:#f0f7f4}
+.game-page .online .me{background:#edf7f3!important}
+.game-page .online .avatar.small{transform:scale(.76);margin:-7px -5px}
+.game-page .online b{font-size:11px}
+.game-page .online small{display:block;margin-top:2px;color:#85938f;font-size:8px}
+.game-page .online .online-list i{position:absolute;left:39px;bottom:10px;width:9px;height:9px;border:2px solid #fff;border-radius:50%;background:#47bb84}
+.game-page .group-box{margin-top:9px;padding-top:10px;border-top:1px solid #e6ece9}
+.game-page .group-box>div{padding:0 5px 6px}
+.game-page .group-box>div b{display:flex;align-items:center;gap:5px;color:#486a62;font-size:9px}
+.game-page .group-box>button{min-height:35px;padding:7px;font-size:9px;color:#5b6c67}
+.game-page .group-box>button.active{background:#e2f2eb;color:#286856}
+.game-page .controls{position:static;margin-top:10px;padding:10px 11px;border-radius:12px;background:#f4f7f5;color:#526d66;font-size:8px}
+.game-page .controls p{margin:5px 0 0;color:#7f8e8a}
+.game-page .controls kbd{padding:2px 4px;border:1px solid #d9e2de;border-radius:4px;background:#fff}
+
+.game-page .chat-panel{position:absolute;z-index:25;left:20px;bottom:92px;width:350px;max-height:220px;border-radius:20px;overflow:hidden}
+.game-page .chat-panel header{min-height:52px;padding:9px 12px;display:flex;align-items:center;gap:9px;border-bottom:1px solid #e5ece9}
+.game-page .chat-panel header>span{width:32px;height:32px;display:grid;place-items:center;border-radius:11px;background:#e7f4ef;color:#378970}
+.game-page .chat-panel header>div{display:flex;flex:1;flex-direction:column}
+.game-page .chat-panel header small{color:#70a796;font-size:7px;font-weight:900;letter-spacing:.09em}
+.game-page .chat-panel header b{margin-top:1px;color:#254843;font-size:11px}
+.game-page .chat-panel header i{padding:4px 7px;border-radius:999px;background:#f0f6f3;color:#66817a;font-size:7px;font-style:normal;font-weight:800}
+.game-page .chat-panel>div{max-height:160px;padding:8px 12px 11px;overflow:auto}
+.game-page .chat-panel p{display:flex;gap:7px;margin:6px 0;color:#526762;font-size:9px}
+.game-page .chat-panel p b{flex:0 0 auto;color:#34836d}
+.game-page .chat-panel p span{padding:6px 9px;border-radius:3px 10px 10px;background:#f1f6f4}
+.game-page .chat-panel .chat-empty{display:block;padding:11px;color:#879692;text-align:center}
+
+.game-page .chat{position:absolute;z-index:35;left:20px;bottom:20px;width:min(610px,calc(100vw - 346px));height:60px;padding:7px 8px 7px 12px;display:flex;align-items:center;gap:10px;border-radius:19px;transform:none}
+.chat-input-icon{width:35px;height:35px;flex:0 0 auto;display:grid;place-items:center;border-radius:11px;background:#e8f5f0;color:#378970}
+.chat-input-copy{min-width:0;display:flex;flex:1;flex-direction:column}
+.chat-input-copy small{color:#70a393;font-size:7px;font-weight:900}
+.game-page .chat input{width:100%;padding:1px 0 0;border:0;outline:0;background:transparent;color:#284b45;font-size:10px}
+.game-page .chat input::placeholder{color:#9ba8a4}
+.game-page .chat>button{width:42px;height:42px;flex:0 0 auto;display:grid;place-items:center;border:0;border-radius:13px;background:linear-gradient(135deg,#38947b,#4da189);color:#fff;box-shadow:0 7px 15px rgba(51,137,113,.24)}
+.game-page .chat.is-locked{background:rgba(241,244,243,.92)}
+.game-page .chat.is-locked>button{background:#9ca9a5}
+.game-page .experience-world-banner{top:20px}
+.game-page .direct-panel{right:326px;bottom:20px;border:1px solid #ddeae5;border-radius:21px;box-shadow:0 18px 55px rgba(28,67,57,.22)}
+.game-page .notice{top:22px}
+
+.guide-talk-button{position:absolute;z-index:45;left:50%;bottom:94px;min-width:230px;padding:10px 13px;display:flex;align-items:center;gap:10px;transform:translateX(-50%);border:1px solid rgba(215,231,224,.95);border-radius:18px;background:rgba(255,255,255,.94);color:#244a43;box-shadow:0 16px 42px rgba(24,67,55,.22);backdrop-filter:blur(16px)}
+.guide-talk-button:hover{transform:translateX(-50%) translateY(-2px);border-color:#91c8b5;background:#fff}
+.guide-talk-button>span{width:39px;height:39px;display:grid;place-items:center;border-radius:13px;background:#e7f4ef;font-size:21px}
+.guide-talk-button>div{display:flex;flex:1;flex-direction:column;text-align:left}
+.guide-talk-button small{color:#69a08f;font-size:8px;font-weight:850}
+.guide-talk-button b{margin-top:2px;font-size:12px}
+.guide-talk-button>svg{color:#3c9078}
+
+.guide-dialog{position:fixed;z-index:150;left:50%;bottom:36px;width:min(390px,calc(100vw - 32px));padding:25px 25px 22px;transform:translateX(-50%);border:1px solid rgba(217,232,226,.95);border-radius:25px;background:rgba(255,255,255,.97);color:#254b44;text-align:center;box-shadow:0 25px 75px rgba(23,59,54,.28);backdrop-filter:blur(20px)}
+.guide-dialog-close{position:absolute;right:14px;top:14px;width:33px;height:33px;display:grid;place-items:center;border:0;border-radius:50%;background:#eef5f2;color:#5c746e}
+.guide-dialog-avatar{width:58px;height:58px;margin:-4px auto 10px;display:grid;place-items:center;border-radius:19px;background:linear-gradient(145deg,#e6f4ee,#cfe9df);font-size:29px}
+.guide-dialog>small{color:#62a08d;font-size:8px;font-weight:900;letter-spacing:.11em}
+.guide-dialog h2{margin:4px 0 9px;font-size:21px}
+.guide-dialog p{min-height:54px;margin:0;color:#61766f;font-size:12px;line-height:1.75}
+.guide-dialog-actions{margin-top:18px;display:flex;gap:8px}
+.guide-dialog-actions button{flex:1;padding:11px;border:1px solid #d8e6e0;border-radius:12px;background:#f5f8f7;color:#526d65;font-size:10px;font-weight:850}
+.guide-dialog-actions .guide-dialog-primary{border-color:#3d9279;background:#3d9279;color:#fff}
+
+@media(max-width:800px){
+  .game-loading-brand{left:20px;top:20px}
+  .world-location-chip{left:12px;top:12px;min-width:0;max-width:calc(100vw - 118px)}
+  .world-location-chip>div{display:none}
+  .world-exit{right:12px;top:12px}
+  .game-page .online{display:none}
+  .game-page .chat-panel{left:12px;bottom:86px;width:calc(100vw - 24px);max-height:170px}
+  .game-page .chat{left:12px;bottom:12px;width:calc(100vw - 24px)}
+  .game-page .experience-world-banner{top:78px;white-space:nowrap}
+  .game-page .direct-panel{right:12px;left:12px;bottom:12px;width:auto}
+  .guide-talk-button{bottom:86px;min-width:210px}
+  .guide-dialog{bottom:20px}
+}

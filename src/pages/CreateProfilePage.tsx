@@ -1,5 +1,5 @@
 import '@google/model-viewer';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { assetManifest } from '../data/assetManifest';
 import { CharacterPreview } from '../components/CharacterPreview';
 import chungnyeongUrl from '../assets/characters/chungnyeong.glb?url';
@@ -27,9 +27,12 @@ const modelUrls: Record<Exclude<CharacterModel, 'custom'>, string> = {
   boy1: boy1Url
 };
 
-export function CreateProfilePage({initial, onComplete}: {initial: UserProfile; onComplete: (p: UserProfile) => void}) {
+export function CreateProfilePage({initial,initialStep=1,editMode=false,onCancel,onLogout,onProgress,onComplete}: {initial:UserProfile;initialStep?:1|2;editMode?:boolean;onCancel?:()=>void;onLogout?:()=>void;onProgress?:(step:1|2,p:UserProfile)=>void;onComplete:(p:UserProfile)=>void}) {
   const [p, setP] = useState(initial);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<1|2>(initialStep);
+  const onProgressRef=useRef(onProgress);
+  useEffect(()=>{onProgressRef.current=onProgress},[onProgress]);
+  useEffect(()=>onProgressRef.current?.(step,p),[step,p]);
 
   const toggle = (key: 'interests' | 'usagePurposes' | 'preferredPlaceCategories', value: string, max = 3) => {
     setP({...p, [key]: p[key].includes(value) ? p[key].filter(item => item !== value) : p[key].length < max ? [...p[key], value] : p[key]});
@@ -54,9 +57,10 @@ export function CreateProfilePage({initial, onComplete}: {initial: UserProfile; 
           <header className="character-design-heading">
             <span className="character-design-sparkle" aria-hidden="true">✧</span>
             <div>
-              <h1>나만의 모습을 골라요</h1>
-              <p>캐릭터와 스타일을 선택해보세요</p>
+              <h1>{editMode?'캐릭터 설정 변경':'나만의 모습을 골라요'}</h1>
+              <p>{editMode?'사용할 캐릭터와 스타일을 다시 선택해보세요':'캐릭터와 스타일을 선택해보세요'}</p>
             </div>
+            {editMode&&<div className="profile-design-header-actions"><button type="button" className="profile-design-logout" onClick={onLogout}>로그아웃</button><button type="button" className="profile-design-close" onClick={onCancel}>메인 이동</button></div>}
           </header>
 
           <div className="character-design-content">
@@ -124,7 +128,7 @@ export function CreateProfilePage({initial, onComplete}: {initial: UserProfile; 
 
           <footer className="character-design-actions">
             <button type="button" className="character-design-back" onClick={() => setStep(1)}>이전</button>
-            <button type="button" className="character-design-submit" onClick={() => onComplete(p)}>조치원으로 출발하기 <span>→</span></button>
+            <button type="button" className="character-design-submit" onClick={() => onComplete(p)}>{editMode?'변경 완료':'조치원으로 출발하기'} <span>→</span></button>
           </footer>
         </section>
       </main>
@@ -137,8 +141,8 @@ export function CreateProfilePage({initial, onComplete}: {initial: UserProfile; 
       <section className="profile-design-card">
         <header className="profile-design-heading">
           <span className="profile-design-sparkle" aria-hidden="true">✧</span>
-          <div><h1>어떤 이웃인가요?</h1><p>나를 소개하고 잘 맞는 동네 이웃을 만나보세요</p></div>
-          <span className="profile-design-step">캐릭터 만들기 · 1/2</span>
+          <div><h1>{editMode?'회원 정보 변경':'어떤 이웃인가요?'}</h1><p>{editMode?'프로필과 관심 정보를 확인하고 변경해보세요':'나를 소개하고 잘 맞는 동네 이웃을 만나보세요'}</p></div>
+          {editMode?<div className="profile-design-header-actions"><button type="button" className="profile-design-logout" onClick={onLogout}>로그아웃</button><button type="button" className="profile-design-close" onClick={onCancel}>메인 이동</button></div>:<span className="profile-design-step">가입 단계 · 3/4</span>}
         </header>
 
         <div className="profile-design-content">
@@ -169,7 +173,7 @@ export function CreateProfilePage({initial, onComplete}: {initial: UserProfile; 
           </div>
         </div>
 
-        <footer className="profile-design-actions"><span>프로필을 완성하면 캐릭터를 꾸밀 수 있어요</span><button type="button" disabled={!canContinue} onClick={()=>setStep(2)}>캐릭터 꾸미기 <b>→</b></button></footer>
+        <footer className="profile-design-actions"><span>{editMode?'변경 내용은 완료 버튼을 누르면 저장돼요':'프로필을 완성하면 캐릭터를 꾸밀 수 있어요'}</span><button type="button" disabled={!canContinue} onClick={()=>setStep(2)}>{editMode?'캐릭터 설정 확인':'캐릭터 꾸미기'} <b>→</b></button></footer>
       </section>
     </main>
   );

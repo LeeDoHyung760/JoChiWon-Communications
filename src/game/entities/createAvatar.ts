@@ -37,15 +37,26 @@ export interface AvatarMotionUpdate{targetYaw:number;movementX:number;movementY:
 export interface AvatarContainer extends Phaser.GameObjects.Container{
   bodyLayer:Phaser.GameObjects.Container;
   limbs:{leftArm:Phaser.GameObjects.Rectangle;rightArm:Phaser.GameObjects.Rectangle;leftLeg:Phaser.GameObjects.Rectangle;rightLeg:Phaser.GameObjects.Rectangle};
-  modelElement?:ModelViewerElement;modelVisual?:Phaser.GameObjects.DOMElement;debugGraphics?:Phaser.GameObjects.Graphics;
+  modelElement?:ModelViewerElement;modelVisual?:Phaser.GameObjects.DOMElement;nameLabel?:Phaser.GameObjects.DOMElement;debugGraphics?:Phaser.GameObjects.Graphics;
 }
 
-export function createAvatar(scene:Phaser.Scene,x:number,y:number,parts:CharacterParts,name:string,scale=1,model:CharacterModel='chungnyeong'){
+function createNameLabel(scene:Phaser.Scene,name:string,is3d:boolean){
+  const element=document.createElement('div');
+  element.className='phaser-name-label';
+  const status=document.createElement('i'),text=document.createElement('span');
+  text.textContent=name;
+  element.append(status,text);
+  element.style.zIndex='20';
+  return scene.add.dom(0,is3d?-142:-92,element).setOrigin(.5).setDepth(2500);
+}
+
+export function createAvatar(scene:Phaser.Scene,x:number,y:number,parts:CharacterParts,name:string,scale=1,model:CharacterModel='chungnyeong',renderVisual=true){
   const root=scene.add.container(x,y) as AvatarContainer,bodyLayer=scene.add.container(0,0);
   const skin=hex(getPart('face',parts.face).color),top=hex(getPart('top',parts.top).color),bottom=hex(getPart('bottom',parts.bottom).color),is3d=model!=='custom';
   const legColor=is3d?0x3c3028:bottom,bodyColor=is3d?0xb52d2b:top;
-  const shadow=scene.add.ellipse(0,10,is3d?46:38,14,0x192d2a,.22),leftLeg=scene.add.rectangle(-8,0,10,25,legColor).setOrigin(.5,0),rightLeg=scene.add.rectangle(8,0,10,25,legColor).setOrigin(.5,0),body=scene.add.rectangle(0,-22,is3d?38:28,is3d?34:28,bodyColor).setStrokeStyle(2,is3d?0x6e1818:0xffffff,.35),leftArm=scene.add.rectangle(is3d?-25:-20,-22,is3d?11:8,31,is3d?bodyColor:skin).setOrigin(.5,0),rightArm=scene.add.rectangle(is3d?25:20,-22,is3d?11:8,31,is3d?bodyColor:skin).setOrigin(.5,0),face=scene.add.circle(0,is3d?-50:-43,is3d?15:13,skin),hair=scene.add.arc(0,is3d?-55:-47,is3d?16:14,190,350,false,is3d?0x593421:hex(getPart('hair',parts.hair).color)),eyes=scene.add.text(0,is3d?-50:-44,is3d?'• ᴗ •':'• •',{fontSize:'8px',color:'#263238'}).setOrigin(.5),label=scene.add.text(0,is3d?-88:-72,name,{fontFamily:'Arial, sans-serif',fontSize:'12px',color:'#173b36',backgroundColor:'#ffffffdd',padding:{x:6,y:3}}).setOrigin(.5);
-  if(is3d){
+  const shadow=scene.add.ellipse(0,10,is3d?46:38,14,0x192d2a,.22),leftLeg=scene.add.rectangle(-8,0,10,25,legColor).setOrigin(.5,0),rightLeg=scene.add.rectangle(8,0,10,25,legColor).setOrigin(.5,0),body=scene.add.rectangle(0,-22,is3d?38:28,is3d?34:28,bodyColor).setStrokeStyle(2,is3d?0x6e1818:0xffffff,.35),leftArm=scene.add.rectangle(is3d?-25:-20,-22,is3d?11:8,31,is3d?bodyColor:skin).setOrigin(.5,0),rightArm=scene.add.rectangle(is3d?25:20,-22,is3d?11:8,31,is3d?bodyColor:skin).setOrigin(.5,0),face=scene.add.circle(0,is3d?-50:-43,is3d?15:13,skin),hair=scene.add.arc(0,is3d?-55:-47,is3d?16:14,190,350,false,is3d?0x593421:hex(getPart('hair',parts.hair).color)),eyes=scene.add.text(0,is3d?-50:-44,is3d?'• ᴗ •':'• •',{fontSize:'8px',color:'#263238'}).setOrigin(.5),label=renderVisual?createNameLabel(scene,name,is3d):undefined;
+  root.nameLabel=label;
+  if(is3d&&renderVisual){
     const element=document.createElement('model-viewer') as ModelViewerElement;
     const modelState=modelByState[model as Exclude<CharacterModel,'custom'>];
     element.src=modelState.idle;
@@ -55,10 +66,10 @@ export function createAvatar(scene:Phaser.Scene,x:number,y:number,parts:Characte
     Object.assign(element.style,{width:'128px',height:'160px',pointerEvents:'none',background:'transparent'});
     element.addEventListener('load',()=>{const motionState=(root.getData('motionState')??'idle') as MotionState;console.log('[Character] GLB loaded',{src:element.src,availableAnimations:element.availableAnimations});playModelAnimation(element,model as Exclude<CharacterModel,'custom'>,motionState)});
     element.addEventListener('error',event=>console.error('[Character] GLB load error',{src:element.src,event}));
-    root.modelElement=element;root.modelVisual=scene.add.dom(0,characterSettings.visualOffsetY,element).setOrigin(.5).setDepth(1000);root.add([shadow,root.modelVisual,label]);
+    root.modelElement=element;root.modelVisual=scene.add.dom(0,characterSettings.visualOffsetY,element).setOrigin(.5).setDepth(1000);root.add([shadow,root.modelVisual,...(label?[label]:[])]);
     root.setData('characterModel',model);root.setData('modelSource',modelState.idle);
     if(characterDebugEnabled){root.debugGraphics=scene.add.graphics().setDepth(2000);root.add(root.debugGraphics)}
-  }else{bodyLayer.add([leftLeg,rightLeg,leftArm,rightArm,body,face,hair,eyes]);root.add([shadow,bodyLayer,label])}
+  }else if(!is3d&&renderVisual){bodyLayer.add([leftLeg,rightLeg,leftArm,rightArm,body,face,hair,eyes]);root.add([shadow,bodyLayer,...(label?[label]:[])])}
   root.bodyLayer=bodyLayer;root.limbs={leftArm,rightArm,leftLeg,rightLeg};root.setData('isChungnyeong',is3d);root.setData('motionState','idle');root.setData('visualYaw',0);root.setData('targetYaw',0);root.setScale(scale).setSize(is3d?80:42,is3d?120:78).setInteractive();return root;
 }
 
