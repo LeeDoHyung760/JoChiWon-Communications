@@ -24,6 +24,10 @@ const COLLISION_RADIUS=16;
 const GUIDE_CHARACTER_HEIGHT=132;
 const GUIDE_TALK_DISTANCE=145;
 const GUIDE_TALK_EXIT_DISTANCE=175;
+const DEFAULT_MAP_SIGN_POSITION={x:2090,z:1185} as const;
+const MAP_SIGN_POSITION_KEY='sejong-lake-park-map-sign-position';
+const MAP_SIGN_OPEN_DISTANCE=78;
+const MAP_SIGN_EXIT_DISTANCE=105;
 const RENDER_INTERVAL=1/60;
 const CAMERA_ZOOM=1.28;
 const MIN_PIXEL_RATIO=1;
@@ -68,6 +72,13 @@ function lastGuidePosition():GuidePosition{
     if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z)&&Number.isFinite(saved.yaw)&&saved.x!>=40&&saved.x!<=WORLD_WIDTH-40&&saved.z!>=40&&saved.z!<=WORLD_HEIGHT-40)return {x:saved.x!,z:saved.z!,yaw:saved.yaw!};
   }catch{/* Fall back to the original sign-side position. */}
   return {...LAKE_PARK_GUIDE};
+}
+function lastMapSignPosition(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(MAP_SIGN_POSITION_KEY)??'null') as {x?:number;z?:number}|null;
+    if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))return {x:saved.x!,z:saved.z!};
+  }catch{/* Use the provisional position until the user calibrates it. */}
+  return {...DEFAULT_MAP_SIGN_POSITION};
 }
 
 const modelConfig:Record<Exclude<CharacterModel,'custom'>,{urls:Record<MotionState,string>;clips:Record<MotionState,string>}>= {
@@ -138,7 +149,7 @@ class WorldCharacter{
         this.states.set(motion,{scene:visual,mixer,action});
       }
       this.setMotion(this.active);
-    }catch(error){console.error('[World character] GLB load error',{model,error});this.createFallback({hair:'',face:'',top:'',bottom:''})}
+      }catch(error){console.error('[World character] GLB load error',{model,error});this.createFallback({hair:'',face:'',top:'',bottom:'',shoes:''})}
   }
 
   private createFallback(_parts:CharacterParts){
@@ -217,6 +228,9 @@ export class VillageMapRenderer{
   private guideNpcNormal=new THREE.Vector3(0,1,0);
   private guidePosition=lastGuidePosition();
   private guideNearby=false;
+  private mapSignNearby=false;
+  private overviewActive=false;
+  private mapSignPosition=lastMapSignPosition();
   private remotes=new Map<string,WorldCharacter>();
   private remoteGrounds=new Map<string,RemoteGroundSample>();
   private localX=LAKE_PARK_SPAWN.x;
@@ -246,6 +260,7 @@ export class VillageMapRenderer{
     parent.prepend(this.renderer.domElement);
     this.resize();
     this.localCharacter=new WorldCharacter(this.scene,profile.nickname,profile.model,profile.character);
+    gameEvents.on('map-overview-toggle',this.onMapOverviewToggle);
     this.ready=this.loadVillage();
   }
 
@@ -268,7 +283,7 @@ export class VillageMapRenderer{
       if(guideGround){
         this.guideNpcPosition.set(this.guidePosition.x,guideGround.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(this.guidePosition.z));
         this.guideNpcNormal.copy(guideGround.normal);
-        this.guideNpc=new WorldCharacter(this.scene,'충녕이 · 안내 NPC','chungnyeong',{hair:'',face:'',top:'',bottom:''},GUIDE_CHARACTER_HEIGHT,true);
+        this.guideNpc=new WorldCharacter(this.scene,'충녕이 · 안내 NPC','chungnyeong',{hair:'',face:'',top:'',bottom:'',shoes:''},GUIDE_CHARACTER_HEIGHT,true);
         this.guideNpc.update(this.guideNpcPosition,this.guideNpcNormal,this.guidePosition.yaw,'idle',0);
       }
       const startPosition=new THREE.Vector3(this.localX,this.localGround+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(this.localZ));
@@ -285,6 +300,26 @@ export class VillageMapRenderer{
   }
 
   setVisible(visible:boolean){this.renderer.domElement.style.display=visible?'block':'none'}
+  private onMapOverviewToggle=(active:boolean)=>{
+    this.overviewActive=active;
+    if(active)this.showMapOverview();
+    else{
+      this.camera.up.set(0,1,0);
+      const position=new THREE.Vector3(this.localX,this.localGround+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(this.localZ));
+      this.followCharacter(position,0,true);
+    }
+    gameEvents.emit('map-overview-changed',active);
+    this.render();
+  }
+  private showMapOverview(){
+    if(this.mapBounds.isEmpty())return;
+    const center=this.mapBounds.getCenter(new THREE.Vector3()),size=this.mapBounds.getSize(new THREE.Vector3()),aspect=this.width/Math.max(this.height,1);
+    const halfHeight=Math.max(size.z/2+90,(size.x/2+90)/aspect),halfWidth=halfHeight*aspect;
+    this.camera.left=-halfWidth;this.camera.right=halfWidth;this.camera.top=halfHeight;this.camera.bottom=-halfHeight;
+    this.camera.up.set(0,0,-1);
+    this.camera.position.set(center.x,this.mapBounds.max.y+2200,center.z);
+    this.camera.lookAt(center);this.camera.updateProjectionMatrix();
+  }
   private worldToSceneZ(worldZ:number){return WORLD_HEIGHT/2+(worldZ-WORLD_HEIGHT/2)/GROUND_PROJECTION}
 
   private classifyMaterial(material:THREE.Material){
@@ -339,6 +374,7 @@ export class VillageMapRenderer{
 
   updateLocalCharacter(proposedX:number,proposedZ:number,yaw:number,motion:MotionState,delta:number){
     if(!this.mapReady)return {x:this.localX,z:this.localZ,groundHeight:this.localGround};
+    if(this.overviewActive){this.showMapOverview();this.renderAccumulator+=delta;if(this.renderAccumulator>=RENDER_INTERVAL){this.renderAccumulator%=RENDER_INTERVAL;this.render()}return {x:this.localX,z:this.localZ,groundHeight:this.localGround}}
     const positionChanged=Math.hypot(proposedX-this.localX,proposedZ-this.localZ)>.001;
     let nextX=proposedX,nextZ=proposedZ,sample=positionChanged?(this.bodyPathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround):undefined):{height:this.localGround,normal:this.localNormal};
     if(!sample){nextZ=this.localZ;sample=this.bodyPathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround):undefined}
@@ -348,6 +384,12 @@ export class VillageMapRenderer{
     const guideDistance=Math.hypot(nextX-this.guidePosition.x,nextZ-this.guidePosition.z);
     const guideNearby=guideDistance<(this.guideNearby?GUIDE_TALK_EXIT_DISTANCE:GUIDE_TALK_DISTANCE);
     if(guideNearby!==this.guideNearby){this.guideNearby=guideNearby;gameEvents.emit('guide-proximity-changed',guideNearby)}
+    const mapSignDistance=Math.hypot(nextX-this.mapSignPosition.x,nextZ-this.mapSignPosition.z);
+    const mapSignNearby=mapSignDistance<(this.mapSignNearby?MAP_SIGN_EXIT_DISTANCE:MAP_SIGN_OPEN_DISTANCE);
+    if(mapSignNearby!==this.mapSignNearby){
+      this.mapSignNearby=mapSignNearby;
+      gameEvents.emit('map-sign-proximity-changed',mapSignNearby);
+    }
     const position=new THREE.Vector3(nextX,sample.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(nextZ));
     this.localCharacter.update(position,sample.normal,yaw,motion,delta);
     this.guideNpc?.update(this.guideNpcPosition,this.guideNpcNormal,this.guidePosition.yaw,'idle',delta);
@@ -367,6 +409,7 @@ export class VillageMapRenderer{
   removeRemoteCharacter(id:string){this.remotes.get(id)?.destroy();this.remotes.delete(id);this.remoteGrounds.delete(id)}
 
   private followCharacter(position:THREE.Vector3,delta:number,immediate=false){
+    if(this.overviewActive){this.showMapOverview();return}
     if(immediate)this.cameraTarget.copy(position);else this.cameraTarget.lerp(position,1-Math.exp(-5*delta));
     if(!this.mapBounds.isEmpty()){
       const center=this.mapBounds.getCenter(new THREE.Vector3()),halfWidth=this.width/(2*CAMERA_ZOOM),groundHalfDepth=this.height/(2*CAMERA_ZOOM*GROUND_PROJECTION),minX=this.mapBounds.min.x+halfWidth,maxX=this.mapBounds.max.x-halfWidth,minZ=this.mapBounds.min.z+groundHalfDepth,maxZ=this.mapBounds.max.z-groundHalfDepth;
@@ -395,6 +438,8 @@ export class VillageMapRenderer{
 
   destroy(){
     if(this.guideNearby)gameEvents.emit('guide-proximity-changed',false);
+    if(this.overviewActive)gameEvents.emit('map-overview-changed',false);
+    gameEvents.off('map-overview-toggle',this.onMapOverviewToggle);
     this.destroyed=true;this.localCharacter.destroy();this.guideNpc?.destroy();this.remotes.forEach(character=>character.destroy());this.remotes.clear();this.remoteGrounds.clear();
     this.scene.traverse(object=>{if(object instanceof THREE.Mesh){object.geometry.dispose();const materials=Array.isArray(object.material)?object.material:[object.material];materials.forEach(material=>material.dispose())}});
     this.renderer.dispose();this.renderer.domElement.remove();

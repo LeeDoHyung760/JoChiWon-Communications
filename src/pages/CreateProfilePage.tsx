@@ -2,6 +2,7 @@ import '@google/model-viewer';
 import React, { useEffect, useRef, useState } from 'react';
 import { assetManifest } from '../data/assetManifest';
 import { CharacterPreview } from '../components/CharacterPreview';
+import { CharacterDesignStep } from './CharacterDesignStep';
 import chungnyeongUrl from '../assets/characters/chungnyeong.glb?url';
 import girl1Url from '../assets/characters/girl1_3종.glb?url';
 import boy1Url from '../assets/characters/boy1_3종.glb?url';
@@ -43,95 +44,16 @@ export function CreateProfilePage({initial,initialStep=1,editMode=false,onCancel
   const activeModel = modelOptions.find(option => option.id === p.model) ?? modelOptions[0];
 
   if (step === 2) {
-    const modelFaces: Record<CharacterModel, string> = {chungnyeong: '🧑🏻‍🌾', girl1: '👧🏻', boy1: '👦🏻', custom: '＋'};
-    const partLabels: Record<PartKind, {label: string; icon: string}> = {
-      hair: {label: '머리', icon: '〰'},
-      face: {label: '얼굴', icon: '🙂'},
-      top: {label: '상의', icon: '👕'},
-      bottom: {label: '하의', icon: '👖'}
-    };
-
     return (
-      <main className="character-design-page">
-        <section className="character-design-card">
-          <header className="character-design-heading">
-            <span className="character-design-sparkle" aria-hidden="true">✧</span>
-            <div>
-              <h1>{editMode?'캐릭터 설정 변경':'나만의 모습을 골라요'}</h1>
-              <p>{editMode?'사용할 캐릭터와 스타일을 다시 선택해보세요':'캐릭터와 스타일을 선택해보세요'}</p>
-            </div>
-            {editMode&&<div className="profile-design-header-actions"><button type="button" className="profile-design-logout" onClick={onLogout}>로그아웃</button><button type="button" className="profile-design-close" onClick={onCancel}>메인 이동</button></div>}
-          </header>
-
-          <div className="character-design-content">
-            <aside className="character-design-preview">
-              <div className="character-design-aura" aria-hidden="true" />
-              <span className="character-design-decoration decoration-one">✧</span>
-              <span className="character-design-decoration decoration-two">◇</span>
-              <div className="character-design-viewer">
-                {activeModel.id === 'custom' ? (
-                  <div className="character-design-custom-preview"><CharacterPreview parts={p.character} /></div>
-                ) : React.createElement(MODEL_VIEWER_TAG, {
-                  src: modelUrls[activeModel.id],
-                  alt: `${activeModel.label} 3D 미리보기`,
-                  cameraControls: true,
-                  autoRotate: true,
-                  autoplay: true,
-                  animationName: activeModel.id === 'chungnyeong' ? 'NlaTrack' : 'NlaTrack.001',
-                  cameraOrbit: '0deg 78deg auto',
-                  interactionPrompt: 'none',
-                  shadowIntensity: '1',
-                  exposure: '1',
-                  style: {width: '100%', height: '100%', background: 'transparent'}
-                })}
-              </div>
-              <div className="character-design-rotate" aria-hidden="true"><span>↪</span><span>↩</span></div>
-              <small>드래그해서 캐릭터를 돌려보세요</small>
-            </aside>
-
-            <div className="character-design-controls">
-              <div className="character-model-picker" aria-label="캐릭터 선택">
-                {modelOptions.map(option => (
-                  <button type="button" key={option.id} className={p.model === option.id ? 'selected' : ''} onClick={() => selectModel(option.id)}>
-                    <span className="character-model-face">{modelFaces[option.id]}</span>
-                    <strong>{option.label}</strong>
-                    <small>{option.id === 'custom' ? '2D 미리보기' : option.id === 'chungnyeong' ? '3D 캐릭터' : option.id === 'girl1' ? '3D 여성형' : '3D 남성형'}</small>
-                  </button>
-                ))}
-              </div>
-
-              <div className="character-style-list">
-                {(['hair', 'face', 'top', 'bottom'] as PartKind[]).map(kind => (
-                  <div className="character-style-row" key={kind}>
-                    <span className="character-style-name"><i>{partLabels[kind].icon}</i><strong>{partLabels[kind].label}</strong></span>
-                    <div className="character-style-options">
-                      {assetManifest[kind].map(option => (
-                        <button
-                          type="button"
-                          key={option.id}
-                          title={option.label}
-                          aria-label={option.label}
-                          aria-pressed={p.character[kind] === option.id}
-                          className={p.character[kind] === option.id ? 'selected' : ''}
-                          style={{'--option-color': option.color} as React.CSSProperties}
-                          onClick={() => part(kind, option.id)}
-                        >
-                          {p.character[kind] === option.id && <span>✓</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <footer className="character-design-actions">
-            <button type="button" className="character-design-back" onClick={() => setStep(1)}>이전</button>
-            <button type="button" className="character-design-submit" onClick={() => onComplete(p)}>{editMode?'변경 완료':'조치원으로 출발하기'} <span>→</span></button>
-          </footer>
-        </section>
-      </main>
+      <CharacterDesignStep
+        model={p.model}
+        character={p.character}
+        part={part}
+        selectModel={selectModel}
+        onSubmit={() => onComplete(p)}
+        editMode={editMode}
+        onBack={() => setStep(1)}
+      />
     );
   }
 
@@ -142,7 +64,7 @@ export function CreateProfilePage({initial,initialStep=1,editMode=false,onCancel
         <header className="profile-design-heading">
           <span className="profile-design-sparkle" aria-hidden="true">✧</span>
           <div><h1>{editMode?'회원 정보 변경':'어떤 이웃인가요?'}</h1><p>{editMode?'프로필과 관심 정보를 확인하고 변경해보세요':'나를 소개하고 잘 맞는 동네 이웃을 만나보세요'}</p></div>
-          {editMode?<div className="profile-design-header-actions"><button type="button" className="profile-design-logout" onClick={onLogout}>로그아웃</button><button type="button" className="profile-design-close" onClick={onCancel}>메인 이동</button></div>:<span className="profile-design-step">가입 단계 · 3/4</span>}
+          {editMode?<div className="profile-design-header-actions"><button type="button" className="profile-design-logout" onClick={onLogout}>로그아웃</button><button type="button" className="profile-design-close" onClick={onCancel}>메인 이동</button></div>:<span className="profile-design-step">캐릭터 설정 · 1/2</span>}
         </header>
 
         <div className="profile-design-content">

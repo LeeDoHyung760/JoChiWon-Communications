@@ -28,5 +28,5 @@ export const GameCanvas=memo(function GameCanvas({profile,fullAccess}:{profile:U
       villageRenderer.destroy();
     };
   },[profile,fullAccess]);
-  return <><div className="game-canvas" ref={ref}/>{loading&&<div className="game-loading" role="status" aria-live="polite"><div className="game-loading-brand"><span>🧑🏻‍🌾</span><div><b>여기 사람 있음</b><small>SEJONG LOCAL MULTIVERSE</small></div></div><div className="game-loading-center"><i/><span>세종호수공원</span><h1>입장 중...</h1><p>{loadError||'호수공원과 캐릭터를 준비하고 있어요.'}</p><div className="game-loading-progress"><em/></div></div></div>}<CharacterDebugPanel/></>;
+  return <><div className="game-canvas" ref={ref}/>{loading&&<div className="game-loading" role="status" aria-live="polite"><div className="game-loading-brand"><span>🧑🏻‍🌾</span><div><b>여기 사람 있음</b><small>SEJONG AI METAVERSE</small></div></div><div className="game-loading-center"><i/><span>세종호수공원</span><h1>세종 월드를 준비하고 있어요</h1><p>{loadError||'캐릭터와 월드 데이터를 안전하게 불러오는 중이에요.'}</p><div className="world-loading-tasks"><span>✓ 캐릭터 생성</span><span>✓ 3D 맵 로딩</span><span>● AI 충녕이 초기화</span><span>● Gemini 연결</span><span>● 다른 사용자 동기화</span></div><div className="game-loading-progress"><em/></div></div></div>}<CharacterDebugPanel/></>;
 });

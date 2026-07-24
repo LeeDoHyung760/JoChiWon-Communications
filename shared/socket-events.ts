@@ -2,7 +2,7 @@ export type MapId = 'town' | 'jochwon-station' | 'traditional-market' | 'jochwon
 export type Direction = 'up' | 'down' | 'left' | 'right';
 export type MotionState = 'idle' | 'walk' | 'run';
 export type CharacterModel = 'custom' | 'chungnyeong' | 'girl1' | 'boy1';
-export interface Appearance { hair:string; face:string; top:string; bottom:string }
+export interface Appearance { hair:string; face:string; top:string; bottom:string; shoes:string }
 export interface PublicMatchProfile { mbti:string; interests:string[]; usagePurposes:string[]; preferredPlaceCategories:string[] }
 export interface PlayerState { id:string; mapId:MapId; x:number; y:number; direction:Direction; isMoving:boolean; yaw:number; motionState:MotionState; timestamp:number; nickname:string; appearance:Appearance; model:CharacterModel; matchProfile?:PublicMatchProfile }
 export interface JoinMapPayload { mapId:MapId; nickname:string; appearance:Appearance; model:CharacterModel; x:number; y:number; matchProfile?:PublicMatchProfile }
