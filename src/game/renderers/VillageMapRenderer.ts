@@ -2,18 +2,22 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import villageModelUrl from '../../assets/maps/sejong-lake-park.glb?url';
+import bearTreeParkModelUrl from '../../assets/maps/bear-tree-park.glb?url';
+import bearPlayZoneModelUrl from '../../assets/maps/bear-play-zone.glb?url';
+import bearCubModelUrl from '../../assets/characters/bear-cub.glb?url';
 import chungnyeongIdleUrl from '../../assets/characters/chungnyeong_idle.glb?url';
 import chungnyeongWalkUrl from '../../assets/characters/chungnyeong_walk.glb?url';
 import chungnyeongRunUrl from '../../assets/characters/chungnyeong_run.glb?url';
 import girlUrl from '../../assets/characters/girl1_3종.glb?url';
 import boyUrl from '../../assets/characters/boy1_3종.glb?url';
 import type { CharacterModel,CharacterParts,UserProfile } from '../../types';
-import type { MotionState } from '../../../shared/socket-events';
+import type { MapId,MotionState,PortalPosition,WorldInteractionPosition } from '../../../shared/socket-events';
 import { gameEvents } from '../events';
 
 const WORLD_WIDTH=2400;
 const WORLD_HEIGHT=1900;
 const CAMERA_ELEVATION=THREE.MathUtils.degToRad(33);
+const OVERVIEW_CAMERA_ELEVATION=THREE.MathUtils.degToRad(58);
 const GROUND_PROJECTION=Math.sin(CAMERA_ELEVATION);
 const CAMERA_DISTANCE=900;
 const CHARACTER_HEIGHT=94;
@@ -24,19 +28,67 @@ const COLLISION_RADIUS=16;
 const GUIDE_CHARACTER_HEIGHT=132;
 const GUIDE_TALK_DISTANCE=145;
 const GUIDE_TALK_EXIT_DISTANCE=175;
+const GUIDE_WALK_SPEED=58;
+const GUIDE_PAUSE_SECONDS=4;
+const DEFAULT_MAP_SIGN_POSITION={x:2090,z:1185} as const;
+const MAP_SIGN_POSITION_KEY='sejong-lake-park-map-sign-position';
+const PORTAL_POSITION_KEY_PREFIX='world-portal-position';
+const INTERACTION_POSITION_KEY_PREFIX='world-interaction-position';
+const MAP_SIGN_OPEN_DISTANCE=78;
+const MAP_SIGN_EXIT_DISTANCE=105;
+const PORTAL_OPEN_DISTANCE=62;
+const PORTAL_EXIT_DISTANCE=78;
+const INTERACTION_OPEN_DISTANCE=88;
+const INTERACTION_EXIT_DISTANCE=110;
 const RENDER_INTERVAL=1/60;
 const CAMERA_ZOOM=1.28;
 const MIN_PIXEL_RATIO=1;
 const MAX_PIXEL_RATIO=Math.min(window.devicePixelRatio||1,1.6);
 let textureAnisotropy=4;
 export const LAKE_PARK_SPAWN:{x:number;z:number;yaw:number}={x:2000,z:1180,yaw:2.1};
+export const BEAR_TREE_PARK_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1610,yaw:Math.PI};
+export const BEAR_PLAY_ZONE_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1570,yaw:Math.PI};
+export const BEAR_TREE_PORTAL_POSITION={x:2122,z:944} as const;
 const LAKE_PARK_GUIDE={x:2045,z:1138,yaw:-.78} as const;
-const GUIDE_POSITION_KEY='sejong-lake-park-guide-position';
+const GUIDE_PATROL_POINTS=([
+  [LAKE_PARK_GUIDE.x,LAKE_PARK_GUIDE.z],[2050,1150],[2000,1150],[2000,750],[1900,750],[1900,500],
+  [1400,500],[1400,350],[1350,350],[1350,200],[350,200],[350,250],[300,250],[300,400],[350,400],
+  [350,950],[900,950],[700,950],[700,1250],[1050,1250],[1050,1200],[1150,1200],[1150,1150],
+  [1250,1150],[1250,900],[1150,900],[1150,950],[1100,950],[1100,1000],[1000,1000],[1000,1100],
+  [950,1100],[950,1150],[900,1150],[900,1200],[750,1200],[750,1250],[700,1250],[700,1100],
+  [900,1100],[900,1050],[950,1050],[950,950],[1050,950],[1050,900],[1100,900],[1100,800],
+  [1150,800],[1150,750],[1300,750],[1300,700],[1400,700],[1400,750],[1550,750],[1550,700],
+  [1600,700],[1600,600],[2000,600],[2000,850],[1950,850],[1950,950],[2000,950],[2000,1200],
+  [1900,1200],[1900,1250],[1450,1250],[1450,750],[1400,750],[1400,700],[1100,700],[1100,900],
+  [700,900],[700,1250],[900,1250],[300,1250],[300,1600],[650,1600],[650,1650],[850,1650],
+  [850,1750],[1950,1750],[1950,1650],[1850,1650],[1850,1600],[1800,1600],[1800,1250],
+  [2100,1250],[2100,1200],[2050,1200],[2050,1150],
+] as const).map(([x,z])=>({x,z}));
+const GUIDE_PATROL_STOPS=new Set(['2045,1138','1900,500','1350,200','300,400','350,950','1250,900','1550,700','1950,950','1450,1250','900,1250','300,1600','850,1750','1950,1650','1800,1250','2050,1150']);
 
 type CharacterState={scene:THREE.Object3D;mixer?:THREE.AnimationMixer;action?:THREE.AnimationAction};
 type GroundSample={height:number;normal:THREE.Vector3};
 type RemoteGroundSample=GroundSample&{x:number;z:number};
 type GuidePosition={x:number;z:number;yaw:number};
+type GuidePatrolFrame=GuidePosition&{motion:Extract<MotionState,'idle'|'walk'>};
+type PortalConfig={x:number;z:number;destination:MapId;label:string};
+type InteractionConfig={x:number;z:number;destination:MapId;label:string;buttonLabel:string};
+type ResidentConfig={modelUrl:string;x:number;z:number;height:number;yaw:number};
+export type WorldMapRendererOptions={
+  modelUrl:string;
+  mapName:string;
+  spawn:{x:number;z:number;yaw:number};
+  guide?:boolean;
+  mapSign?:boolean;
+  overview?:boolean;
+  portal?:PortalConfig;
+  interaction?:InteractionConfig;
+  resident?:ResidentConfig;
+  cameraScreenOffsetY?:number;
+};
+export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크'}};
+export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:1200,z:1660,destination:'town',label:'세종호수공원'},interaction:{x:1910,z:1575,destination:'bear-play-zone',label:'곰 놀이 공간',buttonLabel:'곰 키우기'},cameraScreenOffsetY:90};
+export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearPlayZoneModelUrl,mapName:'곰 놀이 공간',spawn:BEAR_PLAY_ZONE_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'베어트리파크로 돌아가기'},resident:{modelUrl:bearCubModelUrl,x:1200,z:1450,height:105,yaw:Math.PI},cameraScreenOffsetY:90};
 type LoadedModel=Awaited<ReturnType<GLTFLoader['loadAsync']>>;
 const modelAssetCache=new Map<string,Promise<LoadedModel>>();
 const loadModel=(url:string)=>{
@@ -44,6 +96,25 @@ const loadModel=(url:string)=>{
   if(!pending){pending=new GLTFLoader().loadAsync(url);modelAssetCache.set(url,pending)}
   return pending;
 };
+const guidePatrolLegs=GUIDE_PATROL_POINTS.map((from,index)=>{
+  const to=GUIDE_PATROL_POINTS[(index+1)%GUIDE_PATROL_POINTS.length],distance=Math.hypot(to.x-from.x,to.z-from.z);
+  const pauseSeconds=GUIDE_PATROL_STOPS.has(`${from.x},${from.z}`)?GUIDE_PAUSE_SECONDS:0;
+  return {from,to,distance,pauseSeconds,walkSeconds:distance/GUIDE_WALK_SPEED,yaw:Math.atan2(to.x-from.x,to.z-from.z)};
+});
+const GUIDE_PATROL_CYCLE_SECONDS=guidePatrolLegs.reduce((total,leg)=>total+leg.pauseSeconds+leg.walkSeconds,0);
+function guidePatrolFrame(now:number):GuidePatrolFrame{
+  let elapsed=(now/1000)%GUIDE_PATROL_CYCLE_SECONDS;
+  for(const leg of guidePatrolLegs){
+    if(elapsed<leg.pauseSeconds)return {...leg.from,yaw:leg.yaw,motion:'idle'};
+    elapsed-=leg.pauseSeconds;
+    if(elapsed<leg.walkSeconds){
+      const progress=elapsed/leg.walkSeconds;
+      return {x:THREE.MathUtils.lerp(leg.from.x,leg.to.x,progress),z:THREE.MathUtils.lerp(leg.from.z,leg.to.z,progress),yaw:leg.yaw,motion:'walk'};
+    }
+    elapsed-=leg.walkSeconds;
+  }
+  return {...LAKE_PARK_GUIDE,motion:'idle'};
+}
 
 function sharpenObjectTextures(object:THREE.Object3D){
   object.traverse(child=>{
@@ -62,12 +133,28 @@ function sharpenObjectTextures(object:THREE.Object3D){
   });
 }
 
-function lastGuidePosition():GuidePosition{
+function savedMapSignPosition(){
   try{
-    const saved=JSON.parse(localStorage.getItem(GUIDE_POSITION_KEY)??'null') as Partial<GuidePosition>|null;
-    if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z)&&Number.isFinite(saved.yaw)&&saved.x!>=40&&saved.x!<=WORLD_WIDTH-40&&saved.z!>=40&&saved.z!<=WORLD_HEIGHT-40)return {x:saved.x!,z:saved.z!,yaw:saved.yaw!};
-  }catch{/* Fall back to the original sign-side position. */}
-  return {...LAKE_PARK_GUIDE};
+    const saved=JSON.parse(localStorage.getItem(MAP_SIGN_POSITION_KEY)??'null') as {x?:number;z?:number}|null;
+    if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))return {x:saved.x!,z:saved.z!};
+  }catch{/* Keep the shared fallback when no valid saved position exists. */}
+  return {...DEFAULT_MAP_SIGN_POSITION};
+}
+
+function savedPortalPosition(config:PortalConfig){
+  try{
+    const saved=JSON.parse(localStorage.getItem(`${PORTAL_POSITION_KEY_PREFIX}-${config.destination}`)??'null') as {x?:number;z?:number}|null;
+    if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))return {x:saved.x!,z:saved.z!};
+  }catch{/* Keep the configured portal position when no valid saved position exists. */}
+  return {x:config.x,z:config.z};
+}
+
+function savedInteractionPosition(config:InteractionConfig){
+  try{
+    const saved=JSON.parse(localStorage.getItem(`${INTERACTION_POSITION_KEY_PREFIX}-${config.destination}`)??'null') as {x?:number;z?:number}|null;
+    if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))return {x:saved.x!,z:saved.z!};
+  }catch{/* Keep the configured interaction position when no valid saved position exists. */}
+  return {x:config.x,z:config.z};
 }
 
 const modelConfig:Record<Exclude<CharacterModel,'custom'>,{urls:Record<MotionState,string>;clips:Record<MotionState,string>}>= {
@@ -138,7 +225,7 @@ class WorldCharacter{
         this.states.set(motion,{scene:visual,mixer,action});
       }
       this.setMotion(this.active);
-    }catch(error){console.error('[World character] GLB load error',{model,error});this.createFallback({hair:'',face:'',top:'',bottom:''})}
+      }catch(error){console.error('[World character] GLB load error',{model,error});this.createFallback({hair:'',face:'',top:'',bottom:'',shoes:''})}
   }
 
   private createFallback(_parts:CharacterParts){
@@ -215,18 +302,38 @@ export class VillageMapRenderer{
   private guideNpc?:WorldCharacter;
   private guideNpcPosition=new THREE.Vector3();
   private guideNpcNormal=new THREE.Vector3(0,1,0);
-  private guidePosition=lastGuidePosition();
+  private guidePosition:GuidePosition={...LAKE_PARK_GUIDE};
+  private guideGround=0;
+  private worldClockOffset=0;
   private guideNearby=false;
+  private mapSignNearby=false;
+  private portalNearby=false;
+  private portalChargeSeconds=0;
+  private portalChargeStep=0;
+  private portalTravelTriggered=false;
+  private interactionNearby=false;
+  private interactionPosition?:{x:number;z:number};
+  private portalRoot?:THREE.Group;
+  private residentRoot?:THREE.Group;
+  private residentMixer?:THREE.AnimationMixer;
+  private portalPosition?:{x:number;z:number};
+  private overviewActive=false;
+  private mapSignPosition=savedMapSignPosition();
   private remotes=new Map<string,WorldCharacter>();
   private remoteGrounds=new Map<string,RemoteGroundSample>();
-  private localX=LAKE_PARK_SPAWN.x;
-  private localZ=LAKE_PARK_SPAWN.z;
+  private localX:number;
+  private localZ:number;
   private localGround=0;
   private localNormal=new THREE.Vector3(0,1,0);
-  private cameraTarget=new THREE.Vector3(LAKE_PARK_SPAWN.x,0,this.worldToSceneZ(LAKE_PARK_SPAWN.z));
+  private cameraTarget:THREE.Vector3;
 
-  constructor(parent:HTMLElement,profile:UserProfile){
+  constructor(parent:HTMLElement,profile:UserProfile,private options:WorldMapRendererOptions=LAKE_PARK_RENDERER_OPTIONS){
     this.parent=parent;
+    this.localX=options.spawn.x;
+    this.localZ=options.spawn.z;
+    this.portalPosition=options.portal?savedPortalPosition(options.portal):undefined;
+    this.interactionPosition=options.interaction?savedInteractionPosition(options.interaction):undefined;
+    this.cameraTarget=new THREE.Vector3(options.spawn.x,0,this.worldToSceneZ(options.spawn.z));
     this.renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
     this.renderer.domElement.className='village-map-canvas';
     textureAnisotropy=Math.min(8,this.renderer.capabilities.getMaxAnisotropy());
@@ -246,12 +353,13 @@ export class VillageMapRenderer{
     parent.prepend(this.renderer.domElement);
     this.resize();
     this.localCharacter=new WorldCharacter(this.scene,profile.nickname,profile.model,profile.character);
+    if(options.overview)gameEvents.on('map-overview-toggle',this.onMapOverviewToggle);
     this.ready=this.loadVillage();
   }
 
   private async loadVillage(){
     try{
-      const gltf=await new GLTFLoader().loadAsync(villageModelUrl);
+      const gltf=await new GLTFLoader().loadAsync(this.options.modelUrl);
       if(this.destroyed)return;
       const model=gltf.scene;model.updateMatrixWorld(true);
       sharpenObjectTextures(model);
@@ -264,27 +372,137 @@ export class VillageMapRenderer{
       if(this.mapMeshes.length>1)this.mapMeshes.forEach(mesh=>{const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];materials.forEach(material=>this.classifyMaterial(material))});
       this.scene.add(model);
       const spawn=this.sampleGround(this.localX,this.localZ,0,true);if(spawn){this.localGround=spawn.height;this.localNormal.copy(spawn.normal)}
-      const guideGround=this.sampleGround(this.guidePosition.x,this.guidePosition.z,0,true);
-      if(guideGround){
-        this.guideNpcPosition.set(this.guidePosition.x,guideGround.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(this.guidePosition.z));
-        this.guideNpcNormal.copy(guideGround.normal);
-        this.guideNpc=new WorldCharacter(this.scene,'충녕이 · 안내 NPC','chungnyeong',{hair:'',face:'',top:'',bottom:''},GUIDE_CHARACTER_HEIGHT,true);
-        this.guideNpc.update(this.guideNpcPosition,this.guideNpcNormal,this.guidePosition.yaw,'idle',0);
+      if(this.options.guide){
+        const initialGuide=guidePatrolFrame(Date.now()+this.worldClockOffset);
+        this.guidePosition={x:initialGuide.x,z:initialGuide.z,yaw:initialGuide.yaw};
+        const guideGround=this.sampleGround(this.guidePosition.x,this.guidePosition.z,0,true);
+        if(guideGround){
+          this.guideGround=guideGround.height;
+          this.guideNpcPosition.set(this.guidePosition.x,guideGround.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(this.guidePosition.z));
+          this.guideNpcNormal.copy(guideGround.normal);
+          this.guideNpc=new WorldCharacter(this.scene,'충녕이 · 안내 NPC','chungnyeong',{hair:'',face:'',top:'',bottom:'',shoes:''},GUIDE_CHARACTER_HEIGHT);
+          this.guideNpc.update(this.guideNpcPosition,this.guideNpcNormal,this.guidePosition.yaw,initialGuide.motion,0);
+        }
       }
+      if(this.options.portal&&this.portalPosition){
+        const portalGround=this.sampleGround(this.portalPosition.x,this.portalPosition.z,0,true);
+        if(portalGround)this.createPortal({...this.options.portal,...this.portalPosition},portalGround.height);
+      }
+      const residentReady=this.options.resident?this.createResident(this.options.resident):Promise.resolve();
       const startPosition=new THREE.Vector3(this.localX,this.localGround+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(this.localZ));
-      this.localCharacter.update(startPosition,this.localNormal,LAKE_PARK_SPAWN.yaw,'idle',0);
-      await Promise.all([this.localCharacter.ready,this.guideNpc?.ready]);
+      this.localCharacter.update(startPosition,this.localNormal,this.options.spawn.yaw,'idle',0);
+      await Promise.all([this.localCharacter.ready,this.guideNpc?.ready,residentReady]);
       if(this.destroyed)return;
       this.mapReady=true;
       this.followCharacter(startPosition,0,true);
       this.localCharacter.warmup(this.renderer,this.scene,this.camera);
       this.guideNpc?.warmup(this.renderer,this.scene,this.camera);
       this.render();
-      console.log('[Sejong Lake Park world] unified 3D scene ready',{meshes:this.mapMeshes.length,scale});
-    }catch(error){console.error('[Sejong Lake Park world] GLB load error',error)}
+      console.log(`[${this.options.mapName} world] unified 3D scene ready`,{meshes:this.mapMeshes.length,scale});
+    }catch(error){console.error(`[${this.options.mapName} world] GLB load error`,error)}
   }
 
-  setVisible(visible:boolean){this.renderer.domElement.style.display=visible?'block':'none'}
+  setVisible(visible:boolean){
+    this.renderer.domElement.style.display=visible?'block':'none';
+    if(!visible&&this.guideNearby){this.guideNearby=false;gameEvents.emit('guide-proximity-changed',false)}
+    if(!visible&&this.mapSignNearby){this.mapSignNearby=false;gameEvents.emit('map-sign-proximity-changed',false)}
+    if(!visible&&this.portalNearby){this.portalNearby=false;this.resetPortalCharge();gameEvents.emit('world-portal-proximity-changed',null)}
+    if(!visible&&this.interactionNearby){this.interactionNearby=false;gameEvents.emit('world-interaction-proximity-changed',null)}
+  }
+  setWorldClock(serverNow:number){if(Number.isFinite(serverNow))this.worldClockOffset=serverNow-Date.now()}
+  setInteractionPosition(position:WorldInteractionPosition){
+    if(!this.options.interaction||position.destination!==this.options.interaction.destination)return;
+    this.interactionPosition={x:position.x,z:position.z};
+    localStorage.setItem(`${INTERACTION_POSITION_KEY_PREFIX}-${position.destination}`,JSON.stringify(this.interactionPosition));
+    this.interactionNearby=false;
+    gameEvents.emit('world-interaction-proximity-changed',null);
+  }
+  setPortalPosition(position:PortalPosition){
+    if(!this.options.portal||position.destination!==this.options.portal.destination)return;
+    this.portalPosition={x:position.x,z:position.z};
+    localStorage.setItem(`${PORTAL_POSITION_KEY_PREFIX}-${position.destination}`,JSON.stringify(this.portalPosition));
+    if(!this.mapReady)return;
+    const ground=this.sampleGround(position.x,position.z,this.localGround,true);
+    if(!ground)return;
+    if(this.portalRoot){
+      this.portalRoot.position.set(position.x,ground.height,this.worldToSceneZ(position.z));
+      this.portalRoot.userData.groundHeight=ground.height;
+    }else this.createPortal({...this.options.portal,...position},ground.height);
+    this.portalNearby=false;
+    this.resetPortalCharge();
+    gameEvents.emit('world-portal-proximity-changed',null);
+    this.render();
+  }
+  private resetPortalCharge(){
+    this.portalChargeSeconds=0;
+    this.portalChargeStep=0;
+    this.portalTravelTriggered=false;
+    gameEvents.emit('portal-charge-progress',0);
+  }
+  private createPortal(config:PortalConfig,groundHeight:number){
+    const root=new THREE.Group();
+    root.name=`world-portal-${config.destination}`;
+    root.position.set(config.x,groundHeight,this.worldToSceneZ(config.z));
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(38,6,12,48),new THREE.MeshStandardMaterial({color:0x71e5c2,emissive:0x2ad8aa,emissiveIntensity:2.4,metalness:.25,roughness:.28}));
+    ring.position.y=49;ring.castShadow=true;
+    const glow=new THREE.Mesh(new THREE.CircleGeometry(31,48),new THREE.MeshBasicMaterial({color:0x74f5d0,transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}));
+    glow.position.y=49;glow.position.z=-1;
+    const base=new THREE.Mesh(new THREE.CylinderGeometry(43,51,8,40),new THREE.MeshStandardMaterial({color:0x244f48,emissive:0x1e7562,emissiveIntensity:.8,roughness:.42}));
+    base.position.y=4;root.add(base,ring,glow);root.userData.glow=glow;root.userData.groundHeight=groundHeight;this.scene.add(root);this.portalRoot=root;
+    const light=new THREE.PointLight(0x76f5d1,3.2,210);light.position.set(0,52,18);root.add(light);
+  }
+  private async createResident(config:ResidentConfig){
+    const gltf=await new GLTFLoader().loadAsync(config.modelUrl);
+    if(this.destroyed)return;
+    const visual=gltf.scene;visual.updateMatrixWorld(true);sharpenObjectTextures(visual);
+    const bounds=new THREE.Box3().setFromObject(visual),size=bounds.getSize(new THREE.Vector3()),scale=config.height/Math.max(size.y,.001);
+    visual.scale.setScalar(scale);visual.position.y=-bounds.min.y*scale;
+    visual.traverse(object=>{if(object instanceof THREE.Mesh){object.castShadow=true;object.receiveShadow=true}});
+    const ground=this.sampleGround(config.x,config.z,0,true);if(!ground)return;
+    const root=new THREE.Group();root.name='bear-cub-resident';root.position.set(config.x,ground.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(config.z));root.rotation.y=config.yaw;root.add(visual);this.scene.add(root);this.residentRoot=root;
+    if(gltf.animations.length){this.residentMixer=new THREE.AnimationMixer(visual);this.residentMixer.clipAction(gltf.animations[0]).play()}
+  }
+  private updatePortal(){
+    if(!this.portalRoot)return;
+    const elapsed=(Date.now()+this.worldClockOffset)/1000;
+    this.portalRoot.rotation.y=Math.sin(elapsed*.8)*.12;
+    const glow=this.portalRoot.userData.glow as THREE.Object3D|undefined,pulse=1+Math.sin(elapsed*2.8)*.08;
+    glow?.scale.setScalar(pulse);
+    this.portalRoot.position.y=(this.portalRoot.userData.groundHeight as number)+Math.sin(elapsed*2.2)*2.2;
+  }
+  private updateGuideNpc(delta:number){
+    if(!this.guideNpc)return;
+    const frame=guidePatrolFrame(Date.now()+this.worldClockOffset);
+    const ground=this.sampleGround(frame.x,frame.z,this.guideGround);
+    if(ground){
+      this.guideGround=ground.height;
+      this.guidePosition={x:frame.x,z:frame.z,yaw:frame.yaw};
+      this.guideNpcPosition.set(frame.x,ground.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(frame.z));
+      this.guideNpcNormal.copy(ground.normal);
+    }
+    this.guideNpc.update(this.guideNpcPosition,this.guideNpcNormal,this.guidePosition.yaw,frame.motion,delta);
+  }
+  private onMapOverviewToggle=(active:boolean)=>{
+    this.overviewActive=active;
+    if(active)this.showMapOverview();
+    else{
+      this.camera.up.set(0,1,0);
+      const position=new THREE.Vector3(this.localX,this.localGround+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(this.localZ));
+      this.followCharacter(position,0,true);
+    }
+    gameEvents.emit('map-overview-changed',active);
+    this.render();
+  }
+  private showMapOverview(){
+    if(this.mapBounds.isEmpty())return;
+    const center=this.mapBounds.getCenter(new THREE.Vector3()),size=this.mapBounds.getSize(new THREE.Vector3()),aspect=this.width/Math.max(this.height,1);
+    const projectedDepth=size.z*Math.sin(OVERVIEW_CAMERA_ELEVATION)+size.y*Math.cos(OVERVIEW_CAMERA_ELEVATION);
+    const halfHeight=Math.max(projectedDepth/2+110,(size.x/2+110)/aspect),halfWidth=halfHeight*aspect;
+    this.camera.left=-halfWidth;this.camera.right=halfWidth;this.camera.top=halfHeight;this.camera.bottom=-halfHeight;
+    this.camera.up.set(0,1,0);
+    this.camera.position.set(center.x,center.y+Math.sin(OVERVIEW_CAMERA_ELEVATION)*2200,center.z+Math.cos(OVERVIEW_CAMERA_ELEVATION)*2200);
+    this.camera.lookAt(center);this.camera.updateProjectionMatrix();
+  }
   private worldToSceneZ(worldZ:number){return WORLD_HEIGHT/2+(worldZ-WORLD_HEIGHT/2)/GROUND_PROJECTION}
 
   private classifyMaterial(material:THREE.Material){
@@ -339,18 +557,60 @@ export class VillageMapRenderer{
 
   updateLocalCharacter(proposedX:number,proposedZ:number,yaw:number,motion:MotionState,delta:number){
     if(!this.mapReady)return {x:this.localX,z:this.localZ,groundHeight:this.localGround};
+    this.residentMixer?.update(delta);
+    this.updateGuideNpc(delta);
+    this.updatePortal();
+    if(this.overviewActive){this.showMapOverview();this.renderAccumulator+=delta;if(this.renderAccumulator>=RENDER_INTERVAL){this.renderAccumulator%=RENDER_INTERVAL;this.render()}return {x:this.localX,z:this.localZ,groundHeight:this.localGround}}
     const positionChanged=Math.hypot(proposedX-this.localX,proposedZ-this.localZ)>.001;
     let nextX=proposedX,nextZ=proposedZ,sample=positionChanged?(this.bodyPathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround):undefined):{height:this.localGround,normal:this.localNormal};
     if(!sample){nextZ=this.localZ;sample=this.bodyPathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround):undefined}
     if(!sample){nextX=this.localX;nextZ=proposedZ;sample=this.bodyPathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround):undefined}
     if(!sample){nextX=this.localX;nextZ=this.localZ;sample={height:this.localGround,normal:this.localNormal}}
     this.localX=nextX;this.localZ=nextZ;this.localGround=sample.height;this.localNormal.copy(sample.normal);
-    const guideDistance=Math.hypot(nextX-this.guidePosition.x,nextZ-this.guidePosition.z);
-    const guideNearby=guideDistance<(this.guideNearby?GUIDE_TALK_EXIT_DISTANCE:GUIDE_TALK_DISTANCE);
-    if(guideNearby!==this.guideNearby){this.guideNearby=guideNearby;gameEvents.emit('guide-proximity-changed',guideNearby)}
+    if(this.options.guide){
+      const guideDistance=Math.hypot(nextX-this.guidePosition.x,nextZ-this.guidePosition.z);
+      const guideNearby=guideDistance<(this.guideNearby?GUIDE_TALK_EXIT_DISTANCE:GUIDE_TALK_DISTANCE);
+      if(guideNearby!==this.guideNearby){this.guideNearby=guideNearby;gameEvents.emit('guide-proximity-changed',guideNearby)}
+    }
+    if(this.options.mapSign){
+      const mapSignDistance=Math.hypot(nextX-this.mapSignPosition.x,nextZ-this.mapSignPosition.z);
+      const mapSignNearby=mapSignDistance<(this.mapSignNearby?MAP_SIGN_EXIT_DISTANCE:MAP_SIGN_OPEN_DISTANCE);
+      if(mapSignNearby!==this.mapSignNearby){
+        this.mapSignNearby=mapSignNearby;
+        gameEvents.emit('map-sign-proximity-changed',mapSignNearby);
+      }
+    }
+    if(this.options.portal&&this.portalPosition){
+      const portalDistance=Math.hypot(nextX-this.portalPosition.x,nextZ-this.portalPosition.z);
+      const portalNearby=portalDistance<(this.portalNearby?PORTAL_EXIT_DISTANCE:PORTAL_OPEN_DISTANCE);
+      if(portalNearby!==this.portalNearby){
+        this.portalNearby=portalNearby;
+        if(!portalNearby)this.resetPortalCharge();
+        gameEvents.emit('world-portal-proximity-changed',portalNearby?{destination:this.options.portal.destination,label:this.options.portal.label}:null);
+      }
+      if(portalNearby&&!this.portalTravelTriggered){
+        this.portalChargeSeconds+=delta;
+        const chargeStep=Math.min(3,Math.floor(this.portalChargeSeconds));
+        if(chargeStep!==this.portalChargeStep){
+          this.portalChargeStep=chargeStep;
+          gameEvents.emit('portal-charge-progress',chargeStep/3);
+        }
+        if(this.portalChargeSeconds>=3){
+          this.portalTravelTriggered=true;
+          gameEvents.emit('travel-to-map',this.options.portal.destination);
+        }
+      }
+    }
+    if(this.options.interaction&&this.interactionPosition){
+      const interactionDistance=Math.hypot(nextX-this.interactionPosition.x,nextZ-this.interactionPosition.z);
+      const interactionNearby=interactionDistance<(this.interactionNearby?INTERACTION_EXIT_DISTANCE:INTERACTION_OPEN_DISTANCE);
+      if(interactionNearby!==this.interactionNearby){
+        this.interactionNearby=interactionNearby;
+        gameEvents.emit('world-interaction-proximity-changed',interactionNearby?this.options.interaction:null);
+      }
+    }
     const position=new THREE.Vector3(nextX,sample.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(nextZ));
     this.localCharacter.update(position,sample.normal,yaw,motion,delta);
-    this.guideNpc?.update(this.guideNpcPosition,this.guideNpcNormal,this.guidePosition.yaw,'idle',delta);
     this.followCharacter(position,delta);this.adjustQuality(delta);this.renderAccumulator+=delta;if(this.renderAccumulator>=RENDER_INTERVAL){this.renderAccumulator%=RENDER_INTERVAL;this.render()}
     return {x:nextX,z:nextZ,groundHeight:sample.height};
   }
@@ -367,14 +627,17 @@ export class VillageMapRenderer{
   removeRemoteCharacter(id:string){this.remotes.get(id)?.destroy();this.remotes.delete(id);this.remoteGrounds.delete(id)}
 
   private followCharacter(position:THREE.Vector3,delta:number,immediate=false){
-    if(immediate)this.cameraTarget.copy(position);else this.cameraTarget.lerp(position,1-Math.exp(-5*delta));
+    if(this.overviewActive){this.showMapOverview();return}
+    const target=position.clone();
+    target.z-=(this.options.cameraScreenOffsetY??0)/GROUND_PROJECTION;
+    if(immediate)this.cameraTarget.copy(target);else this.cameraTarget.lerp(target,1-Math.exp(-5*delta));
     if(!this.mapBounds.isEmpty()){
       const center=this.mapBounds.getCenter(new THREE.Vector3()),halfWidth=this.width/(2*CAMERA_ZOOM),groundHalfDepth=this.height/(2*CAMERA_ZOOM*GROUND_PROJECTION),minX=this.mapBounds.min.x+halfWidth,maxX=this.mapBounds.max.x-halfWidth,minZ=this.mapBounds.min.z+groundHalfDepth,maxZ=this.mapBounds.max.z-groundHalfDepth;
       this.cameraTarget.x=minX<=maxX?THREE.MathUtils.clamp(this.cameraTarget.x,minX,maxX):center.x;
       this.cameraTarget.z=minZ<=maxZ?THREE.MathUtils.clamp(this.cameraTarget.z,minZ,maxZ):center.z;
     }
     this.camera.left=-this.width/(2*CAMERA_ZOOM);this.camera.right=this.width/(2*CAMERA_ZOOM);this.camera.top=this.height/(2*CAMERA_ZOOM);this.camera.bottom=-this.height/(2*CAMERA_ZOOM);
-    this.camera.position.set(this.cameraTarget.x,Math.sin(CAMERA_ELEVATION)*CAMERA_DISTANCE,this.cameraTarget.z+Math.cos(CAMERA_ELEVATION)*CAMERA_DISTANCE);
+    this.camera.position.set(this.cameraTarget.x,this.cameraTarget.y+Math.sin(CAMERA_ELEVATION)*CAMERA_DISTANCE,this.cameraTarget.z+Math.cos(CAMERA_ELEVATION)*CAMERA_DISTANCE);
     this.camera.lookAt(this.cameraTarget);this.camera.updateProjectionMatrix();
   }
 
@@ -395,6 +658,10 @@ export class VillageMapRenderer{
 
   destroy(){
     if(this.guideNearby)gameEvents.emit('guide-proximity-changed',false);
+    if(this.portalNearby)gameEvents.emit('world-portal-proximity-changed',null);
+    if(this.interactionNearby)gameEvents.emit('world-interaction-proximity-changed',null);
+    if(this.overviewActive)gameEvents.emit('map-overview-changed',false);
+    if(this.options.overview)gameEvents.off('map-overview-toggle',this.onMapOverviewToggle);
     this.destroyed=true;this.localCharacter.destroy();this.guideNpc?.destroy();this.remotes.forEach(character=>character.destroy());this.remotes.clear();this.remoteGrounds.clear();
     this.scene.traverse(object=>{if(object instanceof THREE.Mesh){object.geometry.dispose();const materials=Array.isArray(object.material)?object.material:[object.material];materials.forEach(material=>material.dispose())}});
     this.renderer.dispose();this.renderer.domElement.remove();
