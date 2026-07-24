@@ -1,4 +1,4 @@
-export type MapId = 'town' | 'bear-tree-park' | 'bear-play-zone' | 'jochwon-station' | 'traditional-market' | 'jochwon-park' | 'college-street';
+export type MapId = 'town' | 'bear-tree-park' | 'bear-play-zone' | 'campus' | 'jochwon-station' | 'traditional-market' | 'jochwon-park' | 'college-street';
 export type Direction = 'up' | 'down' | 'left' | 'right';
 export type MotionState = 'idle' | 'walk' | 'run';
 export type CharacterModel = 'custom' | 'chungnyeong' | 'girl1' | 'boy1';
@@ -7,7 +7,7 @@ export interface PublicMatchProfile { mbti:string; interests:string[]; usagePurp
 export interface PlayerState { id:string; mapId:MapId; x:number; y:number; direction:Direction; isMoving:boolean; yaw:number; motionState:MotionState; timestamp:number; nickname:string; appearance:Appearance; model:CharacterModel; matchProfile?:PublicMatchProfile }
 export interface JoinMapPayload { mapId:MapId; nickname:string; appearance:Appearance; model:CharacterModel; x:number; y:number; matchProfile?:PublicMatchProfile }
 export interface MovementPayload { mapId:MapId; x:number; y:number; direction:Direction; isMoving:boolean; yaw:number; motionState:MotionState; timestamp:number }
-export interface PortalPosition { destination:Extract<MapId,'town'|'bear-tree-park'>; x:number; z:number }
+export interface PortalPosition { destination:Extract<MapId,'town'|'bear-tree-park'|'campus'>; x:number; z:number }
 export interface WorldInteractionPosition { destination:Extract<MapId,'bear-tree-park'|'bear-play-zone'>; x:number; z:number }
 export interface ChatMessage { id:string; mapId:MapId; senderId:string; nickname:string; message:string; createdAt:number; channel:'nearby'|'group' }
 export interface DirectRequest { requestId:string; from:Pick<PlayerState,'id'|'nickname'|'appearance'>; toId:string }

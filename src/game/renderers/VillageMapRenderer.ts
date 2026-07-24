@@ -40,15 +40,17 @@ const PORTAL_OPEN_DISTANCE=62;
 const PORTAL_EXIT_DISTANCE=78;
 const INTERACTION_OPEN_DISTANCE=88;
 const INTERACTION_EXIT_DISTANCE=110;
-const RENDER_INTERVAL=1/60;
+const RENDER_INTERVAL=1/45;
+const PORTAL_CHARGE_SECONDS=1;
 const CAMERA_ZOOM=1.28;
 const MIN_PIXEL_RATIO=1;
-const MAX_PIXEL_RATIO=Math.min(window.devicePixelRatio||1,1.6);
+const MAX_PIXEL_RATIO=Math.min(window.devicePixelRatio||1,1.25);
 let textureAnisotropy=4;
-export const LAKE_PARK_SPAWN:{x:number;z:number;yaw:number}={x:2000,z:1180,yaw:2.1};
+export const LAKE_PARK_SPAWN:{x:number;z:number;yaw:number}={x:1870,z:1180,yaw:2.1};
 export const BEAR_TREE_PARK_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1610,yaw:Math.PI};
 export const BEAR_PLAY_ZONE_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1570,yaw:Math.PI};
 export const BEAR_TREE_PORTAL_POSITION={x:2122,z:944} as const;
+const CAMPUS_PORTAL_POSITION={x:2000,z:1180} as const;
 const LAKE_PARK_GUIDE={x:2045,z:1138,yaw:-.78} as const;
 const GUIDE_PATROL_POINTS=([
   [LAKE_PARK_GUIDE.x,LAKE_PARK_GUIDE.z],[2050,1150],[2000,1150],[2000,750],[1900,750],[1900,500],
@@ -82,11 +84,12 @@ export type WorldMapRendererOptions={
   mapSign?:boolean;
   overview?:boolean;
   portal?:PortalConfig;
+  fixedPortals?:PortalConfig[];
   interaction?:InteractionConfig;
   resident?:ResidentConfig;
   cameraScreenOffsetY?:number;
 };
-export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크'}};
+export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크'},fixedPortals:[{...CAMPUS_PORTAL_POSITION,destination:'campus',label:'캠퍼스'}]};
 export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:1200,z:1660,destination:'town',label:'세종호수공원'},interaction:{x:1910,z:1575,destination:'bear-play-zone',label:'곰 놀이 공간',buttonLabel:'곰 키우기'},cameraScreenOffsetY:90};
 export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearPlayZoneModelUrl,mapName:'곰 놀이 공간',spawn:BEAR_PLAY_ZONE_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'베어트리파크로 돌아가기'},resident:{modelUrl:bearCubModelUrl,x:1200,z:1450,height:105,yaw:Math.PI},cameraScreenOffsetY:90};
 type LoadedModel=Awaited<ReturnType<GLTFLoader['loadAsync']>>;
@@ -309,11 +312,12 @@ export class VillageMapRenderer{
   private mapSignNearby=false;
   private portalNearby=false;
   private portalChargeSeconds=0;
-  private portalChargeStep=0;
   private portalTravelTriggered=false;
   private interactionNearby=false;
   private interactionPosition?:{x:number;z:number};
   private portalRoot?:THREE.Group;
+  private fixedPortalRoots:THREE.Group[]=[];
+  private activePortal?:PortalConfig;
   private residentRoot?:THREE.Group;
   private residentMixer?:THREE.AnimationMixer;
   private portalPosition?:{x:number;z:number};
@@ -345,7 +349,7 @@ export class VillageMapRenderer{
     this.scene.background=new THREE.Color('#b9d7c2');
     this.scene.add(new THREE.HemisphereLight(0xf4fbff,0x617760,1.8));
     const sun=new THREE.DirectionalLight(0xfff4dc,3.1);
-    const shadowSize=window.innerWidth>=800&&this.renderer.capabilities.maxTextureSize>=8192?1024:512;
+    const shadowSize=512;
     sun.position.set(1900,1400,1850);sun.target.position.set(WORLD_WIDTH/2,0,WORLD_HEIGHT/2);sun.castShadow=true;sun.shadow.mapSize.set(shadowSize,shadowSize);sun.shadow.camera.near=10;sun.shadow.camera.far=4000;
     sun.shadow.camera.left=-1300;sun.shadow.camera.right=1300;sun.shadow.camera.top=1100;sun.shadow.camera.bottom=-1100;sun.shadow.bias=-.00015;
     this.scene.add(sun,sun.target);
@@ -386,8 +390,13 @@ export class VillageMapRenderer{
       }
       if(this.options.portal&&this.portalPosition){
         const portalGround=this.sampleGround(this.portalPosition.x,this.portalPosition.z,0,true);
-        if(portalGround)this.createPortal({...this.options.portal,...this.portalPosition},portalGround.height);
+        if(portalGround)this.portalRoot=this.createPortal({...this.options.portal,...this.portalPosition},portalGround.height);
       }
+      this.options.fixedPortals?.forEach(config=>{
+        Object.assign(config,savedPortalPosition(config));
+        const portalGround=this.sampleGround(config.x,config.z,0,true);
+        this.fixedPortalRoots.push(this.createPortal(config,portalGround?.height??0));
+      });
       const residentReady=this.options.resident?this.createResident(this.options.resident):Promise.resolve();
       const startPosition=new THREE.Vector3(this.localX,this.localGround+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(this.localZ));
       this.localCharacter.update(startPosition,this.localNormal,this.options.spawn.yaw,'idle',0);
@@ -406,7 +415,7 @@ export class VillageMapRenderer{
     this.renderer.domElement.style.display=visible?'block':'none';
     if(!visible&&this.guideNearby){this.guideNearby=false;gameEvents.emit('guide-proximity-changed',false)}
     if(!visible&&this.mapSignNearby){this.mapSignNearby=false;gameEvents.emit('map-sign-proximity-changed',false)}
-    if(!visible&&this.portalNearby){this.portalNearby=false;this.resetPortalCharge();gameEvents.emit('world-portal-proximity-changed',null)}
+    if(!visible&&this.portalNearby){this.portalNearby=false;this.activePortal=undefined;this.resetPortalCharge();gameEvents.emit('world-portal-proximity-changed',null)}
     if(!visible&&this.interactionNearby){this.interactionNearby=false;gameEvents.emit('world-interaction-proximity-changed',null)}
   }
   setWorldClock(serverNow:number){if(Number.isFinite(serverNow))this.worldClockOffset=serverNow-Date.now()}
@@ -418,16 +427,24 @@ export class VillageMapRenderer{
     gameEvents.emit('world-interaction-proximity-changed',null);
   }
   setPortalPosition(position:PortalPosition){
-    if(!this.options.portal||position.destination!==this.options.portal.destination)return;
-    this.portalPosition={x:position.x,z:position.z};
-    localStorage.setItem(`${PORTAL_POSITION_KEY_PREFIX}-${position.destination}`,JSON.stringify(this.portalPosition));
+    const standardPortal=this.options.portal?.destination===position.destination?this.options.portal:undefined;
+    const fixedPortal=this.options.fixedPortals?.find(config=>config.destination===position.destination);
+    if(!standardPortal&&!fixedPortal)return;
+    const nextPosition={x:position.x,z:position.z};
+    if(standardPortal)this.portalPosition=nextPosition;
+    if(fixedPortal)Object.assign(fixedPortal,nextPosition);
+    localStorage.setItem(`${PORTAL_POSITION_KEY_PREFIX}-${position.destination}`,JSON.stringify(nextPosition));
     if(!this.mapReady)return;
     const ground=this.sampleGround(position.x,position.z,this.localGround,true);
-    if(!ground)return;
-    if(this.portalRoot){
-      this.portalRoot.position.set(position.x,ground.height,this.worldToSceneZ(position.z));
-      this.portalRoot.userData.groundHeight=ground.height;
-    }else this.createPortal({...this.options.portal,...position},ground.height);
+    if(!ground&&standardPortal)return;
+    const groundHeight=ground?.height??this.localGround;
+    const root=standardPortal?this.portalRoot:this.fixedPortalRoots.find(portal=>portal.name===`world-portal-${position.destination}`);
+    if(root){
+      root.position.set(position.x,groundHeight,this.worldToSceneZ(position.z));
+      root.userData.groundHeight=groundHeight;
+    }else if(standardPortal)this.portalRoot=this.createPortal({...standardPortal,...position},groundHeight);
+    else if(fixedPortal)this.fixedPortalRoots.push(this.createPortal({...fixedPortal,...position},groundHeight));
+    this.activePortal=undefined;
     this.portalNearby=false;
     this.resetPortalCharge();
     gameEvents.emit('world-portal-proximity-changed',null);
@@ -435,7 +452,6 @@ export class VillageMapRenderer{
   }
   private resetPortalCharge(){
     this.portalChargeSeconds=0;
-    this.portalChargeStep=0;
     this.portalTravelTriggered=false;
     gameEvents.emit('portal-charge-progress',0);
   }
@@ -448,8 +464,9 @@ export class VillageMapRenderer{
     const glow=new THREE.Mesh(new THREE.CircleGeometry(31,48),new THREE.MeshBasicMaterial({color:0x74f5d0,transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}));
     glow.position.y=49;glow.position.z=-1;
     const base=new THREE.Mesh(new THREE.CylinderGeometry(43,51,8,40),new THREE.MeshStandardMaterial({color:0x244f48,emissive:0x1e7562,emissiveIntensity:.8,roughness:.42}));
-    base.position.y=4;root.add(base,ring,glow);root.userData.glow=glow;root.userData.groundHeight=groundHeight;this.scene.add(root);this.portalRoot=root;
+    base.position.y=4;root.add(base,ring,glow);root.userData.glow=glow;root.userData.groundHeight=groundHeight;this.scene.add(root);
     const light=new THREE.PointLight(0x76f5d1,3.2,210);light.position.set(0,52,18);root.add(light);
+    return root;
   }
   private async createResident(config:ResidentConfig){
     const gltf=await new GLTFLoader().loadAsync(config.modelUrl);
@@ -462,13 +479,15 @@ export class VillageMapRenderer{
     const root=new THREE.Group();root.name='bear-cub-resident';root.position.set(config.x,ground.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(config.z));root.rotation.y=config.yaw;root.add(visual);this.scene.add(root);this.residentRoot=root;
     if(gltf.animations.length){this.residentMixer=new THREE.AnimationMixer(visual);this.residentMixer.clipAction(gltf.animations[0]).play()}
   }
-  private updatePortal(){
-    if(!this.portalRoot)return;
+  private updatePortals(){
     const elapsed=(Date.now()+this.worldClockOffset)/1000;
-    this.portalRoot.rotation.y=Math.sin(elapsed*.8)*.12;
-    const glow=this.portalRoot.userData.glow as THREE.Object3D|undefined,pulse=1+Math.sin(elapsed*2.8)*.08;
-    glow?.scale.setScalar(pulse);
-    this.portalRoot.position.y=(this.portalRoot.userData.groundHeight as number)+Math.sin(elapsed*2.2)*2.2;
+    for(const root of [this.portalRoot,...this.fixedPortalRoots]){
+      if(!root)continue;
+      root.rotation.y=Math.sin(elapsed*.8)*.12;
+      const glow=root.userData.glow as THREE.Object3D|undefined,pulse=1+Math.sin(elapsed*2.8)*.08;
+      glow?.scale.setScalar(pulse);
+      root.position.y=(root.userData.groundHeight as number)+Math.sin(elapsed*2.2)*2.2;
+    }
   }
   private updateGuideNpc(delta:number){
     if(!this.guideNpc)return;
@@ -559,7 +578,7 @@ export class VillageMapRenderer{
     if(!this.mapReady)return {x:this.localX,z:this.localZ,groundHeight:this.localGround};
     this.residentMixer?.update(delta);
     this.updateGuideNpc(delta);
-    this.updatePortal();
+    this.updatePortals();
     if(this.overviewActive){this.showMapOverview();this.renderAccumulator+=delta;if(this.renderAccumulator>=RENDER_INTERVAL){this.renderAccumulator%=RENDER_INTERVAL;this.render()}return {x:this.localX,z:this.localZ,groundHeight:this.localGround}}
     const positionChanged=Math.hypot(proposedX-this.localX,proposedZ-this.localZ)>.001;
     let nextX=proposedX,nextZ=proposedZ,sample=positionChanged?(this.bodyPathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround):undefined):{height:this.localGround,normal:this.localNormal};
@@ -580,26 +599,25 @@ export class VillageMapRenderer{
         gameEvents.emit('map-sign-proximity-changed',mapSignNearby);
       }
     }
-    if(this.options.portal&&this.portalPosition){
-      const portalDistance=Math.hypot(nextX-this.portalPosition.x,nextZ-this.portalPosition.z);
-      const portalNearby=portalDistance<(this.portalNearby?PORTAL_EXIT_DISTANCE:PORTAL_OPEN_DISTANCE);
-      if(portalNearby!==this.portalNearby){
-        this.portalNearby=portalNearby;
-        if(!portalNearby)this.resetPortalCharge();
-        gameEvents.emit('world-portal-proximity-changed',portalNearby?{destination:this.options.portal.destination,label:this.options.portal.label}:null);
-      }
-      if(portalNearby&&!this.portalTravelTriggered){
+    const portalCandidates=[
+      ...(this.options.portal&&this.portalPosition?[{...this.options.portal,...this.portalPosition}]:[]),
+      ...(this.options.fixedPortals??[]),
+    ].map(config=>({config,distance:Math.hypot(nextX-config.x,nextZ-config.z)})).sort((a,b)=>a.distance-b.distance);
+    const closestPortal=portalCandidates[0],samePortal=closestPortal?.config.destination===this.activePortal?.destination;
+    const activePortal=closestPortal&&closestPortal.distance<(samePortal?PORTAL_EXIT_DISTANCE:PORTAL_OPEN_DISTANCE)?closestPortal.config:undefined;
+    if(activePortal?.destination!==this.activePortal?.destination){
+      this.activePortal=activePortal;
+      this.portalNearby=!!activePortal;
+      this.resetPortalCharge();
+      gameEvents.emit('world-portal-proximity-changed',activePortal?{destination:activePortal.destination,label:activePortal.label}:null);
+    }
+    if(activePortal&&!this.portalTravelTriggered){
         this.portalChargeSeconds+=delta;
-        const chargeStep=Math.min(3,Math.floor(this.portalChargeSeconds));
-        if(chargeStep!==this.portalChargeStep){
-          this.portalChargeStep=chargeStep;
-          gameEvents.emit('portal-charge-progress',chargeStep/3);
-        }
-        if(this.portalChargeSeconds>=3){
+        gameEvents.emit('portal-charge-progress',Math.min(1,this.portalChargeSeconds/PORTAL_CHARGE_SECONDS));
+        if(this.portalChargeSeconds>=PORTAL_CHARGE_SECONDS){
           this.portalTravelTriggered=true;
-          gameEvents.emit('travel-to-map',this.options.portal.destination);
+          gameEvents.emit('travel-to-map',activePortal.destination);
         }
-      }
     }
     if(this.options.interaction&&this.interactionPosition){
       const interactionDistance=Math.hypot(nextX-this.interactionPosition.x,nextZ-this.interactionPosition.z);

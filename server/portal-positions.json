@@ -8,5 +8,10 @@
     "destination": "town",
     "x": 1200,
     "z": 1660
+  },
+  {
+    "destination": "campus",
+    "x": 2000,
+    "z": 1180
   }
 ]
