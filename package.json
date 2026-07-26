@@ -14,6 +14,7 @@
     "verify:place-intents": "npm --prefix server run verify:place-intents",
     "inspect:character": "node scripts/inspectCharacter.mjs",
     "test:character": "node scripts/testCharacterMotion.mjs",
+    "test:greenhouse": "node scripts/runGreenhouseTests.mjs",
     "build": "tsc -b && vite build && tsc -p server/tsconfig.json",
     "start:server": "node server/dist/server/src/index.js",
     "preview": "vite preview"

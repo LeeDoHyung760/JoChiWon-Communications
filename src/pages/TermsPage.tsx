@@ -10,7 +10,7 @@ export function TermsPage({onBack,onComplete}:{onBack:()=>void;onComplete:()=>vo
   const toggleAll=()=>{const next=!all;setService(next);setLocation(next);setMarketing(next)};
   return <main className="terms-page">
     <section className="terms-card">
-      <header className="terms-top"><button type="button" onClick={onBack}><ArrowLeft size={17}/> 돌아가기</button><span>가입 단계 · 1/4</span></header>
+      <header className="terms-top"><button type="button" onClick={onBack}><ArrowLeft size={17}/> 돌아가기</button><span>가입 단계 · 1/3</span></header>
       <div className="terms-content">
         <span className="terms-icon"><ShieldCheck size={32}/></span>
         <small>WELCOME TO JOCHIWON</small>

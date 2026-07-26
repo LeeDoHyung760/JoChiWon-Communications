@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import {
   AnimationMixer,
+  Box3,
   Clock,
   Color,
   DirectionalLight,
@@ -9,6 +10,7 @@ import {
   PerspectiveCamera,
   Scene,
   SRGBColorSpace,
+  Vector3,
   WebGLRenderer
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -25,7 +27,7 @@ export function ThreeCharacterPreview({
   src: string;
   model: CharacterModel;
   parts: CharacterParts;
-  animationName?: string;
+  animationName?: string | null;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const loadedSceneRef = useRef<Object3D | null>(null);
@@ -84,11 +86,20 @@ export function ThreeCharacterPreview({
       src,
       gltf => {
         if (disposed) return;
+        gltf.scene.updateMatrixWorld(true);
+        const bounds = new Box3().setFromObject(gltf.scene);
+        const size = bounds.getSize(new Vector3());
+        const center = bounds.getCenter(new Vector3());
+        const previewHeight = model === 'cloths' ? 1.3 : 1.75;
+        const scale = previewHeight / Math.max(size.y, 0.001);
+        gltf.scene.scale.setScalar(scale);
+        gltf.scene.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);
+        gltf.scene.updateMatrixWorld(true);
         loadedSceneRef.current = gltf.scene;
         applyColorsToThreeScene(gltf.scene, model, latestPartsRef.current);
         scene.add(gltf.scene);
 
-        const clip = gltf.animations.find(item => item.name === animationName) ?? gltf.animations[0];
+        const clip = animationName === null ? undefined : gltf.animations.find(item => item.name === animationName) ?? gltf.animations[0];
         if (clip) {
           mixer = new AnimationMixer(gltf.scene);
           mixer.clipAction(clip).play();

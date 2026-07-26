@@ -18,3 +18,5 @@ client/.env.local
 Thumbs.db
 .agents/
 .codex/
+.tmp-*/
+*.glb.tmp

@@ -13,14 +13,28 @@ export const modelPartMappings: Partial<Record<CharacterModel, Record<string, Pa
     'tripo_part_6': 'shoes',
     'tripo_part_8': 'face',
     'tripo_part_9': 'face',
+  },
+  cloths: {
+    'hair1': 'hair',
+    'pants': 'bottom',
+    'shirt1_1.001': 'accessory',
+    'shirt1_1_001': 'accessory',
+    'shirt1_1001': 'accessory',
+    'shirt1_2': 'top',
+    'shoes1': 'shoes',
+    'tripo_node_f2f741ba': 'face',
+    'tripo_part_2': 'accessory',
   }
 };
 
 const COLOR_MATERIAL_FLAG = '__characterColorMaterial';
+const ORIGINAL_COLOR_FLAG = '__characterOriginalColor';
 
 function cloneColorMaterial(material: Material) {
   const clone = material.clone();
   clone.userData[COLOR_MATERIAL_FLAG] = true;
+  const color = (material as any).color;
+  if (color) clone.userData[ORIGINAL_COLOR_FLAG] = color.getHex();
   return clone;
 }
 
@@ -36,7 +50,20 @@ export function applyColorsToThreeScene(
     const partKind = node.isMesh ? mapping[node.name] : undefined;
     if (!partKind || !node.material) return;
 
-    const color = getPart(partKind, parts[partKind]).color;
+    const selectedPart = parts[partKind]??`${partKind}-none`;
+    const hidden = selectedPart.endsWith('-none');
+    node.visible = !hidden;
+    if (hidden) return;
+    if (selectedPart.endsWith('-original')) {
+      const materials: any[] = Array.isArray(node.material) ? node.material : [node.material];
+      materials.forEach(material => {
+        const original = material.userData?.[ORIGINAL_COLOR_FLAG];
+        if (original !== undefined) material.color?.setHex(original);
+        material.needsUpdate = true;
+      });
+      return;
+    }
+    const color = getPart(partKind, selectedPart).color;
     const materials: any[] = Array.isArray(node.material) ? node.material : [node.material];
     const coloredMaterials = materials.map(material => {
       const target = material.userData?.[COLOR_MATERIAL_FLAG]

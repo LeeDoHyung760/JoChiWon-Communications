@@ -4,15 +4,20 @@ import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.j
 import villageModelUrl from '../../assets/maps/sejong-lake-park.glb?url';
 import bearTreeParkModelUrl from '../../assets/maps/bear-tree-park.glb?url';
 import bearPlayZoneModelUrl from '../../assets/maps/bear-play-zone.glb?url';
+import gardenModelUrl from '../../assets/maps/garden.glb?url';
+import campusModelUrl from '../../assets/maps/campus.glb?url';
 import bearCubModelUrl from '../../assets/characters/bear-cub.glb?url';
 import chungnyeongIdleUrl from '../../assets/characters/chungnyeong_idle.glb?url';
 import chungnyeongWalkUrl from '../../assets/characters/chungnyeong_walk.glb?url';
 import chungnyeongRunUrl from '../../assets/characters/chungnyeong_run.glb?url';
-import girlUrl from '../../assets/characters/girl1_3종.glb?url';
-import boyUrl from '../../assets/characters/boy1_3종.glb?url';
+import girlUrl from '../../assets/characters/girl1_3.glb?url';
+import boyUrl from '../../assets/characters/boy1_3.glb?url';
+import clothsUrl from '../../assets/characters/cloths_rig.glb?url';
 import type { CharacterModel,CharacterParts,UserProfile } from '../../types';
-import type { MapId,MotionState,PortalPosition,WorldInteractionPosition } from '../../../shared/socket-events';
+import type { LakeExperienceId,LakeExperiencePosition,MapId,MotionState,PortalPosition,WorldInteractionPosition } from '../../../shared/socket-events';
 import { gameEvents } from '../events';
+import { applyColorsToThreeScene } from '../../utils/modelColorizer';
+import { greenhousePlants,GREENHOUSE_MEMORY_TREE_OBJECT,greenhousePlantIdByObjectName } from '../../data/greenhouse-plants';
 
 const WORLD_WIDTH=2400;
 const WORLD_HEIGHT=1900;
@@ -30,25 +35,50 @@ const GUIDE_TALK_DISTANCE=145;
 const GUIDE_TALK_EXIT_DISTANCE=175;
 const GUIDE_WALK_SPEED=58;
 const GUIDE_PAUSE_SECONDS=4;
+const RESIDENT_WALK_SPEED=34;
 const DEFAULT_MAP_SIGN_POSITION={x:2090,z:1185} as const;
 const MAP_SIGN_POSITION_KEY='sejong-lake-park-map-sign-position';
 const PORTAL_POSITION_KEY_PREFIX='world-portal-position';
 const INTERACTION_POSITION_KEY_PREFIX='world-interaction-position';
+const LAKE_EXPERIENCE_POSITION_KEY_PREFIX='lake-experience-position';
 const MAP_SIGN_OPEN_DISTANCE=78;
 const MAP_SIGN_EXIT_DISTANCE=105;
 const PORTAL_OPEN_DISTANCE=62;
 const PORTAL_EXIT_DISTANCE=78;
 const INTERACTION_OPEN_DISTANCE=88;
 const INTERACTION_EXIT_DISTANCE=110;
-const RENDER_INTERVAL=1/60;
+const LAKE_EXPERIENCE_OPEN_DISTANCE=92;
+const LAKE_EXPERIENCE_EXIT_DISTANCE=118;
+const GREENHOUSE_OPEN_DISTANCE=210;
+const GREENHOUSE_EXIT_DISTANCE=245;
+const RENDER_INTERVAL=1/45;
+const PORTAL_CHARGE_SECONDS=1;
+const BLUE_PORTAL_CHARGE_SECONDS=3;
 const CAMERA_ZOOM=1.28;
 const MIN_PIXEL_RATIO=1;
-const MAX_PIXEL_RATIO=Math.min(window.devicePixelRatio||1,1.6);
+const MAX_PIXEL_RATIO=Math.min(window.devicePixelRatio||1,1.25);
 let textureAnisotropy=4;
-export const LAKE_PARK_SPAWN:{x:number;z:number;yaw:number}={x:2000,z:1180,yaw:2.1};
+const worldMapDownloads=new Map<string,Promise<void>>();
+function preloadWorldMapDownload(url:string,label:string){
+  let pending=worldMapDownloads.get(url);
+  if(!pending){
+    pending=fetch(url,{cache:'force-cache'}).then(response=>{
+    if(!response.ok)throw new Error(`${label} preload failed: ${response.status}`);
+    return response.arrayBuffer();
+    }).then(()=>undefined).catch(error=>{worldMapDownloads.delete(url);throw error});
+    worldMapDownloads.set(url,pending);
+  }
+  return pending;
+}
+export const preloadCampusDownload=()=>preloadWorldMapDownload(campusModelUrl,'Campus');
+export const preloadBearTreeParkDownload=()=>preloadWorldMapDownload(bearTreeParkModelUrl,'Bear tree park');
+export const LAKE_PARK_SPAWN:{x:number;z:number;yaw:number}={x:1870,z:1180,yaw:2.1};
 export const BEAR_TREE_PARK_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1610,yaw:Math.PI};
 export const BEAR_PLAY_ZONE_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1570,yaw:Math.PI};
+export const GARDEN_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1180,yaw:Math.PI};
+export const CAMPUS_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1500,yaw:Math.PI};
 export const BEAR_TREE_PORTAL_POSITION={x:2122,z:944} as const;
+const CAMPUS_PORTAL_POSITION={x:2000,z:1180} as const;
 const LAKE_PARK_GUIDE={x:2045,z:1138,yaw:-.78} as const;
 const GUIDE_PATROL_POINTS=([
   [LAKE_PARK_GUIDE.x,LAKE_PARK_GUIDE.z],[2050,1150],[2000,1150],[2000,750],[1900,750],[1900,500],
@@ -65,15 +95,21 @@ const GUIDE_PATROL_POINTS=([
   [2100,1250],[2100,1200],[2050,1200],[2050,1150],
 ] as const).map(([x,z])=>({x,z}));
 const GUIDE_PATROL_STOPS=new Set(['2045,1138','1900,500','1350,200','300,400','350,950','1250,900','1550,700','1950,950','1450,1250','900,1250','300,1600','850,1750','1950,1650','1800,1250','2050,1150']);
+const BEAR_PATROL_POINTS=[
+  {x:1200,z:1450},{x:1100,z:1450},{x:1050,z:1525},{x:1150,z:1575},
+  {x:1300,z:1550},{x:1350,z:1450},{x:1300,z:1375},{x:1150,z:1375},
+] as const;
 
 type CharacterState={scene:THREE.Object3D;mixer?:THREE.AnimationMixer;action?:THREE.AnimationAction};
 type GroundSample={height:number;normal:THREE.Vector3};
 type RemoteGroundSample=GroundSample&{x:number;z:number};
 type GuidePosition={x:number;z:number;yaw:number};
 type GuidePatrolFrame=GuidePosition&{motion:Extract<MotionState,'idle'|'walk'>};
-type PortalConfig={x:number;z:number;destination:MapId;label:string};
-type InteractionConfig={x:number;z:number;destination:MapId;label:string;buttonLabel:string};
-type ResidentConfig={modelUrl:string;x:number;z:number;height:number;yaw:number};
+type PortalConfig={x:number;z:number;destination:PortalPosition['destination'];label:string;appearance?:'standing'|'white-circle';fixedPosition?:boolean;theme?:'mint'|'blue'};
+type InteractionConfig={x:number;z:number;destination:WorldInteractionPosition['destination'];label:string;buttonLabel:string;fixedPosition?:boolean};
+type LakeExperienceConfig={id:LakeExperienceId;x:number;z:number;label:string;description:string;color:number};
+type ResidentConfig={modelUrl:string;x:number;z:number;height:number;yaw:number;patrol?:readonly {x:number;z:number}[];walkSpeed?:number};
+type GreenhouseTarget={id:string;objects:THREE.Object3D[];center:THREE.Vector3;marker:THREE.Sprite;kind:'plant'|'memory-tree'};
 export type WorldMapRendererOptions={
   modelUrl:string;
   mapName:string;
@@ -82,13 +118,23 @@ export type WorldMapRendererOptions={
   mapSign?:boolean;
   overview?:boolean;
   portal?:PortalConfig;
+  fixedPortals?:PortalConfig[];
   interaction?:InteractionConfig;
+  lakeExperiences?:LakeExperienceConfig[];
   resident?:ResidentConfig;
   cameraScreenOffsetY?:number;
+  cameraElevationDeg?:number;
+  cameraZoom?:number;
+  characterHeight?:number;
+  mapScaleMultiplier?:number;
+  greenhouse?:boolean;
+  performanceMode?:boolean;
 };
-export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크'}};
-export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:1200,z:1660,destination:'town',label:'세종호수공원'},interaction:{x:1910,z:1575,destination:'bear-play-zone',label:'곰 놀이 공간',buttonLabel:'곰 키우기'},cameraScreenOffsetY:90};
-export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearPlayZoneModelUrl,mapName:'곰 놀이 공간',spawn:BEAR_PLAY_ZONE_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'베어트리파크로 돌아가기'},resident:{modelUrl:bearCubModelUrl,x:1200,z:1450,height:105,yaw:Math.PI},cameraScreenOffsetY:90};
+export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크',theme:'blue'},fixedPortals:[{...CAMPUS_PORTAL_POSITION,destination:'campus',label:'공동캠퍼스',theme:'blue'}],lakeExperiences:[{id:'central-plaza',x:1150,z:950,label:'중앙광장',description:'오늘의 세종 소식을 만나요',color:0xffffff},{id:'wind-hill',x:350,z:400,label:'바람의 언덕',description:'꽃잎과 함께 소원을 남겨요',color:0xffffff}]};
+export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:BEAR_TREE_PARK_SPAWN.x,z:BEAR_TREE_PARK_SPAWN.z,destination:'town',label:'세종호수공원',theme:'blue'},fixedPortals:[{x:682,z:735,destination:'garden',label:'세종수목원',appearance:'white-circle',fixedPosition:true}],interaction:{x:1616,z:601,destination:'bear-play-zone',label:'곰 놀이 공간',buttonLabel:'곰 키우기',fixedPosition:true},cameraScreenOffsetY:90,cameraZoom:.78,characterHeight:154};
+export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearPlayZoneModelUrl,mapName:'곰 놀이 공간',spawn:BEAR_PLAY_ZONE_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'베어트리파크로 돌아가기'},resident:{modelUrl:bearCubModelUrl,x:1200,z:1450,height:105,yaw:Math.PI,patrol:BEAR_PATROL_POINTS,walkSpeed:RESIDENT_WALK_SPEED},cameraScreenOffsetY:90,cameraZoom:.78,characterHeight:154};
+export const GARDEN_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:gardenModelUrl,mapName:'수목원',spawn:GARDEN_SPAWN,interaction:{x:1200,z:1260,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'베어트리파크로 돌아가기',fixedPosition:true},cameraScreenOffsetY:90,cameraZoom:.78,characterHeight:154,mapScaleMultiplier:.67,greenhouse:true};
+export const CAMPUS_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:campusModelUrl,mapName:'공동캠퍼스',spawn:CAMPUS_SPAWN,portal:{x:1200,z:1650,destination:'town',label:'세종호수공원',theme:'blue'},cameraElevationDeg:33,cameraZoom:.78,characterHeight:154,performanceMode:true};
 type LoadedModel=Awaited<ReturnType<GLTFLoader['loadAsync']>>;
 const modelAssetCache=new Map<string,Promise<LoadedModel>>();
 const loadModel=(url:string)=>{
@@ -142,6 +188,7 @@ function savedMapSignPosition(){
 }
 
 function savedPortalPosition(config:PortalConfig){
+  if(config.fixedPosition)return {x:config.x,z:config.z};
   try{
     const saved=JSON.parse(localStorage.getItem(`${PORTAL_POSITION_KEY_PREFIX}-${config.destination}`)??'null') as {x?:number;z?:number}|null;
     if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))return {x:saved.x!,z:saved.z!};
@@ -150,6 +197,7 @@ function savedPortalPosition(config:PortalConfig){
 }
 
 function savedInteractionPosition(config:InteractionConfig){
+  if(config.fixedPosition)return {x:config.x,z:config.z};
   try{
     const saved=JSON.parse(localStorage.getItem(`${INTERACTION_POSITION_KEY_PREFIX}-${config.destination}`)??'null') as {x?:number;z?:number}|null;
     if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))return {x:saved.x!,z:saved.z!};
@@ -157,11 +205,34 @@ function savedInteractionPosition(config:InteractionConfig){
   return {x:config.x,z:config.z};
 }
 
+function savedLakeExperiencePosition(config:LakeExperienceConfig){
+  try{
+    const saved=JSON.parse(localStorage.getItem(`${LAKE_EXPERIENCE_POSITION_KEY_PREFIX}-${config.id}`)??'null') as {x?:number;z?:number}|null;
+    if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))return {x:saved.x!,z:saved.z!};
+  }catch{/* Keep the configured experience position when no valid saved position exists. */}
+  return {x:config.x,z:config.z};
+}
+
 const modelConfig:Record<Exclude<CharacterModel,'custom'>,{urls:Record<MotionState,string>;clips:Record<MotionState,string>}>= {
   chungnyeong:{urls:{idle:chungnyeongIdleUrl,walk:chungnyeongWalkUrl,run:chungnyeongRunUrl},clips:{idle:'NlaTrack',walk:'NlaTrack',run:'NlaTrack'}},
   girl1:{urls:{idle:girlUrl,walk:girlUrl,run:girlUrl},clips:{idle:'NlaTrack.001',walk:'NlaTrack',run:'NlaTrack.002'}},
-  boy1:{urls:{idle:boyUrl,walk:boyUrl,run:boyUrl},clips:{idle:'NlaTrack.001',walk:'NlaTrack.002',run:'NlaTrack'}}
+  boy1:{urls:{idle:boyUrl,walk:boyUrl,run:boyUrl},clips:{idle:'NlaTrack.001',walk:'NlaTrack.002',run:'NlaTrack'}},
+  cloths:{urls:{idle:clothsUrl,walk:clothsUrl,run:clothsUrl},clips:{idle:'root|root|mixamo.com',walk:'root|root|mixamo.com',run:'root|root|mixamo.com'}}
 };
+
+function inPlaceCharacterClip(source:THREE.AnimationClip){
+  const clip=source.clone();
+  clip.tracks.forEach(track=>{
+    const name=track.name.toLowerCase();
+    const rootPosition=name==='root.position'||name.endsWith('root.x.position')||name.includes('bones[root.x].position');
+    if(!rootPosition)return;
+    const values=track.values;
+    if(values.length<3)return;
+    const firstX=values[0],firstZ=values[2];
+    for(let index=0;index<values.length;index+=3){values[index]=firstX;values[index+2]=firstZ}
+  });
+  return clip;
+}
 
 class WorldCharacter{
   readonly root=new THREE.Group();
@@ -171,7 +242,7 @@ class WorldCharacter{
   private targetQuaternion=new THREE.Quaternion();
   private height:number;
 
-  constructor(private scene:THREE.Scene,name:string,model:CharacterModel,parts:CharacterParts,height=CHARACTER_HEIGHT,private idleOnly=false){
+  constructor(private scene:THREE.Scene,name:string,private model:CharacterModel,private parts:CharacterParts,height=CHARACTER_HEIGHT,private idleOnly=false){
     this.height=height;
     this.root.name=`world-character-${name}`;
     scene.add(this.root);
@@ -185,6 +256,7 @@ class WorldCharacter{
     try{
       if(this.idleOnly){
         const gltf=await loadModel(config.urls.idle),visual=cloneSkeleton(gltf.scene);
+        applyColorsToThreeScene(visual,model,this.parts);
         sharpenObjectTextures(visual);
         visual.updateMatrixWorld(true);
         const bounds=new THREE.Box3().setFromObject(visual),size=bounds.getSize(new THREE.Vector3()),scale=this.height/Math.max(size.y,.001);
@@ -195,18 +267,20 @@ class WorldCharacter{
       }
       if(new Set(Object.values(config.urls)).size===1){
         const gltf=await loadModel(config.urls.idle),visual=cloneSkeleton(gltf.scene);
+        applyColorsToThreeScene(visual,model,this.parts);
         sharpenObjectTextures(visual);
         visual.updateMatrixWorld(true);
         const bounds=new THREE.Box3().setFromObject(visual),size=bounds.getSize(new THREE.Vector3()),scale=this.height/Math.max(size.y,.001);
         visual.scale.setScalar(scale);visual.position.y=-bounds.min.y*scale;
         visual.traverse(object=>{if(object instanceof THREE.Mesh){object.castShadow=true;object.receiveShadow=false}});
         const mixer=new THREE.AnimationMixer(visual);this.root.add(visual);
-        for(const motion of ['idle','walk','run'] as MotionState[]){const clip=THREE.AnimationClip.findByName(gltf.animations,config.clips[motion]);const action=clip?mixer.clipAction(clip):undefined;this.states.set(motion,{scene:visual,mixer,action})}
+        for(const motion of ['idle','walk','run'] as MotionState[]){const sourceClip=THREE.AnimationClip.findByName(gltf.animations,config.clips[motion]);const clip=sourceClip&&model==='cloths'?inPlaceCharacterClip(sourceClip):sourceClip;const action=clip?mixer.clipAction(clip):undefined;this.states.set(motion,{scene:visual,mixer,action})}
         this.setMotion(this.active);return;
       }
       const loadedStates=await Promise.all((['idle','walk','run'] as MotionState[]).map(async motion=>{
         const gltf=await loadModel(config.urls[motion]);
         const visual=cloneSkeleton(gltf.scene);
+        applyColorsToThreeScene(visual,model,this.parts);
         sharpenObjectTextures(visual);
         visual.updateMatrixWorld(true);
         const bounds=new THREE.Box3().setFromObject(visual),size=bounds.getSize(new THREE.Vector3()),scale=this.height/Math.max(size.y,.001);
@@ -252,6 +326,13 @@ class WorldCharacter{
     this.active=motion;
     const activeState=this.states.get(motion),scenes=new Set([...this.states.values()].map(state=>state.scene));
     scenes.forEach(scene=>{scene.visible=scene===activeState?.scene});
+    if(this.model==='cloths'){
+      const action=activeState?.action,mixer=activeState?.mixer;
+      this.states.forEach(state=>state.action?.stop());
+      if(motion==='idle')mixer?.setTime(0);
+      else if(action){action.reset().setEffectiveTimeScale(motion==='run'?2.35:1.7).fadeIn(.1).play()}
+      return;
+    }
     this.states.forEach((state,key)=>{if(key===motion){state.action?.reset().fadeIn(.12).play()}else state.action?.fadeOut(.12)});
   }
 
@@ -265,11 +346,10 @@ class WorldCharacter{
     const mixers=new Set([...this.states.values()].filter(state=>state.scene.visible&&state.mixer).map(state=>state.mixer!));mixers.forEach(mixer=>mixer.update(delta));
   }
 
-  warmup(renderer:THREE.WebGLRenderer,scene:THREE.Scene,camera:THREE.Camera){
+  showAllForWarmup(){
     const visibility=[...this.states.values()].map(state=>[state.scene,state.scene.visible] as const);
     visibility.forEach(([visual])=>{visual.visible=true});
-    renderer.compile(scene,camera);renderer.render(scene,camera);
-    visibility.forEach(([visual,visible])=>{visual.visible=visible});
+    return()=>visibility.forEach(([visual,visible])=>{visual.visible=visible});
   }
 
   destroy(){
@@ -293,7 +373,9 @@ export class VillageMapRenderer{
   private qualityElapsed=0;
   private qualityFrameTime=0;
   private qualityFrames=0;
+  private renderInterval=RENDER_INTERVAL;
   private mapMeshes:THREE.Mesh[]=[];
+  private mapMeshBounds=new Map<THREE.Mesh,THREE.Box3>();
   private mapBounds=new THREE.Box3();
   private blockedMaterials=new WeakSet<THREE.Material>();
   private raycaster=new THREE.Raycaster();
@@ -308,14 +390,24 @@ export class VillageMapRenderer{
   private guideNearby=false;
   private mapSignNearby=false;
   private portalNearby=false;
+  private portalEntryArmed=true;
   private portalChargeSeconds=0;
-  private portalChargeStep=0;
   private portalTravelTriggered=false;
   private interactionNearby=false;
   private interactionPosition?:{x:number;z:number};
+  private interactionRoot?:THREE.Group;
+  private lakeExperienceNearby?:LakeExperienceId;
+  private lakeExperiencePositions=new Map<LakeExperienceId,{x:number;z:number}>();
+  private lakeExperienceRoots=new Map<LakeExperienceId,THREE.Group>();
   private portalRoot?:THREE.Group;
+  private fixedPortalRoots:THREE.Group[]=[];
+  private activePortal?:PortalConfig;
   private residentRoot?:THREE.Group;
   private residentMixer?:THREE.AnimationMixer;
+  private residentGround=0;
+  private residentX=0;
+  private residentZ=0;
+  private residentPatrolTarget=1;
   private portalPosition?:{x:number;z:number};
   private overviewActive=false;
   private mapSignPosition=savedMapSignPosition();
@@ -326,34 +418,51 @@ export class VillageMapRenderer{
   private localGround=0;
   private localNormal=new THREE.Vector3(0,1,0);
   private cameraTarget:THREE.Vector3;
+  private greenhouseTargets=new Map<string,GreenhouseTarget>();
+  private greenhouseObjectIds=new WeakMap<THREE.Object3D,string>();
+  private greenhouseNearby?:GreenhouseTarget;
+  private greenhouseCollected=new Set<string>();
+  private greenhouseUnlocked=false;
+  private greenhouseClock=0;
+  private memoryTreeEffect?:THREE.Group;
 
   constructor(parent:HTMLElement,profile:UserProfile,private options:WorldMapRendererOptions=LAKE_PARK_RENDERER_OPTIONS){
     this.parent=parent;
+    if(options.performanceMode){this.pixelRatio=1;this.renderInterval=1/30}
     this.localX=options.spawn.x;
     this.localZ=options.spawn.z;
     this.portalPosition=options.portal?savedPortalPosition(options.portal):undefined;
+    if(this.portalPosition&&Math.hypot(options.spawn.x-this.portalPosition.x,options.spawn.z-this.portalPosition.z)<PORTAL_EXIT_DISTANCE)this.portalEntryArmed=false;
     this.interactionPosition=options.interaction?savedInteractionPosition(options.interaction):undefined;
+    options.lakeExperiences?.forEach(config=>this.lakeExperiencePositions.set(config.id,savedLakeExperiencePosition(config)));
     this.cameraTarget=new THREE.Vector3(options.spawn.x,0,this.worldToSceneZ(options.spawn.z));
-    this.renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
+    this.renderer=new THREE.WebGLRenderer({antialias:!options.performanceMode,alpha:false,powerPreference:'high-performance'});
     this.renderer.domElement.className='village-map-canvas';
     textureAnisotropy=Math.min(8,this.renderer.capabilities.getMaxAnisotropy());
     this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.outputColorSpace=THREE.SRGBColorSpace;
-    this.renderer.shadowMap.enabled=true;
+    this.renderer.shadowMap.enabled=!options.performanceMode;
     this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;
     this.renderer.sortObjects=true;
     this.scene.background=new THREE.Color('#b9d7c2');
     this.scene.add(new THREE.HemisphereLight(0xf4fbff,0x617760,1.8));
     const sun=new THREE.DirectionalLight(0xfff4dc,3.1);
-    const shadowSize=window.innerWidth>=800&&this.renderer.capabilities.maxTextureSize>=8192?1024:512;
+    const shadowSize=512;
     sun.position.set(1900,1400,1850);sun.target.position.set(WORLD_WIDTH/2,0,WORLD_HEIGHT/2);sun.castShadow=true;sun.shadow.mapSize.set(shadowSize,shadowSize);sun.shadow.camera.near=10;sun.shadow.camera.far=4000;
     sun.shadow.camera.left=-1300;sun.shadow.camera.right=1300;sun.shadow.camera.top=1100;sun.shadow.camera.bottom=-1100;sun.shadow.bias=-.00015;
     this.scene.add(sun,sun.target);
     this.camera.up.set(0,1,0);this.camera.near=.1;this.camera.far=5000;
     parent.prepend(this.renderer.domElement);
     this.resize();
-    this.localCharacter=new WorldCharacter(this.scene,profile.nickname,profile.model,profile.character);
+    this.localCharacter=new WorldCharacter(this.scene,profile.nickname,profile.model,profile.character,options.characterHeight??CHARACTER_HEIGHT);
     if(options.overview)gameEvents.on('map-overview-toggle',this.onMapOverviewToggle);
+    if(options.portal)gameEvents.on('portal-move-to-player',this.onMovePortalToPlayer);
+    if(options.interaction)gameEvents.on('interaction-move-to-player',this.onMoveInteractionToPlayer);
+    if(options.lakeExperiences)gameEvents.on('lake-experience-move-to-player',this.onMoveLakeExperienceToPlayer);
+    if(options.greenhouse){
+      this.renderer.domElement.addEventListener('pointerdown',this.onGreenhousePointerDown);
+      gameEvents.on('greenhouse-progress-changed',this.onGreenhouseProgressChanged);
+    }
     this.ready=this.loadVillage();
   }
 
@@ -364,13 +473,14 @@ export class VillageMapRenderer{
       const model=gltf.scene;model.updateMatrixWorld(true);
       sharpenObjectTextures(model);
       const bounds=new THREE.Box3().setFromObject(model),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
-      const scale=Math.min((WORLD_WIDTH-180)/size.x,(WORLD_HEIGHT-120)/size.z),depthScale=scale/GROUND_PROJECTION;
+      const scale=Math.min((WORLD_WIDTH-180)/size.x,(WORLD_HEIGHT-120)/size.z)*(this.options.mapScaleMultiplier??1),depthScale=scale/GROUND_PROJECTION;
       model.position.set(WORLD_WIDTH/2-center.x*scale,-bounds.min.y*scale,WORLD_HEIGHT/2-center.z*depthScale);model.scale.set(scale,scale,depthScale);
       model.updateMatrixWorld(true);
       this.mapBounds.setFromObject(model);
-      model.traverse(object=>{if(object instanceof THREE.Mesh){object.castShadow=false;object.receiveShadow=true;this.mapMeshes.push(object)}});
+      model.traverse(object=>{if(object instanceof THREE.Mesh){object.castShadow=false;object.receiveShadow=!this.options.performanceMode;this.mapMeshes.push(object);this.mapMeshBounds.set(object,new THREE.Box3().setFromObject(object))}});
       if(this.mapMeshes.length>1)this.mapMeshes.forEach(mesh=>{const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];materials.forEach(material=>this.classifyMaterial(material))});
       this.scene.add(model);
+      if(this.options.greenhouse)this.setupGreenhouse(model);
       const spawn=this.sampleGround(this.localX,this.localZ,0,true);if(spawn){this.localGround=spawn.height;this.localNormal.copy(spawn.normal)}
       if(this.options.guide){
         const initialGuide=guidePatrolFrame(Date.now()+this.worldClockOffset);
@@ -386,70 +496,304 @@ export class VillageMapRenderer{
       }
       if(this.options.portal&&this.portalPosition){
         const portalGround=this.sampleGround(this.portalPosition.x,this.portalPosition.z,0,true);
-        if(portalGround)this.createPortal({...this.options.portal,...this.portalPosition},portalGround.height);
+        if(portalGround)this.portalRoot=this.createPortal({...this.options.portal,...this.portalPosition},portalGround.height);
       }
+      this.options.fixedPortals?.forEach(config=>{
+        Object.assign(config,savedPortalPosition(config));
+        const portalGround=config.appearance==='white-circle'
+          ?this.sampleExperienceGround(config.x,config.z,true)
+          :this.sampleGround(config.x,config.z,0,true);
+        this.fixedPortalRoots.push(this.createPortal(config,portalGround?.height??0));
+      });
+      if(this.options.interaction&&this.interactionPosition){
+        const interactionGround=this.sampleExperienceGround(this.interactionPosition.x,this.interactionPosition.z);
+        if(interactionGround)this.interactionRoot=this.createInteractionCircle(this.interactionPosition,interactionGround.height);
+      }
+      this.options.lakeExperiences?.forEach(config=>{
+        const position=this.lakeExperiencePositions.get(config.id)??config;
+        const ground=this.sampleExperienceGround(position.x,position.z);
+        if(ground)this.lakeExperienceRoots.set(config.id,this.createLakeExperienceCircle({...config,...position},ground.height));
+      });
       const residentReady=this.options.resident?this.createResident(this.options.resident):Promise.resolve();
       const startPosition=new THREE.Vector3(this.localX,this.localGround+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(this.localZ));
       this.localCharacter.update(startPosition,this.localNormal,this.options.spawn.yaw,'idle',0);
       await Promise.all([this.localCharacter.ready,this.guideNpc?.ready,residentReady]);
       if(this.destroyed)return;
-      this.mapReady=true;
       this.followCharacter(startPosition,0,true);
-      this.localCharacter.warmup(this.renderer,this.scene,this.camera);
-      this.guideNpc?.warmup(this.renderer,this.scene,this.camera);
+      const restoreVisibility=[this.localCharacter.showAllForWarmup(),this.guideNpc?.showAllForWarmup()].filter((restore):restore is ()=>void=>!!restore);
+      try{
+        await this.renderer.compileAsync(this.scene,this.camera);
+      }catch{
+        this.renderer.compile(this.scene,this.camera);
+      }finally{
+        restoreVisibility.forEach(restore=>restore());
+      }
+      if(this.destroyed)return;
+      this.mapReady=true;
       this.render();
       console.log(`[${this.options.mapName} world] unified 3D scene ready`,{meshes:this.mapMeshes.length,scale});
     }catch(error){console.error(`[${this.options.mapName} world] GLB load error`,error)}
   }
 
+  private greenhouseMarkerTexture(label:string,complete=false){
+    const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
+    const context=canvas.getContext('2d')!;
+    context.shadowColor='rgba(20,60,48,.28)';context.shadowBlur=12;
+    context.fillStyle=complete?'#f6c956':'#ffffff';context.beginPath();context.arc(64,64,42,0,Math.PI*2);context.fill();
+    context.shadowBlur=0;context.strokeStyle=complete?'#9b7420':'#3d9279';context.lineWidth=6;context.stroke();
+    context.font='52px "Segoe UI Emoji",sans-serif';context.textAlign='center';context.textBaseline='middle';context.fillStyle='#245c4d';context.fillText(label,64,67);
+    const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;return texture;
+  }
+
+  private setupGreenhouse(model:THREE.Object3D){
+    model.updateMatrixWorld(true);
+    const byName=new Map<string,THREE.Object3D>();
+    model.traverse(object=>byName.set(object.name,object));
+    if(import.meta.env.DEV){
+      const rows:{name:string;type:string;parent:string;position:string;bounds:string;materials:string}[]=[];
+      model.traverse(object=>{
+        const box=new THREE.Box3().setFromObject(object),position=object.getWorldPosition(new THREE.Vector3());
+        const mesh=object instanceof THREE.Mesh?object:undefined,materials=mesh?(Array.isArray(mesh.material)?mesh.material:[mesh.material]).map(item=>item.name).join(', '):'';
+        rows.push({name:object.name,type:object.type,parent:object.parent?.name??'-',position:`${position.x.toFixed(1)}, ${position.y.toFixed(1)}, ${position.z.toFixed(1)}`,bounds:box.isEmpty()?'-':`${box.min.toArray().map(value=>value.toFixed(1)).join('/')} → ${box.max.toArray().map(value=>value.toFixed(1)).join('/')}`,materials});
+      });
+      console.groupCollapsed('[수목원 GLB] 실제 오브젝트 구조');console.table(rows);console.groupEnd();
+    }
+    for(const definition of greenhousePlants){
+      const objects=definition.objectNames.map(name=>byName.get(name)??byName.get(THREE.PropertyBinding.sanitizeNodeName(name))).filter((object):object is THREE.Object3D=>!!object);
+      if(!objects.length){console.warn('[수목원 식물 매핑 누락]',definition.id,definition.objectNames);continue}
+      const bounds=objects.reduce((box,object)=>box.union(new THREE.Box3().setFromObject(object)),new THREE.Box3());
+      const center=bounds.getCenter(new THREE.Vector3());center.y=bounds.max.y+34;
+      const marker=new THREE.Sprite(new THREE.SpriteMaterial({map:this.greenhouseMarkerTexture('🍃'),transparent:true,depthTest:false,depthWrite:false}));
+      marker.name=`greenhouse-marker-${definition.id}`;marker.position.copy(center);marker.scale.set(58,58,1);marker.visible=false;marker.renderOrder=80;this.scene.add(marker);
+      const target:GreenhouseTarget={id:definition.id,objects,center,marker,kind:'plant'};this.greenhouseTargets.set(definition.id,target);
+      objects.forEach(object=>{this.greenhouseObjectIds.set(object,definition.id);object.userData.greenhousePlantId=definition.id});
+    }
+    const treeObject=byName.get(GREENHOUSE_MEMORY_TREE_OBJECT);
+    if(treeObject){
+      const bounds=new THREE.Box3().setFromObject(treeObject),center=bounds.getCenter(new THREE.Vector3());center.y=bounds.max.y+46;
+      const marker=new THREE.Sprite(new THREE.SpriteMaterial({map:this.greenhouseMarkerTexture('🔒'),transparent:true,depthTest:false,depthWrite:false}));
+      marker.name='greenhouse-marker-memory-tree';marker.position.copy(center);marker.scale.set(68,68,1);marker.visible=false;marker.renderOrder=80;this.scene.add(marker);
+      const target:GreenhouseTarget={id:'memory-tree',objects:[treeObject],center,marker,kind:'memory-tree'};this.greenhouseTargets.set(target.id,target);this.greenhouseObjectIds.set(treeObject,target.id);treeObject.userData.greenhousePlantId=target.id;
+      const effect=new THREE.Group();effect.position.set(center.x,bounds.min.y+25,center.z);effect.visible=false;
+      const positions:number[]=[];for(let index=0;index<42;index++){const angle=index/42*Math.PI*2,radius=55+(index%7)*12;positions.push(Math.cos(angle)*radius,(index%6)*18+12,Math.sin(angle)*radius)}
+      const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+      const particles=new THREE.Points(geometry,new THREE.PointsMaterial({color:0xffd86b,size:9,transparent:true,opacity:.8,depthWrite:false}));
+      const light=new THREE.PointLight(0xffd875,2.2,300);light.position.y=90;effect.add(particles,light);effect.userData.particles=particles;this.scene.add(effect);this.memoryTreeEffect=effect;
+    }else console.warn('[수목원 기억나무 매핑 누락]',GREENHOUSE_MEMORY_TREE_OBJECT);
+    if(import.meta.env.DEV)console.table([...this.greenhouseTargets.values()].map(target=>({plantId:target.id,kind:target.kind,objects:target.objects.map(object=>object.name).join(', '),worldPosition:target.center.toArray().map(value=>value.toFixed(1)).join(', ')})));
+  }
+
+  private updateGreenhouseProximity(x:number,z:number){
+    if(!this.options.greenhouse)return;
+    const sceneZ=this.worldToSceneZ(z);
+    const ranked=[...this.greenhouseTargets.values()].map(target=>({target,distance:Math.hypot(x-target.center.x,sceneZ-target.center.z)})).sort((a,b)=>a.distance-b.distance);
+    ranked.forEach(({target,distance})=>{target.marker.visible=distance<GREENHOUSE_EXIT_DISTANCE});
+    const closest=ranked[0];
+    const same=closest?.target===this.greenhouseNearby;
+    const next=closest&&closest.distance<(same?GREENHOUSE_EXIT_DISTANCE:GREENHOUSE_OPEN_DISTANCE)?closest.target:undefined;
+    if(next!==this.greenhouseNearby){
+      this.greenhouseNearby=next;
+      gameEvents.emit('greenhouse-nearby-changed',next?{kind:next.kind,plantId:next.kind==='plant'?next.id:undefined,distance:Math.round(closest.distance)}:null);
+    }
+    ranked.forEach(({target,distance})=>{if(distance>=GREENHOUSE_EXIT_DISTANCE)return;const marker=target.marker,pulse=target===this.greenhouseNearby?1+Math.sin(this.greenhouseClock*4)*.08:1;marker.scale.setScalar((target.kind==='memory-tree'?68:58)*pulse);marker.scale.z=1});
+  }
+
+  private onGreenhouseProgressChanged=({collectedIds,unlocked}:{collectedIds:string[];unlocked:boolean})=>{
+    this.greenhouseCollected=new Set(collectedIds);this.greenhouseUnlocked=unlocked;
+    for(const target of this.greenhouseTargets.values()){
+      const complete=target.kind==='plant'&&this.greenhouseCollected.has(target.id);
+      const label=target.kind==='memory-tree'?(unlocked?'✨':'🔒'):(complete?'✓':'🍃');
+      const material=target.marker.material;material.map?.dispose();material.map=this.greenhouseMarkerTexture(label,complete||unlocked);material.needsUpdate=true;
+    }
+    if(this.memoryTreeEffect)this.memoryTreeEffect.visible=unlocked;
+  };
+
+  private onGreenhousePointerDown=(event:PointerEvent)=>{
+    if(!this.mapReady||this.renderer.domElement.style.display==='none')return;
+    const rect=this.renderer.domElement.getBoundingClientRect(),pointer=new THREE.Vector2((event.clientX-rect.left)/rect.width*2-1,-((event.clientY-rect.top)/rect.height)*2+1);
+    this.raycaster.setFromCamera(pointer,this.camera);
+    const candidates=[...this.greenhouseTargets.values()].flatMap(target=>target.objects);
+    const hit=this.raycaster.intersectObjects(candidates,true)[0];if(!hit)return;
+    let object:THREE.Object3D|null=hit.object,id:string|undefined;
+    while(object&&!id){id=this.greenhouseObjectIds.get(object)??object.userData.greenhousePlantId;object=object.parent}
+    const target=id?this.greenhouseTargets.get(id):undefined;
+    if(import.meta.env.DEV)console.info('[수목원 클릭]',{mesh:hit.object.name,plantId:id??null,distance:target?Math.round(Math.hypot(this.localX-target.center.x,this.worldToSceneZ(this.localZ)-target.center.z)):null});
+    if(!target)return;
+    const distance=Math.hypot(this.localX-target.center.x,this.worldToSceneZ(this.localZ)-target.center.z);
+    if(distance>=GREENHOUSE_EXIT_DISTANCE)return;
+    gameEvents.emit(target.kind==='plant'?'greenhouse-observe-plant':'greenhouse-observe-tree',target.id);
+  };
+
   setVisible(visible:boolean){
     this.renderer.domElement.style.display=visible?'block':'none';
     if(!visible&&this.guideNearby){this.guideNearby=false;gameEvents.emit('guide-proximity-changed',false)}
     if(!visible&&this.mapSignNearby){this.mapSignNearby=false;gameEvents.emit('map-sign-proximity-changed',false)}
-    if(!visible&&this.portalNearby){this.portalNearby=false;this.resetPortalCharge();gameEvents.emit('world-portal-proximity-changed',null)}
+    if(!visible&&this.portalNearby){this.portalNearby=false;this.activePortal=undefined;this.resetPortalCharge();gameEvents.emit('world-portal-proximity-changed',null)}
     if(!visible&&this.interactionNearby){this.interactionNearby=false;gameEvents.emit('world-interaction-proximity-changed',null)}
+    if(!visible&&this.lakeExperienceNearby){this.lakeExperienceNearby=undefined;gameEvents.emit('lake-experience-proximity-changed',null)}
+    if(!visible&&this.options.greenhouse){this.greenhouseTargets.forEach(target=>{target.marker.visible=false});this.greenhouseNearby=undefined;gameEvents.emit('greenhouse-nearby-changed',null)}
   }
   setWorldClock(serverNow:number){if(Number.isFinite(serverNow))this.worldClockOffset=serverNow-Date.now()}
   setInteractionPosition(position:WorldInteractionPosition){
     if(!this.options.interaction||position.destination!==this.options.interaction.destination)return;
+    if(this.options.interaction.fixedPosition)return;
     this.interactionPosition={x:position.x,z:position.z};
     localStorage.setItem(`${INTERACTION_POSITION_KEY_PREFIX}-${position.destination}`,JSON.stringify(this.interactionPosition));
     this.interactionNearby=false;
     gameEvents.emit('world-interaction-proximity-changed',null);
+    if(!this.mapReady)return;
+    const ground=this.sampleExperienceGround(position.x,position.z);
+    if(!ground)return;
+    if(this.interactionRoot){
+      this.interactionRoot.position.set(position.x,ground.height+.8,this.worldToSceneZ(position.z));
+      this.interactionRoot.userData.groundHeight=ground.height;
+    }else this.interactionRoot=this.createInteractionCircle(position,ground.height);
+    this.render();
+  }
+  setLakeExperiencePosition(position:LakeExperiencePosition,fallbackGround?:number){
+    const config=this.options.lakeExperiences?.find(item=>item.id===position.experience);
+    if(!config)return;
+    const next={x:position.x,z:position.z};
+    this.lakeExperiencePositions.set(position.experience,next);
+    localStorage.setItem(`${LAKE_EXPERIENCE_POSITION_KEY_PREFIX}-${position.experience}`,JSON.stringify(next));
+    this.lakeExperienceNearby=undefined;
+    gameEvents.emit('lake-experience-proximity-changed',null);
+    if(!this.mapReady)return;
+    const ground=this.sampleExperienceGround(position.x,position.z)??(Number.isFinite(fallbackGround)?{height:fallbackGround!,normal:new THREE.Vector3(0,1,0)}:undefined);
+    if(!ground)return;
+    const root=this.lakeExperienceRoots.get(position.experience);
+    if(root){
+      root.position.set(position.x,ground.height+.8,this.worldToSceneZ(position.z));
+      root.userData.groundHeight=ground.height;
+    }else this.lakeExperienceRoots.set(position.experience,this.createLakeExperienceCircle({...config,...position},ground.height));
+    this.render();
+  }
+  private onMoveLakeExperienceToPlayer=(experience:LakeExperienceId)=>{
+    if(!this.options.lakeExperiences?.some(config=>config.id===experience)||!this.mapReady)return;
+    const position:LakeExperiencePosition={experience,x:Math.round(this.localX),z:Math.round(this.localZ)};
+    this.setLakeExperiencePosition(position,this.localGround);
+    gameEvents.emit('lake-experience-position-changed',position);
+  }
+  private onMovePortalToPlayer=(requestedDestination?:PortalPosition['destination'])=>{
+    if(!this.mapReady||this.renderer.domElement.style.display==='none')return;
+    const config=requestedDestination
+      ?[this.options.portal,...(this.options.fixedPortals??[])].find(portal=>portal?.destination===requestedDestination)
+      :this.options.portal;
+    if(!config)return;
+    const position:PortalPosition={destination:config.destination,x:Math.round(this.localX),z:Math.round(this.localZ)};
+    this.setPortalPosition(position);
+    gameEvents.emit('portal-position-changed',position);
+  }
+  private onMoveInteractionToPlayer=(requestedDestination?:WorldInteractionPosition['destination'])=>{
+    if(!this.mapReady||this.renderer.domElement.style.display==='none'||!this.options.interaction)return;
+    if(requestedDestination&&requestedDestination!==this.options.interaction.destination)return;
+    const position:WorldInteractionPosition={destination:this.options.interaction.destination,x:Math.round(this.localX),z:Math.round(this.localZ)};
+    this.setInteractionPosition(position);
+    gameEvents.emit('interaction-position-changed',position);
   }
   setPortalPosition(position:PortalPosition){
-    if(!this.options.portal||position.destination!==this.options.portal.destination)return;
-    this.portalPosition={x:position.x,z:position.z};
-    localStorage.setItem(`${PORTAL_POSITION_KEY_PREFIX}-${position.destination}`,JSON.stringify(this.portalPosition));
+    const standardPortal=this.options.portal?.destination===position.destination?this.options.portal:undefined;
+    const fixedPortal=this.options.fixedPortals?.find(config=>config.destination===position.destination);
+    if(!standardPortal&&!fixedPortal)return;
+    const nextPosition=fixedPortal?.fixedPosition?{x:fixedPortal.x,z:fixedPortal.z}:{x:position.x,z:position.z};
+    if(standardPortal)this.portalPosition=nextPosition;
+    if(fixedPortal)Object.assign(fixedPortal,nextPosition);
+    localStorage.setItem(`${PORTAL_POSITION_KEY_PREFIX}-${position.destination}`,JSON.stringify(nextPosition));
     if(!this.mapReady)return;
-    const ground=this.sampleGround(position.x,position.z,this.localGround,true);
-    if(!ground)return;
-    if(this.portalRoot){
-      this.portalRoot.position.set(position.x,ground.height,this.worldToSceneZ(position.z));
-      this.portalRoot.userData.groundHeight=ground.height;
-    }else this.createPortal({...this.options.portal,...position},ground.height);
+    const portalConfig=standardPortal??fixedPortal;
+    const ground=portalConfig?.appearance==='white-circle'
+      ?this.sampleExperienceGround(nextPosition.x,nextPosition.z,true)
+      :this.sampleGround(nextPosition.x,nextPosition.z,this.localGround,true);
+    if(!ground&&standardPortal)return;
+    const groundHeight=ground?.height??this.localGround;
+    const root=standardPortal?this.portalRoot:this.fixedPortalRoots.find(portal=>portal.name===`world-portal-${position.destination}`);
+    if(root){
+      root.position.set(nextPosition.x,groundHeight+(root.userData.appearance==='white-circle'?.8:0),this.worldToSceneZ(nextPosition.z));
+      root.userData.groundHeight=groundHeight;
+    }else if(standardPortal)this.portalRoot=this.createPortal({...standardPortal,...nextPosition},groundHeight);
+    else if(fixedPortal)this.fixedPortalRoots.push(this.createPortal({...fixedPortal,...nextPosition},groundHeight));
+    this.activePortal=undefined;
     this.portalNearby=false;
+    this.portalEntryArmed=false;
     this.resetPortalCharge();
     gameEvents.emit('world-portal-proximity-changed',null);
     this.render();
   }
   private resetPortalCharge(){
     this.portalChargeSeconds=0;
-    this.portalChargeStep=0;
     this.portalTravelTriggered=false;
     gameEvents.emit('portal-charge-progress',0);
   }
+
+  private portalChargeDuration(portal:PortalConfig){return portal.theme==='blue'?BLUE_PORTAL_CHARGE_SECONDS:PORTAL_CHARGE_SECONDS}
   private createPortal(config:PortalConfig,groundHeight:number){
     const root=new THREE.Group();
     root.name=`world-portal-${config.destination}`;
-    root.position.set(config.x,groundHeight,this.worldToSceneZ(config.z));
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(38,6,12,48),new THREE.MeshStandardMaterial({color:0x71e5c2,emissive:0x2ad8aa,emissiveIntensity:2.4,metalness:.25,roughness:.28}));
+    root.position.set(config.x,groundHeight+(config.appearance==='white-circle'?.8:0),this.worldToSceneZ(config.z));
+    if(config.appearance==='white-circle'){
+      root.rotation.x=-Math.PI/2;
+      const material=(opacity:number)=>new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity,depthTest:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+      const center=new THREE.Mesh(new THREE.CircleGeometry(50,64),material(.1));
+      const ring=new THREE.Mesh(new THREE.RingGeometry(45,54,64),material(.98));
+      const middleRing=new THREE.Mesh(new THREE.RingGeometry(34,38,64),material(.78));
+      const innerRing=new THREE.Mesh(new THREE.RingGeometry(18,22,64),material(.9));
+      const pulseRing=new THREE.Mesh(new THREE.RingGeometry(55,59,64),material(.48));
+      center.position.z=.2;ring.position.z=.4;middleRing.position.z=.6;innerRing.position.z=.8;pulseRing.position.z=.1;
+      for(const object of [center,ring,middleRing,innerRing,pulseRing])object.renderOrder=30;
+      root.add(center,ring,middleRing,innerRing,pulseRing);
+      root.userData.center=center;root.userData.innerRing=innerRing;root.userData.pulseRing=pulseRing;
+      root.userData.phase=0;root.userData.appearance='white-circle';root.userData.groundHeight=groundHeight;
+      const light=new THREE.PointLight(0xffffff,2.2,155);light.position.set(0,0,38);root.add(light);
+      this.scene.add(root);
+      return root;
+    }
+    const blue=config.theme==='blue',ringColor=blue?0x72b9ff:0x71e5c2,emissiveColor=blue?0x2688ff:0x2ad8aa,glowColor=blue?0x79c4ff:0x74f5d0;
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(38,6,12,48),new THREE.MeshStandardMaterial({color:ringColor,emissive:emissiveColor,emissiveIntensity:2.4,metalness:.25,roughness:.28}));
     ring.position.y=49;ring.castShadow=true;
-    const glow=new THREE.Mesh(new THREE.CircleGeometry(31,48),new THREE.MeshBasicMaterial({color:0x74f5d0,transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}));
+    const glow=new THREE.Mesh(new THREE.CircleGeometry(31,48),new THREE.MeshBasicMaterial({color:glowColor,transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}));
     glow.position.y=49;glow.position.z=-1;
-    const base=new THREE.Mesh(new THREE.CylinderGeometry(43,51,8,40),new THREE.MeshStandardMaterial({color:0x244f48,emissive:0x1e7562,emissiveIntensity:.8,roughness:.42}));
-    base.position.y=4;root.add(base,ring,glow);root.userData.glow=glow;root.userData.groundHeight=groundHeight;this.scene.add(root);this.portalRoot=root;
-    const light=new THREE.PointLight(0x76f5d1,3.2,210);light.position.set(0,52,18);root.add(light);
+    const base=new THREE.Mesh(new THREE.CylinderGeometry(43,51,8,40),new THREE.MeshStandardMaterial({color:blue?0x203f66:0x244f48,emissive:blue?0x235f9e:0x1e7562,emissiveIntensity:.8,roughness:.42}));
+    base.position.y=4;root.add(base,ring,glow);root.userData.glow=glow;root.userData.groundHeight=groundHeight;this.scene.add(root);
+    const light=new THREE.PointLight(blue?0x7fc5ff:0x76f5d1,3.2,210);light.position.set(0,52,18);root.add(light);
+    return root;
+  }
+  private createLakeExperienceCircle(config:LakeExperienceConfig,groundHeight:number){
+    const root=new THREE.Group();
+    root.name=`lake-experience-${config.id}`;
+    root.position.set(config.x,groundHeight+.8,this.worldToSceneZ(config.z));
+    root.rotation.x=-Math.PI/2;
+    const material=(color:number,opacity:number)=>new THREE.MeshBasicMaterial({color,transparent:true,opacity,depthTest:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+    const center=new THREE.Mesh(new THREE.CircleGeometry(50,64),material(config.color,.08));
+    const ring=new THREE.Mesh(new THREE.RingGeometry(45,54,64),material(config.color,.98));
+    const middleRing=new THREE.Mesh(new THREE.RingGeometry(34,38,64),material(0xffffff,.78));
+    const innerRing=new THREE.Mesh(new THREE.RingGeometry(18,22,64),material(config.color,.9));
+    const pulseRing=new THREE.Mesh(new THREE.RingGeometry(55,59,64),material(config.color,.48));
+    center.position.z=.2;ring.position.z=.4;middleRing.position.z=.6;innerRing.position.z=.8;pulseRing.position.z=.1;
+    for(const object of [center,ring,middleRing,innerRing,pulseRing])object.renderOrder=30;
+    root.add(center,ring,middleRing,innerRing,pulseRing);
+    root.userData.center=center;root.userData.ring=ring;root.userData.innerRing=innerRing;root.userData.pulseRing=pulseRing;root.userData.groundHeight=groundHeight;root.userData.phase=config.id==='wind-hill'?Math.PI:0;
+    const light=new THREE.PointLight(config.color,2.2,155);light.position.set(0,0,38);root.add(light);
+    this.scene.add(root);
+    return root;
+  }
+  private createInteractionCircle(position:{x:number;z:number},groundHeight:number){
+    const root=new THREE.Group();
+    root.name='world-interaction-circle';
+    root.position.set(position.x,groundHeight+.8,this.worldToSceneZ(position.z));
+    root.rotation.x=-Math.PI/2;
+    const material=(opacity:number)=>new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity,depthTest:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+    const center=new THREE.Mesh(new THREE.CircleGeometry(50,64),material(.08));
+    const ring=new THREE.Mesh(new THREE.RingGeometry(45,54,64),material(.98));
+    const middleRing=new THREE.Mesh(new THREE.RingGeometry(34,38,64),material(.78));
+    const innerRing=new THREE.Mesh(new THREE.RingGeometry(18,22,64),material(.9));
+    const pulseRing=new THREE.Mesh(new THREE.RingGeometry(55,59,64),material(.48));
+    center.position.z=.2;ring.position.z=.4;middleRing.position.z=.6;innerRing.position.z=.8;pulseRing.position.z=.1;
+    for(const object of [center,ring,middleRing,innerRing,pulseRing])object.renderOrder=30;
+    root.add(center,ring,middleRing,innerRing,pulseRing);
+    root.userData.center=center;root.userData.innerRing=innerRing;root.userData.pulseRing=pulseRing;root.userData.groundHeight=groundHeight;root.userData.phase=Math.PI*.5;
+    const light=new THREE.PointLight(0xffffff,2.2,155);light.position.set(0,0,38);root.add(light);
+    this.scene.add(root);
+    return root;
   }
   private async createResident(config:ResidentConfig){
     const gltf=await new GLTFLoader().loadAsync(config.modelUrl);
@@ -460,15 +804,61 @@ export class VillageMapRenderer{
     visual.traverse(object=>{if(object instanceof THREE.Mesh){object.castShadow=true;object.receiveShadow=true}});
     const ground=this.sampleGround(config.x,config.z,0,true);if(!ground)return;
     const root=new THREE.Group();root.name='bear-cub-resident';root.position.set(config.x,ground.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(config.z));root.rotation.y=config.yaw;root.add(visual);this.scene.add(root);this.residentRoot=root;
+    this.residentX=config.x;this.residentZ=config.z;this.residentGround=ground.height;
     if(gltf.animations.length){this.residentMixer=new THREE.AnimationMixer(visual);this.residentMixer.clipAction(gltf.animations[0]).play()}
   }
-  private updatePortal(){
-    if(!this.portalRoot)return;
+  private updateResident(delta:number){
+    this.residentMixer?.update(delta);
+    const root=this.residentRoot,config=this.options.resident,patrol=config?.patrol;
+    if(!root||!config||!patrol||patrol.length<2)return;
+    const target=patrol[this.residentPatrolTarget%patrol.length],dx=target.x-this.residentX,dz=target.z-this.residentZ,distance=Math.hypot(dx,dz);
+    if(distance<1){
+      this.residentX=target.x;this.residentZ=target.z;this.residentPatrolTarget=(this.residentPatrolTarget+1)%patrol.length;return;
+    }
+    const step=Math.min(distance,(config.walkSpeed??RESIDENT_WALK_SPEED)*delta),nextX=this.residentX+dx/distance*step,nextZ=this.residentZ+dz/distance*step;
+    const ground=this.sampleGround(nextX,nextZ,this.residentGround);
+    if(!ground){this.residentPatrolTarget=(this.residentPatrolTarget+1)%patrol.length;return}
+    this.residentX=nextX;this.residentZ=nextZ;this.residentGround=ground.height;
+    root.position.set(nextX,ground.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(nextZ));
+    root.rotation.y=config.yaw+Math.atan2(dx,dz);
+  }
+  private updatePortals(){
     const elapsed=(Date.now()+this.worldClockOffset)/1000;
-    this.portalRoot.rotation.y=Math.sin(elapsed*.8)*.12;
-    const glow=this.portalRoot.userData.glow as THREE.Object3D|undefined,pulse=1+Math.sin(elapsed*2.8)*.08;
-    glow?.scale.setScalar(pulse);
-    this.portalRoot.position.y=(this.portalRoot.userData.groundHeight as number)+Math.sin(elapsed*2.2)*2.2;
+    for(const root of [this.portalRoot,...this.fixedPortalRoots]){
+      if(!root)continue;
+      if(root.userData.appearance==='white-circle'){
+        const phase=root.userData.phase as number,pulse=(elapsed*.55+phase/(Math.PI*2))%1;
+        root.scale.setScalar(1+Math.sin(elapsed*2.15+phase)*.035);
+        const center=root.userData.center as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
+        const innerRing=root.userData.innerRing as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
+        const pulseRing=root.userData.pulseRing as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
+        center.material.opacity=.22+(Math.sin(elapsed*1.8+phase)+1)*.055;
+        innerRing.rotation.z=elapsed*.35;
+        pulseRing.scale.setScalar(1+pulse*.5);
+        pulseRing.material.opacity=.5*(1-pulse);
+        continue;
+      }
+      root.rotation.y=Math.sin(elapsed*.8)*.12;
+      const glow=root.userData.glow as THREE.Object3D|undefined,pulse=1+Math.sin(elapsed*2.8)*.08;
+      glow?.scale.setScalar(pulse);
+      root.position.y=(root.userData.groundHeight as number)+Math.sin(elapsed*2.2)*2.2;
+    }
+  }
+  private updateLakeExperienceCircles(){
+    const elapsed=(Date.now()+this.worldClockOffset)/1000;
+    const roots=[...this.lakeExperienceRoots.values(),...(this.interactionRoot?[this.interactionRoot]:[])];
+    roots.forEach(root=>{
+      const phase=root.userData.phase as number,wave=1+Math.sin(elapsed*2.15+phase)*0.035;
+      root.scale.setScalar(wave);
+      const center=root.userData.center as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
+      const innerRing=root.userData.innerRing as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
+      const pulseRing=root.userData.pulseRing as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
+      const pulse=(elapsed*.55+phase/(Math.PI*2))%1;
+      center.material.opacity=.22+(Math.sin(elapsed*1.8+phase)+1)*.055;
+      innerRing.rotation.z=elapsed*.35;
+      pulseRing.scale.setScalar(1+pulse*.5);
+      pulseRing.material.opacity=.5*(1-pulse);
+    });
   }
   private updateGuideNpc(delta:number){
     if(!this.guideNpc)return;
@@ -517,13 +907,32 @@ export class VillageMapRenderer{
 
   private materialForHit(hit:THREE.Intersection){const mesh=hit.object as THREE.Mesh,materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];return materials[hit.face?.materialIndex??0]??materials[0]}
 
+  private groundMeshesAt(worldX:number,worldZ:number){
+    const sceneZ=this.worldToSceneZ(worldZ);
+    return this.mapMeshes.filter(mesh=>{
+      const bounds=this.mapMeshBounds.get(mesh);
+      return !bounds||(worldX>=bounds.min.x&&worldX<=bounds.max.x&&sceneZ>=bounds.min.z&&sceneZ<=bounds.max.z);
+    });
+  }
+
+  private sampleExperienceGround(worldX:number,worldZ:number,preferHighest=false):GroundSample|undefined{
+    if(!this.mapMeshes.length)return {height:this.localGround,normal:new THREE.Vector3(0,1,0)};
+    this.raycaster.near=0;this.raycaster.far=Infinity;
+    this.raycaster.set(new THREE.Vector3(worldX,1200,this.worldToSceneZ(worldZ)),new THREE.Vector3(0,-1,0));
+    return this.raycaster.intersectObjects(this.groundMeshesAt(worldX,worldZ),false).flatMap(hit=>{
+      if(!hit.face)return [];
+      const normal=hit.face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld));
+      return normal.y>=MIN_WALKABLE_NORMAL&&!this.blockedMaterials.has(this.materialForHit(hit))?[{height:hit.point.y,normal}]:[];
+    }).sort((a,b)=>preferHighest?b.height-a.height:a.height-b.height)[0];
+  }
+
   private sampleGround(worldX:number,worldZ:number,currentHeight:number,initial=false):GroundSample|undefined{
     if(!this.mapMeshes.length)return {height:currentHeight,normal:new THREE.Vector3(0,1,0)};
     const offsets=initial?[[0,0],[COLLISION_RADIUS,0],[-COLLISION_RADIUS,0],[0,COLLISION_RADIUS],[0,-COLLISION_RADIUS]]:[[0,0]],samples:GroundSample[]=[];
     for(const [index,[offsetX,offsetZ]] of offsets.entries()){
       this.raycaster.near=0;this.raycaster.far=Infinity;
       this.raycaster.set(new THREE.Vector3(worldX+offsetX,1200,this.worldToSceneZ(worldZ+offsetZ)),new THREE.Vector3(0,-1,0));
-      const candidates=this.raycaster.intersectObjects(this.mapMeshes,false).flatMap(hit=>{
+      const candidates=this.raycaster.intersectObjects(this.groundMeshesAt(worldX+offsetX,worldZ+offsetZ),false).flatMap(hit=>{
         if(!hit.face)return [];
         const normal=hit.face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld));
         return normal.y>=MIN_WALKABLE_NORMAL&&!this.blockedMaterials.has(this.materialForHit(hit))?[{height:hit.point.y,normal}]:[];
@@ -545,9 +954,11 @@ export class VillageMapRenderer{
     const start=new THREE.Vector3(this.localX,this.localGround+CHARACTER_GROUND_CLEARANCE+CHARACTER_HEIGHT*.4,this.worldToSceneZ(this.localZ));
     const end=new THREE.Vector3(worldX,start.y,this.worldToSceneZ(worldZ)),direction=end.sub(start),distance=direction.length();
     if(distance<.001)return true;
+    const pathBounds=new THREE.Box3().setFromPoints([start,start.clone().add(direction)]).expandByScalar(COLLISION_RADIUS);
+    const nearbyMeshes=this.mapMeshes.filter(mesh=>this.mapMeshBounds.get(mesh)?.intersectsBox(pathBounds)??true);
     this.bodyRaycaster.near=2;this.bodyRaycaster.far=distance+COLLISION_RADIUS;
     this.bodyRaycaster.set(start,direction.normalize());
-    const blockingHit=this.bodyRaycaster.intersectObjects(this.mapMeshes,false).find(hit=>{
+    const blockingHit=this.bodyRaycaster.intersectObjects(nearbyMeshes,false).find(hit=>{
       if(!hit.face)return false;
       const normal=hit.face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld));
       return Math.abs(normal.y)<.55;
@@ -557,16 +968,21 @@ export class VillageMapRenderer{
 
   updateLocalCharacter(proposedX:number,proposedZ:number,yaw:number,motion:MotionState,delta:number){
     if(!this.mapReady)return {x:this.localX,z:this.localZ,groundHeight:this.localGround};
-    this.residentMixer?.update(delta);
+    this.updateResident(delta);
     this.updateGuideNpc(delta);
-    this.updatePortal();
-    if(this.overviewActive){this.showMapOverview();this.renderAccumulator+=delta;if(this.renderAccumulator>=RENDER_INTERVAL){this.renderAccumulator%=RENDER_INTERVAL;this.render()}return {x:this.localX,z:this.localZ,groundHeight:this.localGround}}
+    this.updatePortals();
+    this.updateLakeExperienceCircles();
+    if(this.overviewActive){this.showMapOverview();this.renderAccumulator+=delta;if(this.renderAccumulator>=this.renderInterval){this.renderAccumulator%=this.renderInterval;this.render()}return {x:this.localX,z:this.localZ,groundHeight:this.localGround}}
     const positionChanged=Math.hypot(proposedX-this.localX,proposedZ-this.localZ)>.001;
     let nextX=proposedX,nextZ=proposedZ,sample=positionChanged?(this.bodyPathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround):undefined):{height:this.localGround,normal:this.localNormal};
     if(!sample){nextZ=this.localZ;sample=this.bodyPathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround):undefined}
     if(!sample){nextX=this.localX;nextZ=proposedZ;sample=this.bodyPathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround):undefined}
     if(!sample){nextX=this.localX;nextZ=this.localZ;sample={height:this.localGround,normal:this.localNormal}}
     this.localX=nextX;this.localZ=nextZ;this.localGround=sample.height;this.localNormal.copy(sample.normal);
+    if(this.options.greenhouse){
+      this.greenhouseClock+=delta;this.updateGreenhouseProximity(nextX,nextZ);
+      const particles=this.memoryTreeEffect?.userData.particles as THREE.Points|undefined;if(particles)particles.rotation.y+=delta*.22;
+    }
     if(this.options.guide){
       const guideDistance=Math.hypot(nextX-this.guidePosition.x,nextZ-this.guidePosition.z);
       const guideNearby=guideDistance<(this.guideNearby?GUIDE_TALK_EXIT_DISTANCE:GUIDE_TALK_DISTANCE);
@@ -580,26 +996,28 @@ export class VillageMapRenderer{
         gameEvents.emit('map-sign-proximity-changed',mapSignNearby);
       }
     }
-    if(this.options.portal&&this.portalPosition){
-      const portalDistance=Math.hypot(nextX-this.portalPosition.x,nextZ-this.portalPosition.z);
-      const portalNearby=portalDistance<(this.portalNearby?PORTAL_EXIT_DISTANCE:PORTAL_OPEN_DISTANCE);
-      if(portalNearby!==this.portalNearby){
-        this.portalNearby=portalNearby;
-        if(!portalNearby)this.resetPortalCharge();
-        gameEvents.emit('world-portal-proximity-changed',portalNearby?{destination:this.options.portal.destination,label:this.options.portal.label}:null);
-      }
-      if(portalNearby&&!this.portalTravelTriggered){
+    const portalCandidates=[
+      ...(this.options.portal&&this.portalPosition?[{...this.options.portal,...this.portalPosition}]:[]),
+      ...(this.options.fixedPortals??[]),
+    ].map(config=>({config,distance:Math.hypot(nextX-config.x,nextZ-config.z)})).sort((a,b)=>a.distance-b.distance);
+    if(!this.portalEntryArmed&&portalCandidates.every(candidate=>candidate.distance>=PORTAL_EXIT_DISTANCE))this.portalEntryArmed=true;
+    const closestPortal=portalCandidates[0],samePortal=closestPortal?.config.destination===this.activePortal?.destination;
+    const activationDistance=closestPortal?.config.theme==='blue'?PORTAL_OPEN_DISTANCE:(samePortal?PORTAL_EXIT_DISTANCE:PORTAL_OPEN_DISTANCE);
+    const activePortal=this.portalEntryArmed&&closestPortal&&closestPortal.distance<activationDistance?closestPortal.config:undefined;
+    if(activePortal?.destination!==this.activePortal?.destination){
+      this.activePortal=activePortal;
+      this.portalNearby=!!activePortal;
+      this.resetPortalCharge();
+      gameEvents.emit('world-portal-proximity-changed',activePortal?{destination:activePortal.destination,label:activePortal.label,theme:activePortal.theme,chargeSeconds:this.portalChargeDuration(activePortal)}:null);
+    }
+    if(activePortal&&!this.portalTravelTriggered){
+        const chargeDuration=this.portalChargeDuration(activePortal);
         this.portalChargeSeconds+=delta;
-        const chargeStep=Math.min(3,Math.floor(this.portalChargeSeconds));
-        if(chargeStep!==this.portalChargeStep){
-          this.portalChargeStep=chargeStep;
-          gameEvents.emit('portal-charge-progress',chargeStep/3);
-        }
-        if(this.portalChargeSeconds>=3){
+        gameEvents.emit('portal-charge-progress',Math.min(1,this.portalChargeSeconds/chargeDuration));
+        if(this.portalChargeSeconds>=chargeDuration){
           this.portalTravelTriggered=true;
-          gameEvents.emit('travel-to-map',this.options.portal.destination);
+          gameEvents.emit('travel-to-map',activePortal.destination);
         }
-      }
     }
     if(this.options.interaction&&this.interactionPosition){
       const interactionDistance=Math.hypot(nextX-this.interactionPosition.x,nextZ-this.interactionPosition.z);
@@ -609,14 +1027,23 @@ export class VillageMapRenderer{
         gameEvents.emit('world-interaction-proximity-changed',interactionNearby?this.options.interaction:null);
       }
     }
+    if(this.options.lakeExperiences?.length){
+      const closest=this.options.lakeExperiences.map(config=>{const position=this.lakeExperiencePositions.get(config.id)??config;return {config,distance:Math.hypot(nextX-position.x,nextZ-position.z)}}).sort((a,b)=>a.distance-b.distance)[0];
+      const same=closest?.config.id===this.lakeExperienceNearby;
+      const nearby=closest&&closest.distance<(same?LAKE_EXPERIENCE_EXIT_DISTANCE:LAKE_EXPERIENCE_OPEN_DISTANCE)?closest.config:undefined;
+      if(nearby?.id!==this.lakeExperienceNearby){
+        this.lakeExperienceNearby=nearby?.id;
+        gameEvents.emit('lake-experience-proximity-changed',nearby?{id:nearby.id,label:nearby.label,description:nearby.description}:null);
+      }
+    }
     const position=new THREE.Vector3(nextX,sample.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(nextZ));
     this.localCharacter.update(position,sample.normal,yaw,motion,delta);
-    this.followCharacter(position,delta);this.adjustQuality(delta);this.renderAccumulator+=delta;if(this.renderAccumulator>=RENDER_INTERVAL){this.renderAccumulator%=RENDER_INTERVAL;this.render()}
+    this.followCharacter(position,delta);this.adjustQuality(delta);this.renderAccumulator+=delta;if(this.renderAccumulator>=this.renderInterval){this.renderAccumulator%=this.renderInterval;this.render()}
     return {x:nextX,z:nextZ,groundHeight:sample.height};
   }
 
   updateRemoteCharacter(id:string,name:string,model:CharacterModel,parts:CharacterParts,worldX:number,worldZ:number,yaw:number,motion:MotionState,delta:number){
-    let character=this.remotes.get(id);if(!character){character=new WorldCharacter(this.scene,name,model,parts);this.remotes.set(id,character)}
+    let character=this.remotes.get(id);if(!character){character=new WorldCharacter(this.scene,name,model,parts,this.options.characterHeight??CHARACTER_HEIGHT);this.remotes.set(id,character)}
     const previousGround=this.remoteGrounds.get(id),needsGroundSample=!previousGround||Math.hypot(worldX-previousGround.x,worldZ-previousGround.z)>=4;
     const sampled=needsGroundSample?this.sampleGround(worldX,worldZ,previousGround?.height??0,!previousGround):undefined;
     const ground=sampled?{...sampled,x:worldX,z:worldZ}:previousGround??{height:0,normal:new THREE.Vector3(0,1,0),x:worldX,z:worldZ};
@@ -632,12 +1059,14 @@ export class VillageMapRenderer{
     target.z-=(this.options.cameraScreenOffsetY??0)/GROUND_PROJECTION;
     if(immediate)this.cameraTarget.copy(target);else this.cameraTarget.lerp(target,1-Math.exp(-5*delta));
     if(!this.mapBounds.isEmpty()){
-      const center=this.mapBounds.getCenter(new THREE.Vector3()),halfWidth=this.width/(2*CAMERA_ZOOM),groundHalfDepth=this.height/(2*CAMERA_ZOOM*GROUND_PROJECTION),minX=this.mapBounds.min.x+halfWidth,maxX=this.mapBounds.max.x-halfWidth,minZ=this.mapBounds.min.z+groundHalfDepth,maxZ=this.mapBounds.max.z-groundHalfDepth;
+      const zoom=this.options.cameraZoom??CAMERA_ZOOM,center=this.mapBounds.getCenter(new THREE.Vector3()),halfWidth=this.width/(2*zoom),groundHalfDepth=this.height/(2*zoom*GROUND_PROJECTION),minX=this.mapBounds.min.x+halfWidth,maxX=this.mapBounds.max.x-halfWidth,minZ=this.mapBounds.min.z+groundHalfDepth,maxZ=this.mapBounds.max.z-groundHalfDepth;
       this.cameraTarget.x=minX<=maxX?THREE.MathUtils.clamp(this.cameraTarget.x,minX,maxX):center.x;
       this.cameraTarget.z=minZ<=maxZ?THREE.MathUtils.clamp(this.cameraTarget.z,minZ,maxZ):center.z;
     }
-    this.camera.left=-this.width/(2*CAMERA_ZOOM);this.camera.right=this.width/(2*CAMERA_ZOOM);this.camera.top=this.height/(2*CAMERA_ZOOM);this.camera.bottom=-this.height/(2*CAMERA_ZOOM);
-    this.camera.position.set(this.cameraTarget.x,this.cameraTarget.y+Math.sin(CAMERA_ELEVATION)*CAMERA_DISTANCE,this.cameraTarget.z+Math.cos(CAMERA_ELEVATION)*CAMERA_DISTANCE);
+    const zoom=this.options.cameraZoom??CAMERA_ZOOM;
+    this.camera.left=-this.width/(2*zoom);this.camera.right=this.width/(2*zoom);this.camera.top=this.height/(2*zoom);this.camera.bottom=-this.height/(2*zoom);
+    const elevation=THREE.MathUtils.degToRad(this.options.cameraElevationDeg??33);
+    this.camera.position.set(this.cameraTarget.x,this.cameraTarget.y+Math.sin(elevation)*CAMERA_DISTANCE,this.cameraTarget.z+Math.cos(elevation)*CAMERA_DISTANCE);
     this.camera.lookAt(this.cameraTarget);this.camera.updateProjectionMatrix();
   }
 
@@ -648,7 +1077,7 @@ export class VillageMapRenderer{
     const average=this.qualityFrameTime/Math.max(1,this.qualityFrames);
     let next=this.pixelRatio;
     if(average>1/36)next=Math.max(MIN_PIXEL_RATIO,this.pixelRatio-.15);
-    else if(average<1/52)next=Math.min(MAX_PIXEL_RATIO,this.pixelRatio+.1);
+    else if(average<1/52)next=Math.min(this.options.performanceMode?1:MAX_PIXEL_RATIO,this.pixelRatio+.1);
     if(Math.abs(next-this.pixelRatio)>.01){this.pixelRatio=next;this.renderer.setPixelRatio(this.pixelRatio);this.resize(true)}
     this.qualityElapsed=0;this.qualityFrameTime=0;this.qualityFrames=0;
   }
@@ -660,10 +1089,19 @@ export class VillageMapRenderer{
     if(this.guideNearby)gameEvents.emit('guide-proximity-changed',false);
     if(this.portalNearby)gameEvents.emit('world-portal-proximity-changed',null);
     if(this.interactionNearby)gameEvents.emit('world-interaction-proximity-changed',null);
+    if(this.lakeExperienceNearby)gameEvents.emit('lake-experience-proximity-changed',null);
     if(this.overviewActive)gameEvents.emit('map-overview-changed',false);
     if(this.options.overview)gameEvents.off('map-overview-toggle',this.onMapOverviewToggle);
+    if(this.options.portal)gameEvents.off('portal-move-to-player',this.onMovePortalToPlayer);
+    if(this.options.interaction)gameEvents.off('interaction-move-to-player',this.onMoveInteractionToPlayer);
+    if(this.options.lakeExperiences)gameEvents.off('lake-experience-move-to-player',this.onMoveLakeExperienceToPlayer);
+    if(this.options.greenhouse){
+      gameEvents.emit('greenhouse-nearby-changed',null);
+      gameEvents.off('greenhouse-progress-changed',this.onGreenhouseProgressChanged);
+      this.renderer.domElement.removeEventListener('pointerdown',this.onGreenhousePointerDown);
+    }
     this.destroyed=true;this.localCharacter.destroy();this.guideNpc?.destroy();this.remotes.forEach(character=>character.destroy());this.remotes.clear();this.remoteGrounds.clear();
-    this.scene.traverse(object=>{if(object instanceof THREE.Mesh){object.geometry.dispose();const materials=Array.isArray(object.material)?object.material:[object.material];materials.forEach(material=>material.dispose())}});
+    this.scene.traverse(object=>{if(object instanceof THREE.Mesh||object instanceof THREE.Points){object.geometry.dispose();const materials=Array.isArray(object.material)?object.material:[object.material];materials.forEach(material=>material.dispose())}if(object instanceof THREE.Sprite){object.material.map?.dispose();object.material.dispose()}});
     this.renderer.dispose();this.renderer.domElement.remove();
   }
 }

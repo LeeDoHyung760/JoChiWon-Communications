@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { TermsPage } from './pages/TermsPage';
-import { LocationVerificationPage } from './pages/LocationVerificationPage';
 import { CreateProfilePage } from './pages/CreateProfilePage';
 import { SignupCompletePage } from './pages/SignupCompletePage';
 import { GamePage } from './pages/GamePage';
@@ -14,12 +13,11 @@ import {
   PROFILE_KEY,
   USER_JOURNEY_KEY,
   type OnboardingStep,
-  type UserJourney,
-  type WorldAccessMode
+  type UserJourney
 } from './stores/profileStore';
 import type { UserProfile } from './types';
 
-type Page = 'landing' | 'login' | 'terms' | 'verify' | 'create' | 'complete' | 'account' | 'game';
+type Page = 'landing' | 'login' | 'terms' | 'create' | 'complete' | 'account' | 'game';
 
 export default function App() {
   const [page, setPage] = useState<Page>('landing');
@@ -34,35 +32,25 @@ export default function App() {
   };
   const legacyMember = profile.nickname.trim().length >= 2 && profile.interests.length > 0 && profile.usagePurposes.length > 0;
   const membershipComplete = journey.membershipComplete || legacyMember;
-  const accessMode: WorldAccessMode = journey.accessMode ?? 'unverified';
   const onboardingInProgress = journey.authenticated && !membershipComplete;
 
   const continueOnboarding = () => {
-    setPage(journey.onboardingStep === 'terms' ? 'terms' : journey.onboardingStep === 'verification' ? 'verify' : 'create');
+    setPage(journey.onboardingStep === 'terms' ? 'terms' : 'create');
   };
   const startFromLanding = () => {
-    if (journey.authenticated && membershipComplete) return setPage(accessMode === 'unverified' ? 'verify' : 'game');
+    if (journey.authenticated && membershipComplete) return setPage('game');
     if (onboardingInProgress) return continueOnboarding();
     setPage('login');
   };
   const kakaoLogin = () => {
-    const next = {...journey, authenticated: true, membershipComplete, accessMode};
+    const next = {...journey, authenticated: true, membershipComplete};
     setJourney(next);
-    if (membershipComplete) setPage(accessMode === 'unverified' ? 'verify' : 'game');
-    else setPage(next.onboardingStep === 'terms' ? 'terms' : next.onboardingStep === 'verification' ? 'verify' : 'create');
+    if (membershipComplete) setPage('game');
+    else setPage(next.onboardingStep === 'terms' ? 'terms' : 'create');
   };
   const moveToStep = (onboardingStep: OnboardingStep) => {
     setJourney({...journey, authenticated: true, onboardingStep});
-    setPage(onboardingStep === 'terms' ? 'terms' : onboardingStep === 'verification' ? 'verify' : 'create');
-  };
-  const finishVerification = (mode: Exclude<WorldAccessMode, 'unverified'>) => {
-    if (membershipComplete) {
-      setJourney({...journey, authenticated: true, membershipComplete: true, accessMode: mode});
-      setPage('game');
-    } else {
-      setJourney({...journey, authenticated: true, accessMode: mode, onboardingStep: 'profile'});
-      setPage('create');
-    }
+    setPage(onboardingStep === 'terms' ? 'terms' : 'create');
   };
   const saveProgress = useCallback((step: 1 | 2, draft: UserProfile) => {
     setProfile(draft);
@@ -70,7 +58,7 @@ export default function App() {
   }, [journey, setJourney, setProfile]);
   const finishSignup = (completedProfile: UserProfile) => {
     setProfile(completedProfile);
-    setJourney({authenticated: true, membershipComplete: true, onboardingStep: 'character', accessMode});
+    setJourney({authenticated: true, membershipComplete: true, onboardingStep: 'character'});
     setPage('complete');
   };
 
@@ -86,8 +74,7 @@ export default function App() {
     );
   }
   if (page === 'login') return <LoginPage onBack={() => setPage('landing')} onLogin={kakaoLogin} />;
-  if (page === 'terms') return <TermsPage onBack={() => setPage('landing')} onComplete={() => moveToStep('verification')} />;
-  if (page === 'verify') return <LocationVerificationPage onComplete={finishVerification} />;
+  if (page === 'terms') return <TermsPage onBack={() => setPage('landing')} onComplete={() => moveToStep('profile')} />;
   if (page === 'create') {
     return (
       <CreateProfilePage
@@ -116,5 +103,5 @@ export default function App() {
       />
     );
   }
-  return <GamePage profile={profile} accessMode={accessMode === 'sejong' ? 'sejong' : 'experience'} onExit={() => setPage('landing')} />;
+  return <GamePage profile={profile} onExit={() => setPage('landing')} />;
 }

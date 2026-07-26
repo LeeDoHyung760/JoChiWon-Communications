@@ -1,14 +1,27 @@
-import '@google/model-viewer';
-import React, { useEffect, useRef, useState } from 'react';
-import { assetManifest } from '../data/assetManifest';
-import { CharacterPreview } from '../components/CharacterPreview';
-import { CharacterDesignStep } from './CharacterDesignStep';
-import chungnyeongUrl from '../assets/characters/chungnyeong.glb?url';
-import girl1Url from '../assets/characters/girl1_3종.glb?url';
-import boy1Url from '../assets/characters/boy1_3종.glb?url';
-import type { CharacterModel, PartKind, UserProfile } from '../types';
-import './CreateProfilePage.css';
+import '@google/model-viewer'
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 
+import { assetManifest } from '../data/assetManifest'
+import { CharacterPreview } from '../components/CharacterPreview'
+import { ThreeCharacterPreview } from '../components/ThreeCharacterPreview'
+import { CharacterDesignStep } from './CharacterDesignStep'
+
+import chungnyeongUrl from '../assets/characters/chungnyeong.glb?url'
+import girl1Url from '../assets/characters/girl1_3.glb?url'
+import boy1Url from '../assets/characters/boy1_3.glb?url'
+import clothsUrl from '../assets/characters/cloths_rig.glb?url'
+
+import type {
+  CharacterModel,
+  PartKind,
+  UserProfile,
+} from '../types'
+
+import './CreateProfilePage.css'
 const MODEL_VIEWER_TAG = 'model-viewer';
 
 const interestOptions = ['카페', '맛집', '산책', '사진', '독서', '공연', '스터디', '로컬여행'];
@@ -16,20 +29,20 @@ const purposeOptions = ['친구 만들기', '취미 공유', '동네 탐방', '�
 const placeOptions = ['카페', '음식점', '공원', '문화시설', '관광명소'];
 const mbtis = ['ENFP', 'INFP', 'ENFJ', 'INFJ', 'ENTP', 'INTP', 'ENTJ', 'INTJ', 'ESFP', 'ISFP', 'ESFJ', 'ISFJ', 'ESTP', 'ISTP', 'ESTJ', 'ISTJ'];
 const modelOptions: Array<{id: CharacterModel; label: string; description: string}> = [
-  {id: 'chungnyeong', label: '충녕이', description: '3D 캐릭터 모델 선택'},
   {id: 'girl1', label: 'girl1', description: '3D 여성형 모델'},
   {id: 'boy1', label: 'boy1', description: '3D 남성형 모델'},
-  {id: 'custom', label: '커스텀', description: '2D 기본 미리보기'}
+  {id: 'cloths', label: '캐주얼형', description: '3D 리깅 캐릭터'}
 ];
 
 const modelUrls: Record<Exclude<CharacterModel, 'custom'>, string> = {
   chungnyeong: chungnyeongUrl,
   girl1: girl1Url,
-  boy1: boy1Url
+  boy1: boy1Url,
+  cloths: clothsUrl
 };
 
 export function CreateProfilePage({initial,initialStep=1,editMode=false,onCancel,onLogout,onProgress,onComplete}: {initial:UserProfile;initialStep?:1|2;editMode?:boolean;onCancel?:()=>void;onLogout?:()=>void;onProgress?:(step:1|2,p:UserProfile)=>void;onComplete:(p:UserProfile)=>void}) {
-  const [p, setP] = useState(initial);
+  const [p, setP] = useState<UserProfile>(() => initial.model === 'chungnyeong'||initial.model === 'custom' ? {...initial, model: 'girl1'} : initial);
   const [step, setStep] = useState<1|2>(initialStep);
   const onProgressRef=useRef(onProgress);
   useEffect(()=>{onProgressRef.current=onProgress},[onProgress]);
@@ -39,8 +52,14 @@ export function CreateProfilePage({initial,initialStep=1,editMode=false,onCancel
     setP({...p, [key]: p[key].includes(value) ? p[key].filter(item => item !== value) : p[key].length < max ? [...p[key], value] : p[key]});
   };
 
-  const part = (k: PartKind, id: string) => setP({...p, character: {...p.character, [k]: id}});
-  const selectModel = (model: CharacterModel) => setP({...p, model});
+  const part = (k: PartKind, id: string) => setP(current=>({...current, character: {...current.character, [k]: id}}));
+  const selectModel = (model: CharacterModel) => setP(current=>({
+    ...current,
+    model,
+    character:model==='cloths'
+      ?{...current.character,hair:'hair-none',top:'top-none',bottom:'bottom-none',shoes:'shoes-none',accessory:'accessory-none'}
+      :current.character
+  }));
   const activeModel = modelOptions.find(option => option.id === p.model) ?? modelOptions[0];
 
   if (step === 2) {
@@ -71,7 +90,7 @@ export function CreateProfilePage({initial,initialStep=1,editMode=false,onCancel
           <aside className="profile-design-preview">
             <div className="profile-design-aura" />
             <div className="profile-design-viewer">
-              {activeModel.id === 'custom' ? <CharacterPreview parts={p.character} /> : React.createElement(MODEL_VIEWER_TAG, {
+              {activeModel.id === 'custom' ? <CharacterPreview parts={p.character} /> : activeModel.id === 'cloths' ? <ThreeCharacterPreview src={modelUrls.cloths} model="cloths" parts={p.character} animationName={null}/> : React.createElement(MODEL_VIEWER_TAG, {
                 src:modelUrls[activeModel.id],alt:`${activeModel.label} 3D 미리보기`,cameraControls:true,autoRotate:true,autoplay:true,
                 animationName:activeModel.id==='chungnyeong'?'NlaTrack':'NlaTrack.001',cameraOrbit:'0deg 78deg auto',interactionPrompt:'none',shadowIntensity:'1',exposure:'1',
                 style:{width:'100%',height:'100%',background:'transparent'}
