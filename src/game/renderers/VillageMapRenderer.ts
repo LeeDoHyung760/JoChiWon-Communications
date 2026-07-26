@@ -4,6 +4,8 @@ import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.j
 import villageModelUrl from '../../assets/maps/sejong-lake-park.glb?url';
 import bearTreeParkModelUrl from '../../assets/maps/bear-tree-park.glb?url';
 import bearPlayZoneModelUrl from '../../assets/maps/bear-play-zone.glb?url';
+import gardenModelUrl from '../../assets/maps/garden.glb?url';
+import campusModelUrl from '../../assets/maps/campus.glb?url';
 import bearCubModelUrl from '../../assets/characters/bear-cub.glb?url';
 import chungnyeongIdleUrl from '../../assets/characters/chungnyeong_idle.glb?url';
 import chungnyeongWalkUrl from '../../assets/characters/chungnyeong_walk.glb?url';
@@ -11,7 +13,7 @@ import chungnyeongRunUrl from '../../assets/characters/chungnyeong_run.glb?url';
 import girlUrl from '../../assets/characters/girl1_3종.glb?url';
 import boyUrl from '../../assets/characters/boy1_3종.glb?url';
 import type { CharacterModel,CharacterParts,UserProfile } from '../../types';
-import type { MapId,MotionState,PortalPosition,WorldInteractionPosition } from '../../../shared/socket-events';
+import type { LakeExperienceId,LakeExperiencePosition,MapId,MotionState,PortalPosition,WorldInteractionPosition } from '../../../shared/socket-events';
 import { gameEvents } from '../events';
 
 const WORLD_WIDTH=2400;
@@ -30,16 +32,20 @@ const GUIDE_TALK_DISTANCE=145;
 const GUIDE_TALK_EXIT_DISTANCE=175;
 const GUIDE_WALK_SPEED=58;
 const GUIDE_PAUSE_SECONDS=4;
+const RESIDENT_WALK_SPEED=34;
 const DEFAULT_MAP_SIGN_POSITION={x:2090,z:1185} as const;
 const MAP_SIGN_POSITION_KEY='sejong-lake-park-map-sign-position';
 const PORTAL_POSITION_KEY_PREFIX='world-portal-position';
 const INTERACTION_POSITION_KEY_PREFIX='world-interaction-position';
+const LAKE_EXPERIENCE_POSITION_KEY_PREFIX='lake-experience-position';
 const MAP_SIGN_OPEN_DISTANCE=78;
 const MAP_SIGN_EXIT_DISTANCE=105;
 const PORTAL_OPEN_DISTANCE=62;
 const PORTAL_EXIT_DISTANCE=78;
 const INTERACTION_OPEN_DISTANCE=88;
 const INTERACTION_EXIT_DISTANCE=110;
+const LAKE_EXPERIENCE_OPEN_DISTANCE=92;
+const LAKE_EXPERIENCE_EXIT_DISTANCE=118;
 const RENDER_INTERVAL=1/45;
 const PORTAL_CHARGE_SECONDS=1;
 const CAMERA_ZOOM=1.28;
@@ -49,6 +55,8 @@ let textureAnisotropy=4;
 export const LAKE_PARK_SPAWN:{x:number;z:number;yaw:number}={x:1870,z:1180,yaw:2.1};
 export const BEAR_TREE_PARK_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1610,yaw:Math.PI};
 export const BEAR_PLAY_ZONE_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1570,yaw:Math.PI};
+export const GARDEN_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1500,yaw:Math.PI};
+export const CAMPUS_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1500,yaw:Math.PI};
 export const BEAR_TREE_PORTAL_POSITION={x:2122,z:944} as const;
 const CAMPUS_PORTAL_POSITION={x:2000,z:1180} as const;
 const LAKE_PARK_GUIDE={x:2045,z:1138,yaw:-.78} as const;
@@ -67,15 +75,20 @@ const GUIDE_PATROL_POINTS=([
   [2100,1250],[2100,1200],[2050,1200],[2050,1150],
 ] as const).map(([x,z])=>({x,z}));
 const GUIDE_PATROL_STOPS=new Set(['2045,1138','1900,500','1350,200','300,400','350,950','1250,900','1550,700','1950,950','1450,1250','900,1250','300,1600','850,1750','1950,1650','1800,1250','2050,1150']);
+const BEAR_PATROL_POINTS=[
+  {x:1200,z:1450},{x:1100,z:1450},{x:1050,z:1525},{x:1150,z:1575},
+  {x:1300,z:1550},{x:1350,z:1450},{x:1300,z:1375},{x:1150,z:1375},
+] as const;
 
 type CharacterState={scene:THREE.Object3D;mixer?:THREE.AnimationMixer;action?:THREE.AnimationAction};
 type GroundSample={height:number;normal:THREE.Vector3};
 type RemoteGroundSample=GroundSample&{x:number;z:number};
 type GuidePosition={x:number;z:number;yaw:number};
 type GuidePatrolFrame=GuidePosition&{motion:Extract<MotionState,'idle'|'walk'>};
-type PortalConfig={x:number;z:number;destination:MapId;label:string};
+type PortalConfig={x:number;z:number;destination:PortalPosition['destination'];label:string;appearance?:'standing'|'white-circle';fixedPosition?:boolean;theme?:'mint'|'blue'};
 type InteractionConfig={x:number;z:number;destination:MapId;label:string;buttonLabel:string};
-type ResidentConfig={modelUrl:string;x:number;z:number;height:number;yaw:number};
+type LakeExperienceConfig={id:LakeExperienceId;x:number;z:number;label:string;description:string;color:number};
+type ResidentConfig={modelUrl:string;x:number;z:number;height:number;yaw:number;patrol?:readonly {x:number;z:number}[];walkSpeed?:number};
 export type WorldMapRendererOptions={
   modelUrl:string;
   mapName:string;
@@ -86,12 +99,15 @@ export type WorldMapRendererOptions={
   portal?:PortalConfig;
   fixedPortals?:PortalConfig[];
   interaction?:InteractionConfig;
+  lakeExperiences?:LakeExperienceConfig[];
   resident?:ResidentConfig;
   cameraScreenOffsetY?:number;
 };
-export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크'},fixedPortals:[{...CAMPUS_PORTAL_POSITION,destination:'campus',label:'캠퍼스'}]};
-export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:1200,z:1660,destination:'town',label:'세종호수공원'},interaction:{x:1910,z:1575,destination:'bear-play-zone',label:'곰 놀이 공간',buttonLabel:'곰 키우기'},cameraScreenOffsetY:90};
-export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearPlayZoneModelUrl,mapName:'곰 놀이 공간',spawn:BEAR_PLAY_ZONE_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'베어트리파크로 돌아가기'},resident:{modelUrl:bearCubModelUrl,x:1200,z:1450,height:105,yaw:Math.PI},cameraScreenOffsetY:90};
+export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크'},fixedPortals:[{...CAMPUS_PORTAL_POSITION,destination:'campus',label:'공동캠퍼스'}],lakeExperiences:[{id:'central-plaza',x:1150,z:950,label:'중앙광장',description:'오늘의 세종 소식을 만나요',color:0xffffff},{id:'wind-hill',x:350,z:400,label:'바람의 언덕',description:'꽃잎과 함께 소원을 남겨요',color:0xffffff}]};
+export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:BEAR_TREE_PARK_SPAWN.x,z:BEAR_TREE_PARK_SPAWN.z,destination:'town',label:'세종호수공원',theme:'blue'},fixedPortals:[{x:682,z:735,destination:'garden',label:'세종수목원',appearance:'white-circle',fixedPosition:true}],interaction:{x:1910,z:1575,destination:'bear-play-zone',label:'곰 놀이 공간',buttonLabel:'곰 키우기'},cameraScreenOffsetY:90};
+export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearPlayZoneModelUrl,mapName:'곰 놀이 공간',spawn:BEAR_PLAY_ZONE_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'베어트리파크로 돌아가기'},resident:{modelUrl:bearCubModelUrl,x:1200,z:1450,height:105,yaw:Math.PI,patrol:BEAR_PATROL_POINTS,walkSpeed:RESIDENT_WALK_SPEED},cameraScreenOffsetY:90};
+export const GARDEN_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:gardenModelUrl,mapName:'수목원',spawn:GARDEN_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'베어트리파크로 돌아가기'},cameraScreenOffsetY:90};
+export const CAMPUS_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:campusModelUrl,mapName:'공동캠퍼스',spawn:CAMPUS_SPAWN,portal:{x:1200,z:1650,destination:'town',label:'세종호수공원'}};
 type LoadedModel=Awaited<ReturnType<GLTFLoader['loadAsync']>>;
 const modelAssetCache=new Map<string,Promise<LoadedModel>>();
 const loadModel=(url:string)=>{
@@ -145,6 +161,7 @@ function savedMapSignPosition(){
 }
 
 function savedPortalPosition(config:PortalConfig){
+  if(config.fixedPosition)return {x:config.x,z:config.z};
   try{
     const saved=JSON.parse(localStorage.getItem(`${PORTAL_POSITION_KEY_PREFIX}-${config.destination}`)??'null') as {x?:number;z?:number}|null;
     if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))return {x:saved.x!,z:saved.z!};
@@ -157,6 +174,14 @@ function savedInteractionPosition(config:InteractionConfig){
     const saved=JSON.parse(localStorage.getItem(`${INTERACTION_POSITION_KEY_PREFIX}-${config.destination}`)??'null') as {x?:number;z?:number}|null;
     if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))return {x:saved.x!,z:saved.z!};
   }catch{/* Keep the configured interaction position when no valid saved position exists. */}
+  return {x:config.x,z:config.z};
+}
+
+function savedLakeExperiencePosition(config:LakeExperienceConfig){
+  try{
+    const saved=JSON.parse(localStorage.getItem(`${LAKE_EXPERIENCE_POSITION_KEY_PREFIX}-${config.id}`)??'null') as {x?:number;z?:number}|null;
+    if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))return {x:saved.x!,z:saved.z!};
+  }catch{/* Keep the configured experience position when no valid saved position exists. */}
   return {x:config.x,z:config.z};
 }
 
@@ -311,15 +336,24 @@ export class VillageMapRenderer{
   private guideNearby=false;
   private mapSignNearby=false;
   private portalNearby=false;
+  private portalEntryArmed=true;
   private portalChargeSeconds=0;
   private portalTravelTriggered=false;
   private interactionNearby=false;
   private interactionPosition?:{x:number;z:number};
+  private interactionRoot?:THREE.Group;
+  private lakeExperienceNearby?:LakeExperienceId;
+  private lakeExperiencePositions=new Map<LakeExperienceId,{x:number;z:number}>();
+  private lakeExperienceRoots=new Map<LakeExperienceId,THREE.Group>();
   private portalRoot?:THREE.Group;
   private fixedPortalRoots:THREE.Group[]=[];
   private activePortal?:PortalConfig;
   private residentRoot?:THREE.Group;
   private residentMixer?:THREE.AnimationMixer;
+  private residentGround=0;
+  private residentX=0;
+  private residentZ=0;
+  private residentPatrolTarget=1;
   private portalPosition?:{x:number;z:number};
   private overviewActive=false;
   private mapSignPosition=savedMapSignPosition();
@@ -336,7 +370,9 @@ export class VillageMapRenderer{
     this.localX=options.spawn.x;
     this.localZ=options.spawn.z;
     this.portalPosition=options.portal?savedPortalPosition(options.portal):undefined;
+    if(this.portalPosition&&Math.hypot(options.spawn.x-this.portalPosition.x,options.spawn.z-this.portalPosition.z)<PORTAL_EXIT_DISTANCE)this.portalEntryArmed=false;
     this.interactionPosition=options.interaction?savedInteractionPosition(options.interaction):undefined;
+    options.lakeExperiences?.forEach(config=>this.lakeExperiencePositions.set(config.id,savedLakeExperiencePosition(config)));
     this.cameraTarget=new THREE.Vector3(options.spawn.x,0,this.worldToSceneZ(options.spawn.z));
     this.renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
     this.renderer.domElement.className='village-map-canvas';
@@ -358,6 +394,8 @@ export class VillageMapRenderer{
     this.resize();
     this.localCharacter=new WorldCharacter(this.scene,profile.nickname,profile.model,profile.character);
     if(options.overview)gameEvents.on('map-overview-toggle',this.onMapOverviewToggle);
+    if(options.portal)gameEvents.on('portal-move-to-player',this.onMovePortalToPlayer);
+    if(options.lakeExperiences)gameEvents.on('lake-experience-move-to-player',this.onMoveLakeExperienceToPlayer);
     this.ready=this.loadVillage();
   }
 
@@ -394,8 +432,19 @@ export class VillageMapRenderer{
       }
       this.options.fixedPortals?.forEach(config=>{
         Object.assign(config,savedPortalPosition(config));
-        const portalGround=this.sampleGround(config.x,config.z,0,true);
+        const portalGround=config.appearance==='white-circle'
+          ?this.sampleExperienceGround(config.x,config.z,true)
+          :this.sampleGround(config.x,config.z,0,true);
         this.fixedPortalRoots.push(this.createPortal(config,portalGround?.height??0));
+      });
+      if(this.options.interaction&&this.interactionPosition){
+        const interactionGround=this.sampleExperienceGround(this.interactionPosition.x,this.interactionPosition.z);
+        if(interactionGround)this.interactionRoot=this.createInteractionCircle(this.interactionPosition,interactionGround.height);
+      }
+      this.options.lakeExperiences?.forEach(config=>{
+        const position=this.lakeExperiencePositions.get(config.id)??config;
+        const ground=this.sampleExperienceGround(position.x,position.z);
+        if(ground)this.lakeExperienceRoots.set(config.id,this.createLakeExperienceCircle({...config,...position},ground.height));
       });
       const residentReady=this.options.resident?this.createResident(this.options.resident):Promise.resolve();
       const startPosition=new THREE.Vector3(this.localX,this.localGround+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(this.localZ));
@@ -417,6 +466,7 @@ export class VillageMapRenderer{
     if(!visible&&this.mapSignNearby){this.mapSignNearby=false;gameEvents.emit('map-sign-proximity-changed',false)}
     if(!visible&&this.portalNearby){this.portalNearby=false;this.activePortal=undefined;this.resetPortalCharge();gameEvents.emit('world-portal-proximity-changed',null)}
     if(!visible&&this.interactionNearby){this.interactionNearby=false;gameEvents.emit('world-interaction-proximity-changed',null)}
+    if(!visible&&this.lakeExperienceNearby){this.lakeExperienceNearby=undefined;gameEvents.emit('lake-experience-proximity-changed',null)}
   }
   setWorldClock(serverNow:number){if(Number.isFinite(serverNow))this.worldClockOffset=serverNow-Date.now()}
   setInteractionPosition(position:WorldInteractionPosition){
@@ -425,27 +475,73 @@ export class VillageMapRenderer{
     localStorage.setItem(`${INTERACTION_POSITION_KEY_PREFIX}-${position.destination}`,JSON.stringify(this.interactionPosition));
     this.interactionNearby=false;
     gameEvents.emit('world-interaction-proximity-changed',null);
+    if(!this.mapReady)return;
+    const ground=this.sampleExperienceGround(position.x,position.z);
+    if(!ground)return;
+    if(this.interactionRoot){
+      this.interactionRoot.position.set(position.x,ground.height+.8,this.worldToSceneZ(position.z));
+      this.interactionRoot.userData.groundHeight=ground.height;
+    }else this.interactionRoot=this.createInteractionCircle(position,ground.height);
+    this.render();
+  }
+  setLakeExperiencePosition(position:LakeExperiencePosition,fallbackGround?:number){
+    const config=this.options.lakeExperiences?.find(item=>item.id===position.experience);
+    if(!config)return;
+    const next={x:position.x,z:position.z};
+    this.lakeExperiencePositions.set(position.experience,next);
+    localStorage.setItem(`${LAKE_EXPERIENCE_POSITION_KEY_PREFIX}-${position.experience}`,JSON.stringify(next));
+    this.lakeExperienceNearby=undefined;
+    gameEvents.emit('lake-experience-proximity-changed',null);
+    if(!this.mapReady)return;
+    const ground=this.sampleExperienceGround(position.x,position.z)??(Number.isFinite(fallbackGround)?{height:fallbackGround!,normal:new THREE.Vector3(0,1,0)}:undefined);
+    if(!ground)return;
+    const root=this.lakeExperienceRoots.get(position.experience);
+    if(root){
+      root.position.set(position.x,ground.height+.8,this.worldToSceneZ(position.z));
+      root.userData.groundHeight=ground.height;
+    }else this.lakeExperienceRoots.set(position.experience,this.createLakeExperienceCircle({...config,...position},ground.height));
+    this.render();
+  }
+  private onMoveLakeExperienceToPlayer=(experience:LakeExperienceId)=>{
+    if(!this.options.lakeExperiences?.some(config=>config.id===experience)||!this.mapReady)return;
+    const position:LakeExperiencePosition={experience,x:Math.round(this.localX),z:Math.round(this.localZ)};
+    this.setLakeExperiencePosition(position,this.localGround);
+    gameEvents.emit('lake-experience-position-changed',position);
+  }
+  private onMovePortalToPlayer=(requestedDestination?:PortalPosition['destination'])=>{
+    if(!this.mapReady||this.renderer.domElement.style.display==='none')return;
+    const config=requestedDestination
+      ?[this.options.portal,...(this.options.fixedPortals??[])].find(portal=>portal?.destination===requestedDestination)
+      :this.options.portal;
+    if(!config)return;
+    const position:PortalPosition={destination:config.destination,x:Math.round(this.localX),z:Math.round(this.localZ)};
+    this.setPortalPosition(position);
+    gameEvents.emit('portal-position-changed',position);
   }
   setPortalPosition(position:PortalPosition){
     const standardPortal=this.options.portal?.destination===position.destination?this.options.portal:undefined;
     const fixedPortal=this.options.fixedPortals?.find(config=>config.destination===position.destination);
     if(!standardPortal&&!fixedPortal)return;
-    const nextPosition={x:position.x,z:position.z};
+    const nextPosition=fixedPortal?.fixedPosition?{x:fixedPortal.x,z:fixedPortal.z}:{x:position.x,z:position.z};
     if(standardPortal)this.portalPosition=nextPosition;
     if(fixedPortal)Object.assign(fixedPortal,nextPosition);
     localStorage.setItem(`${PORTAL_POSITION_KEY_PREFIX}-${position.destination}`,JSON.stringify(nextPosition));
     if(!this.mapReady)return;
-    const ground=this.sampleGround(position.x,position.z,this.localGround,true);
+    const portalConfig=standardPortal??fixedPortal;
+    const ground=portalConfig?.appearance==='white-circle'
+      ?this.sampleExperienceGround(nextPosition.x,nextPosition.z,true)
+      :this.sampleGround(nextPosition.x,nextPosition.z,this.localGround,true);
     if(!ground&&standardPortal)return;
     const groundHeight=ground?.height??this.localGround;
     const root=standardPortal?this.portalRoot:this.fixedPortalRoots.find(portal=>portal.name===`world-portal-${position.destination}`);
     if(root){
-      root.position.set(position.x,groundHeight,this.worldToSceneZ(position.z));
+      root.position.set(nextPosition.x,groundHeight+(root.userData.appearance==='white-circle'?.8:0),this.worldToSceneZ(nextPosition.z));
       root.userData.groundHeight=groundHeight;
-    }else if(standardPortal)this.portalRoot=this.createPortal({...standardPortal,...position},groundHeight);
-    else if(fixedPortal)this.fixedPortalRoots.push(this.createPortal({...fixedPortal,...position},groundHeight));
+    }else if(standardPortal)this.portalRoot=this.createPortal({...standardPortal,...nextPosition},groundHeight);
+    else if(fixedPortal)this.fixedPortalRoots.push(this.createPortal({...fixedPortal,...nextPosition},groundHeight));
     this.activePortal=undefined;
     this.portalNearby=false;
+    this.portalEntryArmed=false;
     this.resetPortalCharge();
     gameEvents.emit('world-portal-proximity-changed',null);
     this.render();
@@ -458,14 +554,70 @@ export class VillageMapRenderer{
   private createPortal(config:PortalConfig,groundHeight:number){
     const root=new THREE.Group();
     root.name=`world-portal-${config.destination}`;
-    root.position.set(config.x,groundHeight,this.worldToSceneZ(config.z));
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(38,6,12,48),new THREE.MeshStandardMaterial({color:0x71e5c2,emissive:0x2ad8aa,emissiveIntensity:2.4,metalness:.25,roughness:.28}));
+    root.position.set(config.x,groundHeight+(config.appearance==='white-circle'?.8:0),this.worldToSceneZ(config.z));
+    if(config.appearance==='white-circle'){
+      root.rotation.x=-Math.PI/2;
+      const material=(opacity:number)=>new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity,depthTest:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+      const center=new THREE.Mesh(new THREE.CircleGeometry(50,64),material(.1));
+      const ring=new THREE.Mesh(new THREE.RingGeometry(45,54,64),material(.98));
+      const middleRing=new THREE.Mesh(new THREE.RingGeometry(34,38,64),material(.78));
+      const innerRing=new THREE.Mesh(new THREE.RingGeometry(18,22,64),material(.9));
+      const pulseRing=new THREE.Mesh(new THREE.RingGeometry(55,59,64),material(.48));
+      center.position.z=.2;ring.position.z=.4;middleRing.position.z=.6;innerRing.position.z=.8;pulseRing.position.z=.1;
+      for(const object of [center,ring,middleRing,innerRing,pulseRing])object.renderOrder=30;
+      root.add(center,ring,middleRing,innerRing,pulseRing);
+      root.userData.center=center;root.userData.innerRing=innerRing;root.userData.pulseRing=pulseRing;
+      root.userData.phase=0;root.userData.appearance='white-circle';root.userData.groundHeight=groundHeight;
+      const light=new THREE.PointLight(0xffffff,2.2,155);light.position.set(0,0,38);root.add(light);
+      this.scene.add(root);
+      return root;
+    }
+    const blue=config.theme==='blue',ringColor=blue?0x72b9ff:0x71e5c2,emissiveColor=blue?0x2688ff:0x2ad8aa,glowColor=blue?0x79c4ff:0x74f5d0;
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(38,6,12,48),new THREE.MeshStandardMaterial({color:ringColor,emissive:emissiveColor,emissiveIntensity:2.4,metalness:.25,roughness:.28}));
     ring.position.y=49;ring.castShadow=true;
-    const glow=new THREE.Mesh(new THREE.CircleGeometry(31,48),new THREE.MeshBasicMaterial({color:0x74f5d0,transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}));
+    const glow=new THREE.Mesh(new THREE.CircleGeometry(31,48),new THREE.MeshBasicMaterial({color:glowColor,transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}));
     glow.position.y=49;glow.position.z=-1;
-    const base=new THREE.Mesh(new THREE.CylinderGeometry(43,51,8,40),new THREE.MeshStandardMaterial({color:0x244f48,emissive:0x1e7562,emissiveIntensity:.8,roughness:.42}));
+    const base=new THREE.Mesh(new THREE.CylinderGeometry(43,51,8,40),new THREE.MeshStandardMaterial({color:blue?0x203f66:0x244f48,emissive:blue?0x235f9e:0x1e7562,emissiveIntensity:.8,roughness:.42}));
     base.position.y=4;root.add(base,ring,glow);root.userData.glow=glow;root.userData.groundHeight=groundHeight;this.scene.add(root);
-    const light=new THREE.PointLight(0x76f5d1,3.2,210);light.position.set(0,52,18);root.add(light);
+    const light=new THREE.PointLight(blue?0x7fc5ff:0x76f5d1,3.2,210);light.position.set(0,52,18);root.add(light);
+    return root;
+  }
+  private createLakeExperienceCircle(config:LakeExperienceConfig,groundHeight:number){
+    const root=new THREE.Group();
+    root.name=`lake-experience-${config.id}`;
+    root.position.set(config.x,groundHeight+.8,this.worldToSceneZ(config.z));
+    root.rotation.x=-Math.PI/2;
+    const material=(color:number,opacity:number)=>new THREE.MeshBasicMaterial({color,transparent:true,opacity,depthTest:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+    const center=new THREE.Mesh(new THREE.CircleGeometry(50,64),material(config.color,.08));
+    const ring=new THREE.Mesh(new THREE.RingGeometry(45,54,64),material(config.color,.98));
+    const middleRing=new THREE.Mesh(new THREE.RingGeometry(34,38,64),material(0xffffff,.78));
+    const innerRing=new THREE.Mesh(new THREE.RingGeometry(18,22,64),material(config.color,.9));
+    const pulseRing=new THREE.Mesh(new THREE.RingGeometry(55,59,64),material(config.color,.48));
+    center.position.z=.2;ring.position.z=.4;middleRing.position.z=.6;innerRing.position.z=.8;pulseRing.position.z=.1;
+    for(const object of [center,ring,middleRing,innerRing,pulseRing])object.renderOrder=30;
+    root.add(center,ring,middleRing,innerRing,pulseRing);
+    root.userData.center=center;root.userData.ring=ring;root.userData.innerRing=innerRing;root.userData.pulseRing=pulseRing;root.userData.groundHeight=groundHeight;root.userData.phase=config.id==='wind-hill'?Math.PI:0;
+    const light=new THREE.PointLight(config.color,2.2,155);light.position.set(0,0,38);root.add(light);
+    this.scene.add(root);
+    return root;
+  }
+  private createInteractionCircle(position:{x:number;z:number},groundHeight:number){
+    const root=new THREE.Group();
+    root.name='world-interaction-circle';
+    root.position.set(position.x,groundHeight+.8,this.worldToSceneZ(position.z));
+    root.rotation.x=-Math.PI/2;
+    const material=(opacity:number)=>new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity,depthTest:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+    const center=new THREE.Mesh(new THREE.CircleGeometry(50,64),material(.08));
+    const ring=new THREE.Mesh(new THREE.RingGeometry(45,54,64),material(.98));
+    const middleRing=new THREE.Mesh(new THREE.RingGeometry(34,38,64),material(.78));
+    const innerRing=new THREE.Mesh(new THREE.RingGeometry(18,22,64),material(.9));
+    const pulseRing=new THREE.Mesh(new THREE.RingGeometry(55,59,64),material(.48));
+    center.position.z=.2;ring.position.z=.4;middleRing.position.z=.6;innerRing.position.z=.8;pulseRing.position.z=.1;
+    for(const object of [center,ring,middleRing,innerRing,pulseRing])object.renderOrder=30;
+    root.add(center,ring,middleRing,innerRing,pulseRing);
+    root.userData.center=center;root.userData.innerRing=innerRing;root.userData.pulseRing=pulseRing;root.userData.groundHeight=groundHeight;root.userData.phase=Math.PI*.5;
+    const light=new THREE.PointLight(0xffffff,2.2,155);light.position.set(0,0,38);root.add(light);
+    this.scene.add(root);
     return root;
   }
   private async createResident(config:ResidentConfig){
@@ -477,17 +629,61 @@ export class VillageMapRenderer{
     visual.traverse(object=>{if(object instanceof THREE.Mesh){object.castShadow=true;object.receiveShadow=true}});
     const ground=this.sampleGround(config.x,config.z,0,true);if(!ground)return;
     const root=new THREE.Group();root.name='bear-cub-resident';root.position.set(config.x,ground.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(config.z));root.rotation.y=config.yaw;root.add(visual);this.scene.add(root);this.residentRoot=root;
+    this.residentX=config.x;this.residentZ=config.z;this.residentGround=ground.height;
     if(gltf.animations.length){this.residentMixer=new THREE.AnimationMixer(visual);this.residentMixer.clipAction(gltf.animations[0]).play()}
+  }
+  private updateResident(delta:number){
+    this.residentMixer?.update(delta);
+    const root=this.residentRoot,config=this.options.resident,patrol=config?.patrol;
+    if(!root||!config||!patrol||patrol.length<2)return;
+    const target=patrol[this.residentPatrolTarget%patrol.length],dx=target.x-this.residentX,dz=target.z-this.residentZ,distance=Math.hypot(dx,dz);
+    if(distance<1){
+      this.residentX=target.x;this.residentZ=target.z;this.residentPatrolTarget=(this.residentPatrolTarget+1)%patrol.length;return;
+    }
+    const step=Math.min(distance,(config.walkSpeed??RESIDENT_WALK_SPEED)*delta),nextX=this.residentX+dx/distance*step,nextZ=this.residentZ+dz/distance*step;
+    const ground=this.sampleGround(nextX,nextZ,this.residentGround);
+    if(!ground){this.residentPatrolTarget=(this.residentPatrolTarget+1)%patrol.length;return}
+    this.residentX=nextX;this.residentZ=nextZ;this.residentGround=ground.height;
+    root.position.set(nextX,ground.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(nextZ));
+    root.rotation.y=config.yaw+Math.atan2(dx,dz);
   }
   private updatePortals(){
     const elapsed=(Date.now()+this.worldClockOffset)/1000;
     for(const root of [this.portalRoot,...this.fixedPortalRoots]){
       if(!root)continue;
+      if(root.userData.appearance==='white-circle'){
+        const phase=root.userData.phase as number,pulse=(elapsed*.55+phase/(Math.PI*2))%1;
+        root.scale.setScalar(1+Math.sin(elapsed*2.15+phase)*.035);
+        const center=root.userData.center as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
+        const innerRing=root.userData.innerRing as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
+        const pulseRing=root.userData.pulseRing as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
+        center.material.opacity=.22+(Math.sin(elapsed*1.8+phase)+1)*.055;
+        innerRing.rotation.z=elapsed*.35;
+        pulseRing.scale.setScalar(1+pulse*.5);
+        pulseRing.material.opacity=.5*(1-pulse);
+        continue;
+      }
       root.rotation.y=Math.sin(elapsed*.8)*.12;
       const glow=root.userData.glow as THREE.Object3D|undefined,pulse=1+Math.sin(elapsed*2.8)*.08;
       glow?.scale.setScalar(pulse);
       root.position.y=(root.userData.groundHeight as number)+Math.sin(elapsed*2.2)*2.2;
     }
+  }
+  private updateLakeExperienceCircles(){
+    const elapsed=(Date.now()+this.worldClockOffset)/1000;
+    const roots=[...this.lakeExperienceRoots.values(),...(this.interactionRoot?[this.interactionRoot]:[])];
+    roots.forEach(root=>{
+      const phase=root.userData.phase as number,wave=1+Math.sin(elapsed*2.15+phase)*0.035;
+      root.scale.setScalar(wave);
+      const center=root.userData.center as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
+      const innerRing=root.userData.innerRing as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
+      const pulseRing=root.userData.pulseRing as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
+      const pulse=(elapsed*.55+phase/(Math.PI*2))%1;
+      center.material.opacity=.22+(Math.sin(elapsed*1.8+phase)+1)*.055;
+      innerRing.rotation.z=elapsed*.35;
+      pulseRing.scale.setScalar(1+pulse*.5);
+      pulseRing.material.opacity=.5*(1-pulse);
+    });
   }
   private updateGuideNpc(delta:number){
     if(!this.guideNpc)return;
@@ -536,6 +732,17 @@ export class VillageMapRenderer{
 
   private materialForHit(hit:THREE.Intersection){const mesh=hit.object as THREE.Mesh,materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];return materials[hit.face?.materialIndex??0]??materials[0]}
 
+  private sampleExperienceGround(worldX:number,worldZ:number,preferHighest=false):GroundSample|undefined{
+    if(!this.mapMeshes.length)return {height:this.localGround,normal:new THREE.Vector3(0,1,0)};
+    this.raycaster.near=0;this.raycaster.far=Infinity;
+    this.raycaster.set(new THREE.Vector3(worldX,1200,this.worldToSceneZ(worldZ)),new THREE.Vector3(0,-1,0));
+    return this.raycaster.intersectObjects(this.mapMeshes,false).flatMap(hit=>{
+      if(!hit.face)return [];
+      const normal=hit.face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld));
+      return normal.y>=MIN_WALKABLE_NORMAL&&!this.blockedMaterials.has(this.materialForHit(hit))?[{height:hit.point.y,normal}]:[];
+    }).sort((a,b)=>preferHighest?b.height-a.height:a.height-b.height)[0];
+  }
+
   private sampleGround(worldX:number,worldZ:number,currentHeight:number,initial=false):GroundSample|undefined{
     if(!this.mapMeshes.length)return {height:currentHeight,normal:new THREE.Vector3(0,1,0)};
     const offsets=initial?[[0,0],[COLLISION_RADIUS,0],[-COLLISION_RADIUS,0],[0,COLLISION_RADIUS],[0,-COLLISION_RADIUS]]:[[0,0]],samples:GroundSample[]=[];
@@ -576,9 +783,10 @@ export class VillageMapRenderer{
 
   updateLocalCharacter(proposedX:number,proposedZ:number,yaw:number,motion:MotionState,delta:number){
     if(!this.mapReady)return {x:this.localX,z:this.localZ,groundHeight:this.localGround};
-    this.residentMixer?.update(delta);
+    this.updateResident(delta);
     this.updateGuideNpc(delta);
     this.updatePortals();
+    this.updateLakeExperienceCircles();
     if(this.overviewActive){this.showMapOverview();this.renderAccumulator+=delta;if(this.renderAccumulator>=RENDER_INTERVAL){this.renderAccumulator%=RENDER_INTERVAL;this.render()}return {x:this.localX,z:this.localZ,groundHeight:this.localGround}}
     const positionChanged=Math.hypot(proposedX-this.localX,proposedZ-this.localZ)>.001;
     let nextX=proposedX,nextZ=proposedZ,sample=positionChanged?(this.bodyPathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround):undefined):{height:this.localGround,normal:this.localNormal};
@@ -603,8 +811,9 @@ export class VillageMapRenderer{
       ...(this.options.portal&&this.portalPosition?[{...this.options.portal,...this.portalPosition}]:[]),
       ...(this.options.fixedPortals??[]),
     ].map(config=>({config,distance:Math.hypot(nextX-config.x,nextZ-config.z)})).sort((a,b)=>a.distance-b.distance);
+    if(!this.portalEntryArmed&&portalCandidates.every(candidate=>candidate.distance>=PORTAL_EXIT_DISTANCE))this.portalEntryArmed=true;
     const closestPortal=portalCandidates[0],samePortal=closestPortal?.config.destination===this.activePortal?.destination;
-    const activePortal=closestPortal&&closestPortal.distance<(samePortal?PORTAL_EXIT_DISTANCE:PORTAL_OPEN_DISTANCE)?closestPortal.config:undefined;
+    const activePortal=this.portalEntryArmed&&closestPortal&&closestPortal.distance<(samePortal?PORTAL_EXIT_DISTANCE:PORTAL_OPEN_DISTANCE)?closestPortal.config:undefined;
     if(activePortal?.destination!==this.activePortal?.destination){
       this.activePortal=activePortal;
       this.portalNearby=!!activePortal;
@@ -625,6 +834,15 @@ export class VillageMapRenderer{
       if(interactionNearby!==this.interactionNearby){
         this.interactionNearby=interactionNearby;
         gameEvents.emit('world-interaction-proximity-changed',interactionNearby?this.options.interaction:null);
+      }
+    }
+    if(this.options.lakeExperiences?.length){
+      const closest=this.options.lakeExperiences.map(config=>{const position=this.lakeExperiencePositions.get(config.id)??config;return {config,distance:Math.hypot(nextX-position.x,nextZ-position.z)}}).sort((a,b)=>a.distance-b.distance)[0];
+      const same=closest?.config.id===this.lakeExperienceNearby;
+      const nearby=closest&&closest.distance<(same?LAKE_EXPERIENCE_EXIT_DISTANCE:LAKE_EXPERIENCE_OPEN_DISTANCE)?closest.config:undefined;
+      if(nearby?.id!==this.lakeExperienceNearby){
+        this.lakeExperienceNearby=nearby?.id;
+        gameEvents.emit('lake-experience-proximity-changed',nearby?{id:nearby.id,label:nearby.label,description:nearby.description}:null);
       }
     }
     const position=new THREE.Vector3(nextX,sample.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(nextZ));
@@ -678,8 +896,11 @@ export class VillageMapRenderer{
     if(this.guideNearby)gameEvents.emit('guide-proximity-changed',false);
     if(this.portalNearby)gameEvents.emit('world-portal-proximity-changed',null);
     if(this.interactionNearby)gameEvents.emit('world-interaction-proximity-changed',null);
+    if(this.lakeExperienceNearby)gameEvents.emit('lake-experience-proximity-changed',null);
     if(this.overviewActive)gameEvents.emit('map-overview-changed',false);
     if(this.options.overview)gameEvents.off('map-overview-toggle',this.onMapOverviewToggle);
+    if(this.options.portal)gameEvents.off('portal-move-to-player',this.onMovePortalToPlayer);
+    if(this.options.lakeExperiences)gameEvents.off('lake-experience-move-to-player',this.onMoveLakeExperienceToPlayer);
     this.destroyed=true;this.localCharacter.destroy();this.guideNpc?.destroy();this.remotes.forEach(character=>character.destroy());this.remotes.clear();this.remoteGrounds.clear();
     this.scene.traverse(object=>{if(object instanceof THREE.Mesh){object.geometry.dispose();const materials=Array.isArray(object.material)?object.material:[object.material];materials.forEach(material=>material.dispose())}});
     this.renderer.dispose();this.renderer.domElement.remove();
