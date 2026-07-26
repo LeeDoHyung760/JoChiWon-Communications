@@ -13,7 +13,7 @@ const numberFromEnv = (name: string, fallback: number, min: number, max: number)
   );
 
 const booleanFromEnv = z.preprocess(
-  (value) => value === undefined || value === '' ? true : value,
+  (value) => value === undefined || value === '' ? 'true' : value,
   z.enum(['true', 'false']).transform((value) => value === 'true'),
 );
 

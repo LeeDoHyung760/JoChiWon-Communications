@@ -10,8 +10,13 @@
     "z": 1660
   },
   {
+    "destination": "garden",
+    "x": 682,
+    "z": 735
+  },
+  {
     "destination": "campus",
-    "x": 2000,
-    "z": 1180
+    "x": 1178,
+    "z": 122
   }
 ]
