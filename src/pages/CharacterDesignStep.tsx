@@ -9,7 +9,7 @@ import type { CharacterModel, PartKind, UserProfile } from '../types';
 const modelUrls: Record<Exclude<CharacterModel, 'custom'>, string> = {
   chungnyeong: new URL('../assets/characters/chungnyeong.glb', import.meta.url).href,
   girl1: new URL('../assets/characters/girl1_3종.glb', import.meta.url).href,
-  boy1: new URL('../assets/characters/boy1_3종.glb', import.meta.url).href
+  boy1: new URL('../assets/characters/boy1_3.glb', import.meta.url).href
 };
 
 const partLabels: Record<PartKind, {label: string; icon: string}> = {

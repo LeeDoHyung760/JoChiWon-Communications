@@ -1,14 +1,25 @@
-import '@google/model-viewer';
-import React, { useEffect, useRef, useState } from 'react';
-import { assetManifest } from '../data/assetManifest';
-import { CharacterPreview } from '../components/CharacterPreview';
-import { CharacterDesignStep } from './CharacterDesignStep';
-import chungnyeongUrl from '../assets/characters/chungnyeong.glb?url';
-import girl1Url from '../assets/characters/girl1_3종.glb?url';
-import boy1Url from '../assets/characters/boy1_3종.glb?url';
-import type { CharacterModel, PartKind, UserProfile } from '../types';
-import './CreateProfilePage.css';
+import '@google/model-viewer'
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 
+import { assetManifest } from '../data/assetManifest'
+import { CharacterPreview } from '../components/CharacterPreview'
+import { CharacterDesignStep } from './CharacterDesignStep'
+
+import chungnyeongUrl from '../assets/characters/chungnyeong.glb?url'
+import girl1Url from '../assets/characters/girl1_3.glb?url'
+import boy1Url from '../assets/characters/boy1_3.glb?url'
+
+import type {
+  CharacterModel,
+  PartKind,
+  UserProfile,
+} from '../types'
+
+import './CreateProfilePage.css'
 const MODEL_VIEWER_TAG = 'model-viewer';
 
 const interestOptions = ['카페', '맛집', '산책', '사진', '독서', '공연', '스터디', '로컬여행'];
