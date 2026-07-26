@@ -8,8 +8,9 @@ import type { CharacterModel, PartKind, UserProfile } from '../types';
 
 const modelUrls: Record<Exclude<CharacterModel, 'custom'>, string> = {
   chungnyeong: new URL('../assets/characters/chungnyeong.glb', import.meta.url).href,
-  girl1: new URL('../assets/characters/girl1_3종.glb', import.meta.url).href,
-  boy1: new URL('../assets/characters/boy1_3.glb', import.meta.url).href
+  girl1: new URL('../assets/characters/girl1_3.glb', import.meta.url).href,
+  boy1: new URL('../assets/characters/boy1_3.glb', import.meta.url).href,
+  cloths: new URL('../assets/characters/cloths_rig.glb', import.meta.url).href
 };
 
 const partLabels: Record<PartKind, {label: string; icon: string}> = {
@@ -17,7 +18,8 @@ const partLabels: Record<PartKind, {label: string; icon: string}> = {
   face: {label: '피부', icon: '🙂'},
   top: {label: '상의', icon: '👕'},
   bottom: {label: '하의', icon: '👖'},
-  shoes: {label: '신발', icon: '👟'}
+  shoes: {label: '신발', icon: '👟'},
+  accessory: {label: '악세서리', icon: '👔'}
 };
 
 export function CharacterDesignStep({
@@ -42,7 +44,7 @@ export function CharacterDesignStep({
     preloadCharacterAssets().catch(e => console.warn('[preloadCharacterAssets] failed', e));
   }, []);
 
-  const modelFaces: Record<CharacterModel, string> = {chungnyeong: '🧑🏻‍🌾', girl1: '👧🏻', boy1: '👦🏻', custom: '＋'};
+  const modelFaces: Record<CharacterModel, string> = {chungnyeong: '🧑🏻‍🌾', girl1: '👧🏻', boy1: '👦🏻', cloths: '🧑🏻', custom: '＋'};
 
   return (
     <main className="character-design-page">
@@ -71,7 +73,7 @@ export function CharacterDesignStep({
                   src={modelUrls[model]}
                   model={model}
                   parts={character}
-                  animationName={model === 'chungnyeong' ? 'NlaTrack' : 'NlaTrack.001'}
+                  animationName={model === 'chungnyeong' ? 'NlaTrack' : model === 'cloths' ? null : 'NlaTrack.001'}
                 />
               )}
             </div>
@@ -81,21 +83,23 @@ export function CharacterDesignStep({
 
           <div className="character-design-controls">
             <div className="character-model-picker" aria-label="캐릭터 선택">
-              {(['chungnyeong', 'girl1', 'boy1', 'custom'] as CharacterModel[]).map(option => (
+              {(['girl1', 'boy1', 'cloths'] as CharacterModel[]).map(option => (
                 <button type="button" key={option} className={model === option ? 'selected' : ''} onClick={() => selectModel(option)}>
                   <span className="character-model-face">{modelFaces[option]}</span>
-                  <strong>{option === 'chungnyeong' ? '충녕이' : option === 'girl1' ? '여성형' : option === 'boy1' ? '남성형' : '커스텀'}</strong>
-                  <small>{option === 'custom' ? '2D 미리보기' : option === 'chungnyeong' ? '3D 캐릭터' : option === 'girl1' ? '3D 여성형' : '3D 남성형'}</small>
+                  <strong>{option === 'chungnyeong' ? '충녕이' : option === 'girl1' ? '여성형' : option === 'boy1' ? '남성형' : option === 'cloths' ? '캐주얼형' : '커스텀'}</strong>
+                  <small>{option === 'custom' ? '2D 미리보기' : option === 'chungnyeong' ? '3D 캐릭터' : option === 'girl1' ? '3D 여성형' : option === 'boy1' ? '3D 남성형' : '3D 리깅 캐릭터'}</small>
                 </button>
               ))}
             </div>
 
             <div className="character-style-list">
-              {(['hair', 'face', 'top', 'bottom', 'shoes'] as PartKind[]).map(kind => (
+              {(['hair', 'face', 'top', 'bottom', 'shoes', 'accessory'] as PartKind[]).filter(kind=>kind!=='accessory'||model==='cloths').map(kind => (
                 <div className="character-style-row" key={kind}>
                   <span className="character-style-name"><i>{partLabels[kind].icon}</i><strong>{partLabels[kind].label}</strong></span>
-                  <div className="character-style-options">
-                    {assetManifest[kind].map(option => (
+                  <div className={`character-style-options ${model==='cloths'&&kind!=='face'?'with-original':''}`}>
+                    {(model==='cloths'&&kind!=='face'
+                      ?[{id:`${kind}-none`,label:'없음',color:'#ffffff'},...assetManifest[kind]]
+                      :assetManifest[kind]).map(option => (
                       <button
                         type="button"
                         key={option.id}
@@ -106,7 +110,7 @@ export function CharacterDesignStep({
                         style={{'--option-color': option.color} as React.CSSProperties}
                         onClick={() => part(kind, option.id)}
                       >
-                        {character[kind] === option.id && <span>✓</span>}
+                        {option.id.endsWith('-none')?<span>×</span>:character[kind] === option.id && <span>✓</span>}
                       </button>
                     ))}
                   </div>

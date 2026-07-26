@@ -23,6 +23,7 @@
 .character-style-row{min-height:72px;padding:9px 22px;display:grid;grid-template-columns:125px 1fr;align-items:center;border:1px solid #e5e9e7;border-radius:16px;background:#fff;box-shadow:0 6px 18px rgba(35,60,55,.05)}
 .character-style-name{display:flex;align-items:center;gap:12px;color:#163a3d}.character-style-name i{width:40px;height:40px;display:grid;place-items:center;color:#173b47;font-size:23px;font-style:normal}.character-style-name strong{font-size:15px}
 .character-style-options{display:flex;align-items:center;justify-content:space-around;gap:18px}
+.character-style-options.with-original{justify-content:space-between;gap:7px}
 .character-style-options button{position:relative;width:44px;height:44px;padding:0;border:4px solid #fff;border-radius:50%;background:var(--option-color);box-shadow:0 0 0 1px #dbe2df,0 4px 10px rgba(31,58,52,.1);color:#fff;font-size:18px;font-weight:900;transition:.18s}
 .character-style-options button:hover{transform:scale(1.06)}.character-style-options button.selected{box-shadow:0 0 0 3px #3a957f,0 6px 15px rgba(33,112,91,.18)}
 .character-style-options button.selected::after{content:'✓';position:absolute;right:-10px;top:-11px;width:26px;height:26px;display:grid;place-items:center;border:3px solid #fff;border-radius:50%;background:#3e9b83;color:#fff;font-size:14px}.character-style-options button>span{display:none}

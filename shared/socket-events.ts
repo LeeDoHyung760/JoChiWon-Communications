@@ -1,8 +1,8 @@
 export type MapId = 'town' | 'bear-tree-park' | 'bear-play-zone' | 'garden' | 'campus' | 'jochwon-station' | 'traditional-market' | 'jochwon-park' | 'college-street';
 export type Direction = 'up' | 'down' | 'left' | 'right';
 export type MotionState = 'idle' | 'walk' | 'run';
-export type CharacterModel = 'custom' | 'chungnyeong' | 'girl1' | 'boy1';
-export interface Appearance { hair:string; face:string; top:string; bottom:string; shoes:string }
+export type CharacterModel = 'custom' | 'chungnyeong' | 'girl1' | 'boy1' | 'cloths';
+export interface Appearance { hair:string; face:string; top:string; bottom:string; shoes:string; accessory?:string }
 export interface PublicMatchProfile { mbti:string; interests:string[]; usagePurposes:string[]; preferredPlaceCategories:string[] }
 export interface PlayerState { id:string; mapId:MapId; x:number; y:number; direction:Direction; isMoving:boolean; yaw:number; motionState:MotionState; timestamp:number; nickname:string; appearance:Appearance; model:CharacterModel; matchProfile?:PublicMatchProfile }
 export interface JoinMapPayload { mapId:MapId; nickname:string; appearance:Appearance; model:CharacterModel; x:number; y:number; matchProfile?:PublicMatchProfile }
