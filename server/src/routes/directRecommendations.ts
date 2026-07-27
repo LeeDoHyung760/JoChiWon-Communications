@@ -36,7 +36,7 @@ directRecommendationsRouter.post('/:directRoomId/recommendations',recommendation
   const rawRequest=typeof req.body?.userRequest==='string'?req.body.userRequest.trim().slice(0,300):'';
   inFlight.add(directRoomId);io.to(directRoomId).emit('directRecommendationStarted',{directRoomId,stage:'analyzing'});
   try{
-    const participants:RecommendationUser[]=room.participants.map(participant=>({id:participant.id,nickname:participant.nickname,interests:participant.matchProfile?.interests??[],usagePurposes:participant.matchProfile?.usagePurposes??[],preferredPlaceCategories:participant.matchProfile?.preferredPlaceCategories??[],mbti:participant.matchProfile?.mbti??''}));
+    const participants:RecommendationUser[]=room.participants.map(participant=>({id:participant.id,nickname:participant.nickname,interests:participant.matchProfile?.interests??[],usagePurposes:participant.matchProfile?.usagePurposes??[],preferredPlaceCategories:participant.matchProfile?.preferredPlaceCategories??[],experienceRecords:participant.matchProfile?.experienceRecords??[],mbti:participant.matchProfile?.mbti??''}));
     const recentMessages:ConversationMessage[]=messages.map(message=>({senderId:message.senderId,message:message.message.slice(0,500),createdAt:message.createdAt}));
     const zoneName=zoneNames[roomStore.players.get(requesterId)?.mapId??'']??env.DEFAULT_SEARCH_REGION;
     if(!hasExplicitPlaceIntent(recentMessages,rawRequest))return fail(422,'message_shortage','대화에서 추천할 구체적인 활동을 찾지 못했어요. 음식점, 카페, 보드게임, 영화, 산책, 전시처럼 원하는 활동을 먼저 이야기해 주세요.');

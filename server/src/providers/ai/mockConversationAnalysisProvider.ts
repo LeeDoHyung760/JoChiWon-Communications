@@ -8,7 +8,7 @@ const moodTerms: Record<string, string[]> = { 조용한: ['조용', '차분', '�
 
 export function ruleBasedAnalysis(users: RecommendationUser[], messages: ConversationMessage[], areaName: string): ConversationAnalysis {
   const text = messages.map((item) => item.message).join(' ');
-  const interests = users.map((user) => normalizeValues(user.interests));
+  const interests = users.map((user) => normalizeValues([...(user.experienceRecords??[]),...(user.interests??[])]));
   const sharedInterests = interests.length > 1 ? interests[0].filter((value) => interests.slice(1).every((list) => list.includes(value))) : (interests[0] ?? []);
   const placeCategories = Object.entries(categoryTerms).map(([category, terms]) => ({ category, score: terms.reduce((sum, term) => sum + Number(text.includes(term)), 0) + Number(sharedInterests.some((value) => terms.some((term) => value.includes(term)))) * 2 })).filter(({ score }) => score > 0).sort((a, b) => b.score - a.score).slice(0, 2).map(({ category }) => category);
   const preferredMood = Object.entries(moodTerms).filter(([, terms]) => terms.some((term) => text.includes(term))).map(([mood]) => mood).slice(0, 2);

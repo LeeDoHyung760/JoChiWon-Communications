@@ -4,7 +4,7 @@ import type { ClientToServerEvents,DirectMessage,DirectRequest,DirectRoom,Server
 type Client=Socket<ServerToClientEvents,ClientToServerEvents>;
 const base='http://localhost:3001';
 const once=<T>(socket:Client,event:keyof ServerToClientEvents)=>new Promise<T>((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error(`Timed out: ${String(event)}`)),30_000);socket.once(event as never,((value:T)=>{clearTimeout(timer);resolve(value)}) as never)});
-const connect=(nickname:string)=>new Promise<Client>((resolve,reject)=>{const socket:Client=io(base,{transports:['websocket']});socket.once('connect',()=>{socket.emit('joinMap',{mapId:'jochwon-station',nickname,appearance:{hair:'short',face:'smile',top:'green',bottom:'navy',shoes:'black'},model:'chungnyeong',x:100,y:100,matchProfile:{mbti:'',interests:['카페','디저트'],usagePurposes:['대화'],preferredPlaceCategories:['카페']}});resolve(socket)});socket.once('connect_error',reject)});
+const connect=(nickname:string)=>new Promise<Client>((resolve,reject)=>{const socket:Client=io(base,{transports:['websocket']});socket.once('connect',()=>{socket.emit('joinMap',{mapId:'jochwon-station',nickname,appearance:{hair:'short',face:'smile',top:'green',bottom:'navy',shoes:'black'},model:'chungnyeong',x:100,y:100,matchProfile:{mbti:'',interests:['카페','디저트'],usagePurposes:['맛과 쉼'],preferredPlaceCategories:['카페'],experienceRecords:['복숭아 디저트 저장']}});resolve(socket)});socket.once('connect_error',reject)});
 const post=async(roomId:string,socketId:string)=>fetch(`${base}/api/direct-rooms/${encodeURIComponent(roomId)}/recommendations`,{method:'POST',headers:{'Content-Type':'application/json','X-Socket-Id':socketId},body:JSON.stringify({userRequest:'조치원역에서 너무 멀지 않은 곳'})});
 
 const a=await connect('참여자A'),b=await connect('참여자B');
