@@ -1,3 +1,4 @@
+import { CommunityPage } from './pages/CommunityPage';
 import { useCallback, useState } from 'react';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
@@ -17,7 +18,15 @@ import {
 } from './stores/profileStore';
 import type { UserProfile } from './types';
 
-type Page = 'landing' | 'login' | 'terms' | 'create' | 'complete' | 'account' | 'game';
+type Page =
+  | 'landing'
+  | 'login'
+  | 'terms'
+  | 'create'
+  | 'complete'
+  | 'account'
+  | 'game'
+  | 'community';
 
 export default function App() {
   const [page, setPage] = useState<Page>('landing');
@@ -106,5 +115,21 @@ export default function App() {
       />
     );
   }
-  return <GamePage profile={profile} onExit={() => setPage('landing')} onEditProfile={() => setPage('account')} />;
+  if (page === 'community') {
+  return (
+    <CommunityPage
+      profile={profile}
+      onBack={() => setPage('game')}
+    />
+  );
+}
+
+return (
+  <GamePage
+    profile={profile}
+    onExit={() => setPage('landing')}
+    onEditProfile={() => setPage('account')}
+    onOpenCommunity={() => setPage('community')}
+  />
+);
 }
