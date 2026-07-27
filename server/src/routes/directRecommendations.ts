@@ -1,0 +1,61 @@
+import { Router } from 'express';
+import { env } from '../config/env.js';
+import { recommendationRateLimit } from '../middleware/recommendationRateLimit.js';
+import { getProviderDiagnostics } from '../providers/providerDiagnostics.js';
+import { providerStatus } from '../providers/providerFactory.js';
+import { roomStore } from '../rooms/roomStore.js';
+import { analyzeConversation } from '../services/ai/conversationAnalysis.js';
+import { scorePlaces } from '../services/places/placeScoring.js';
+import { searchPlacesForIntent } from '../services/places/placeSearch.js';
+import { hasExplicitPlaceIntent,resolveConversationIntent,PLACE_INTENT_RULES } from '../services/places/placeIntentRules.js';
+import { getSocketServer } from '../socket/socketRuntime.js';
+import type { ConversationMessage,RecommendationUser } from '../types/recommendation.js';
+import type { DirectMessage,DirectRecommendation } from '../../../shared/socket-events.js';
+
+export const directRecommendationsRouter=Router();
+const inFlight=new Set<string>();
+const lastRequestedAt=new Map<string,number>();
+const userWindows=new Map<string,{count:number;resetAt:number}>();
+const COOLDOWN_MS=30_000;
+const zoneNames:Record<string,string>={town:'조치원 중심','jochwon-station':'조치원역','traditional-market':'세종전통시장','jochwon-park':'조치원공원','college-street':'조치원 대학가'};
+
+directRecommendationsRouter.post('/:directRoomId/recommendations',recommendationRateLimit,async(req,res)=>{
+  const directRoomId=String(req.params.directRoomId),requesterId=req.get('X-Socket-Id')?.trim()??'',io=getSocketServer();
+  const fail=(status:number,category:'permission'|'message_shortage'|'cooldown'|'openai'|'kakao_authentication'|'place_empty'|'network'|'unknown',message:string)=>{if(requesterId)io?.to(requesterId).emit('directRecommendationFailed',{directRoomId,category,message});return res.status(status).json({error:message,category})};
+  const room=roomStore.directRooms.get(directRoomId);
+  if(!room)return fail(404,'permission','존재하지 않는 1대1 채팅방입니다.');
+  if(!requesterId||!io?.sockets.sockets.has(requesterId)||!room.participants.some(participant=>participant.id===requesterId))return fail(403,'permission','이 채팅방의 참여자만 추천을 요청할 수 있습니다.');
+  const userWindow=userWindows.get(requesterId),activeWindow=!userWindow||userWindow.resetAt<=Date.now()?{count:0,resetAt:Date.now()+60_000}:userWindow;activeWindow.count+=1;userWindows.set(requesterId,activeWindow);if(activeWindow.count>5)return fail(429,'cooldown','추천 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.');
+  if(!room.active)return fail(409,'permission','종료된 채팅방에서는 추천을 요청할 수 없습니다.');
+  const other=room.participants.find(participant=>participant.id!==requesterId);
+  if(!other||roomStore.isBlocked(requesterId,other.id))return fail(403,'permission','차단 관계에서는 추천을 요청할 수 없습니다.');
+  const messages=roomStore.recentUserMessages(directRoomId,env.MAX_ANALYSIS_MESSAGES);
+  if(messages.length<2)return fail(422,'message_shortage','두 분의 대화를 조금 더 나눈 뒤 추천받아 보세요.');
+  const now=Date.now(),last=lastRequestedAt.get(directRoomId)??0;
+  if(inFlight.has(directRoomId)||now-last<COOLDOWN_MS)return fail(429,'cooldown','잠시 후 다시 추천을 요청해 주세요.');
+  const rawRequest=typeof req.body?.userRequest==='string'?req.body.userRequest.trim().slice(0,300):'';
+  inFlight.add(directRoomId);io.to(directRoomId).emit('directRecommendationStarted',{directRoomId,stage:'analyzing'});
+  try{
+    const participants:RecommendationUser[]=room.participants.map(participant=>({id:participant.id,nickname:participant.nickname,interests:participant.matchProfile?.interests??[],usagePurposes:participant.matchProfile?.usagePurposes??[],preferredPlaceCategories:participant.matchProfile?.preferredPlaceCategories??[],experienceRecords:participant.matchProfile?.experienceRecords??[],mbti:participant.matchProfile?.mbti??''}));
+    const recentMessages:ConversationMessage[]=messages.map(message=>({senderId:message.senderId,message:message.message.slice(0,500),createdAt:message.createdAt}));
+    const zoneName=zoneNames[roomStore.players.get(requesterId)?.mapId??'']??env.DEFAULT_SEARCH_REGION;
+    if(!hasExplicitPlaceIntent(recentMessages,rawRequest))return fail(422,'message_shortage','대화에서 추천할 구체적인 활동을 찾지 못했어요. 음식점, 카페, 보드게임, 영화, 산책, 전시처럼 원하는 활동을 먼저 이야기해 주세요.');
+    const rawAnalysis=await analyzeConversation(participants,recentMessages,directRoomId,zoneName,rawRequest||undefined),analysis=resolveConversationIntent(rawAnalysis,recentMessages,env.DEFAULT_SEARCH_REGION,rawRequest);
+    if(analysis.activity==='other')return fail(422,'message_shortage','두 분이 원하는 활동이 아직 정해지지 않았어요. 가고 싶은 음식점이나 여가 활동을 조금 더 이야기해 주세요.');
+    lastRequestedAt.set(directRoomId,Date.now());
+    if(env.NODE_ENV!=='production')console.log('[Recommendation] Analysis',{activity:analysis.activity,meetingIntent:analysis.meetingIntent,placeCategories:analysis.placeCategories,rejectedCategories:analysis.rejectedCategories,searchKeywords:analysis.searchKeywords});
+    const aiTest=getProviderDiagnostics().ai,aiFallback=Boolean(aiTest&&!aiTest.ok&&Date.parse(aiTest.testedAt)>=now);
+    io.to(directRoomId).emit('directRecommendationStarted',{directRoomId,stage:'searching'});
+    const search=await searchPlacesForIntent(analysis),places=scorePlaces(search.places,analysis,roomStore.recentRecommendedPlaceIds(directRoomId));
+    const placeFallback=search.debug.fallbackUsed,placeTest=getProviderDiagnostics().place;
+    const fallbackReason=placeFallback&&placeTest&&!placeTest.ok?`kakao_${placeTest.category}`:aiFallback&&aiTest?`openai_${aiTest.category}`:undefined;
+    const provider={ai:(aiFallback?'mock':providerStatus.ai.active) as 'openai'|'mock',place:(placeFallback?'mock':'kakao') as 'kakao'|'mock',fallbackUsed:aiFallback||placeFallback,...(fallbackReason?{fallbackReason}:{})};
+    const regionNotice=search.debug.expandedRegion?'조치원 안에서는 적절한 장소를 찾지 못해 세종 지역까지 범위를 넓혀 찾아봤어요.':undefined,rule=PLACE_INTENT_RULES[analysis.activity];
+    const summary=places.length?analysis.summary:`현재 카카오맵에서 조건에 맞는 ${rule.category||'장소'}을 찾지 못했어요. 검색 범위를 넓히거나 다른 활동을 선택해 주세요.`;
+    const recommendationPlaces=places.map(place=>({id:place.id,name:place.name,category:place.category,address:place.address,roadAddress:place.roadAddress,phone:place.phone,externalUrl:place.externalUrl,longitude:place.longitude,latitude:place.latitude,distanceMeters:place.distanceMeters,source:place.source,recommendationReason:analysis.activity==='movie'?`${analysis.rejectedCategories.includes('카페')?'카페는 선호하지 않고 ':''}두 분이 영화관에 가는 것에 동의한 대화를 반영했어요.${place.address.includes('조치원')?' 조치원 지역의 실제 영화관입니다.':' 조치원에서 가까운 세종 지역의 실제 영화관입니다.'}`:`두 분이 ${rule.label}에 동의한 대화를 반영해 추천했어요.`})),recommendationId=roomStore.saveRecommendation(directRoomId,recommendationPlaces);
+    const recommendation:DirectRecommendation={recommendationId,summary,basis:{activity:rule.label,region:'조치원 또는 가까운 세종',rejectedCategories:analysis.rejectedCategories,mood:analysis.preferredMood,...(regionNotice?{regionNotice}:{})},places:recommendationPlaces,...(env.NODE_ENV==='production'?{}:{provider,debug:search.debug})};
+    const message:DirectMessage={id:crypto.randomUUID(),directRoomId,senderId:'chungnyeongi',nickname:'충녕이',message:analysis.summary,createdAt:Date.now(),type:'ai-recommendation',recommendation};
+    roomStore.addDirectMessage(message);io.to(directRoomId).emit('directRecommendationCompleted',{directRoomId,message});
+    return res.json({ok:true,message,...(env.NODE_ENV==='production'?{}:{provider,debug:search.debug})});
+  }catch(error){console.error('[Recommendation] Direct recommendation failed',{category:error instanceof Error?error.name:'unknown'});return fail(502,'unknown','추천을 준비하지 못했어요. 잠시 후 다시 시도해 주세요.')}finally{inFlight.delete(directRoomId)}
+});

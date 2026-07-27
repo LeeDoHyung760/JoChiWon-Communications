@@ -1,0 +1,3 @@
+import { getPart } from '../data/assetManifest';
+import type { CharacterParts } from '../types';
+export function CharacterPreview({parts,small=false}:{parts:CharacterParts;small?:boolean}){const h=getPart('hair',parts.hair),f=getPart('face',parts.face),t=getPart('top',parts.top),b=getPart('bottom',parts.bottom),s=getPart('shoes',parts.shoes);return <div className={`avatar ${small?'small':''}`}><div className="av-hair" style={{background:h.color}}/><div className="av-face" style={{background:f.color}}>{f.symbol}</div><div className="av-top" style={{background:t.color}}/><div className="av-bottom" style={{background:b.color}}/><div className="av-shoes" style={{background:s.color}}/></div>}
