@@ -1,15 +1,12 @@
-import '@google/model-viewer';
-import { useEffect } from 'react';
-import { assetManifest } from '../data/assetManifest';
-import { preloadCharacterAssets } from '../game/preloadGameAssets';
+import { assetManifest,customPartColor,customPartId,getPart } from '../data/assetManifest';
 import { CharacterPreview } from '../components/CharacterPreview';
 import { ThreeCharacterPreview } from '../components/ThreeCharacterPreview';
 import type { CharacterModel, PartKind, UserProfile } from '../types';
 
 const modelUrls: Record<Exclude<CharacterModel, 'custom'>, string> = {
   chungnyeong: new URL('../assets/characters/chungnyeong.glb', import.meta.url).href,
-  girl1: new URL('../assets/characters/girl1_3.glb', import.meta.url).href,
-  boy1: new URL('../assets/characters/boy1_3.glb', import.meta.url).href,
+  girl1: new URL('../assets/characters/girl_metaverse_animated.glb', import.meta.url).href,
+  boy1: new URL('../assets/characters/boy_metaverse.glb', import.meta.url).href,
   cloths: new URL('../assets/characters/cloths_rig.glb', import.meta.url).href
 };
 
@@ -17,6 +14,7 @@ const partLabels: Record<PartKind, {label: string; icon: string}> = {
   hair: {label: '머리', icon: '〰'},
   face: {label: '피부', icon: '🙂'},
   top: {label: '상의', icon: '👕'},
+  topLayer: {label: '상의 아래', icon: '🧥'},
   bottom: {label: '하의', icon: '👖'},
   shoes: {label: '신발', icon: '👟'},
   accessory: {label: '악세서리', icon: '👔'}
@@ -39,11 +37,6 @@ export function CharacterDesignStep({
   editMode: boolean;
   onBack?: () => void;
 }) {
-  // preload assets once to avoid repeated fetches and rAF timeouts
-  useEffect(() => {
-    preloadCharacterAssets().catch(e => console.warn('[preloadCharacterAssets] failed', e));
-  }, []);
-
   const modelFaces: Record<CharacterModel, string> = {chungnyeong: '🧑🏻‍🌾', girl1: '👧🏻', boy1: '👦🏻', cloths: '🧑🏻', custom: '＋'};
 
   return (
@@ -73,7 +66,7 @@ export function CharacterDesignStep({
                   src={modelUrls[model]}
                   model={model}
                   parts={character}
-                  animationName={model === 'chungnyeong' ? 'NlaTrack' : model === 'cloths' ? null : 'NlaTrack.001'}
+                  animationName={null}
                 />
               )}
             </div>
@@ -93,26 +86,41 @@ export function CharacterDesignStep({
             </div>
 
             <div className="character-style-list">
-              {(['hair', 'face', 'top', 'bottom', 'shoes', 'accessory'] as PartKind[]).filter(kind=>kind!=='accessory'||model==='cloths').map(kind => (
+              {(model==='boy1'
+                ?(['hair','face','top','topLayer','bottom','shoes','accessory'] as PartKind[])
+                :(['hair','face','top','bottom','shoes','accessory'] as PartKind[]).filter(kind=>kind!=='accessory'||model==='cloths')).map(kind => (
                 <div className="character-style-row" key={kind}>
-                  <span className="character-style-name"><i>{partLabels[kind].icon}</i><strong>{partLabels[kind].label}</strong></span>
-                  <div className={`character-style-options ${model==='cloths'&&kind!=='face'?'with-original':''}`}>
-                    {(model==='cloths'&&kind!=='face'
-                      ?[{id:`${kind}-none`,label:'없음',color:'#ffffff'},...assetManifest[kind]]
-                      :assetManifest[kind]).map(option => (
+                  <span className="character-style-name"><i>{partLabels[kind].icon}</i><strong>{kind==='top'&&model==='boy1'?'상의 위':partLabels[kind].label}</strong></span>
+                  <div className={`character-style-options ${model==='cloths'?'with-original':''}`}>
+                    {(model==='girl1'||model==='boy1'||model==='cloths'
+                        ?[{id:`${kind}-original`,label:'원본 색상',color:'conic-gradient(#f1a36b,#59372d,#f0d8bf,#7195ca,#f1a36b)'},...assetManifest[kind]]
+                        :assetManifest[kind]).map(option => (
                       <button
                         type="button"
                         key={option.id}
                         title={option.label}
                         aria-label={option.label}
                         aria-pressed={character[kind] === option.id}
-                        className={character[kind] === option.id ? 'selected' : ''}
+                        className={`${character[kind] === option.id ? 'selected' : ''} ${option.id.endsWith('-original')?'original-color-option':''}`}
                         style={{'--option-color': option.color} as React.CSSProperties}
                         onClick={() => part(kind, option.id)}
                       >
-                        {option.id.endsWith('-none')?<span>×</span>:character[kind] === option.id && <span>✓</span>}
+                        {option.id.endsWith('-none')?<span>×</span>:option.id.endsWith('-original')?<span>원본</span>:character[kind] === option.id && <span>✓</span>}
                       </button>
                     ))}
+                    <label
+                      className={`character-custom-color ${customPartColor(kind,character[kind])?'selected':''}`}
+                      title={`${partLabels[kind].label} 색 직접 고르기`}
+                    >
+                      <input
+                        type="color"
+                        aria-label={`${partLabels[kind].label} 색 직접 고르기`}
+                        value={customPartColor(kind,character[kind])??getPart(kind,character[kind]).color}
+                        onChange={event=>part(kind,customPartId(kind,event.target.value))}
+                      />
+                      <i style={{background:customPartColor(kind,character[kind])??'conic-gradient(#f46b6b,#f1c75b,#5cc98b,#5b8ff1,#bd6af2,#f46b6b)'}}/>
+                      <b>직접</b>
+                    </label>
                   </div>
                 </div>
               ))}

@@ -28,18 +28,15 @@ export default function App() {
     ...storedProfile,
     interests: storedProfile.interests ?? [],
     usagePurposes: storedProfile.usagePurposes ?? [],
-    preferredPlaceCategories: storedProfile.preferredPlaceCategories ?? []
+    preferredPlaceCategories: storedProfile.preferredPlaceCategories ?? [],
+    recordVisibility: storedProfile.recordVisibility ?? 'public',
+    chatEnabled: storedProfile.chatEnabled ?? true
   };
-  const legacyMember = profile.nickname.trim().length >= 2 && profile.interests.length > 0 && profile.usagePurposes.length > 0;
+  const legacyMember = profile.nickname.trim().length >= 2 && profile.interests.length > 0;
   const membershipComplete = journey.membershipComplete || legacyMember;
-  const onboardingInProgress = journey.authenticated && !membershipComplete;
 
-  const continueOnboarding = () => {
-    setPage(journey.onboardingStep === 'terms' ? 'terms' : 'create');
-  };
   const startFromLanding = () => {
     if (journey.authenticated && membershipComplete) return setPage('game');
-    if (onboardingInProgress) return continueOnboarding();
     setPage('login');
   };
   const kakaoLogin = () => {
@@ -74,7 +71,7 @@ export default function App() {
     );
   }
   if (page === 'login') return <LoginPage onBack={() => setPage('landing')} onLogin={kakaoLogin} />;
-  if (page === 'terms') return <TermsPage onBack={() => setPage('landing')} onComplete={() => moveToStep('profile')} />;
+  if (page === 'terms') return <TermsPage onBack={() => setPage('login')} onComplete={() => moveToStep('profile')} />;
   if (page === 'create') {
     return (
       <CreateProfilePage
@@ -92,6 +89,12 @@ export default function App() {
         initial={profile}
         editMode
         onCancel={() => setPage('landing')}
+        onWithdraw={() => {
+          localStorage.removeItem('sejong-lake-interest-profile-v1');
+          setProfile(defaultProfile);
+          setJourney(defaultUserJourney);
+          setPage('landing');
+        }}
         onLogout={() => {
           setJourney({...journey, authenticated: false});
           setPage('landing');
@@ -103,5 +106,5 @@ export default function App() {
       />
     );
   }
-  return <GamePage profile={profile} onExit={() => setPage('landing')} />;
+  return <GamePage profile={profile} onExit={() => setPage('landing')} onEditProfile={() => setPage('account')} />;
 }

@@ -5,8 +5,18 @@
     "z": 1462
   },
   {
+    "experience": "activity-zone",
+    "x": 603,
+    "z": 452
+  },
+  {
+    "experience": "food-shop-zone",
+    "x": 491,
+    "z": 1556
+  },
+  {
     "experience": "wind-hill",
-    "x": 1737,
-    "z": 1541
+    "x": 1908,
+    "z": 549
   }
 ]
