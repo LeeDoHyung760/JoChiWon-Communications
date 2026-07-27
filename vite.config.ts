@@ -6,6 +6,9 @@ export default defineConfig({
     host: 'localhost',
     port: 5173,
     strictPort: true,
+    watch: {
+      ignored: ['**/*.blend', '**/*.blend1', '**/public/images/**'],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3001',

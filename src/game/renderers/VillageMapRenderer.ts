@@ -11,7 +11,7 @@ import chungnyeongIdleUrl from '../../assets/characters/chungnyeong_idle.glb?url
 import chungnyeongWalkUrl from '../../assets/characters/chungnyeong_walk.glb?url';
 import chungnyeongRunUrl from '../../assets/characters/chungnyeong_run.glb?url';
 import girlUrl from '../../assets/characters/girl_metaverse_animated.glb?url';
-import boyUrl from '../../assets/characters/boy1_3.glb?url';
+import boyUrl from '../../assets/characters/boy_metaverse.glb?url';
 import clothsUrl from '../../assets/characters/cloths_rig.glb?url';
 import type { CharacterModel,CharacterParts,UserProfile } from '../../types';
 import type { LakeExperienceId,LakeExperiencePosition,MapId,MotionState,PortalPosition,WorldInteractionPosition } from '../../../shared/socket-events';
@@ -28,6 +28,7 @@ const CAMERA_DISTANCE=900;
 const CHARACTER_HEIGHT=94;
 const CHARACTER_GROUND_CLEARANCE=4;
 const MAX_STEP_HEIGHT=22;
+const MAX_DROP_HEIGHT=180;
 const MIN_WALKABLE_NORMAL=.68;
 const COLLISION_RADIUS=16;
 const GUIDE_CHARACTER_HEIGHT=132;
@@ -130,7 +131,7 @@ export type WorldMapRendererOptions={
   greenhouse?:boolean;
   performanceMode?:boolean;
 };
-export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크',theme:'blue'},fixedPortals:[{...CAMPUS_PORTAL_POSITION,destination:'campus',label:'공동캠퍼스',theme:'blue'}],lakeExperiences:[{id:'central-plaza',x:1150,z:950,label:'호수공원 축제광장',description:'세종 축제와 로컬 콘텐츠에서 내 취향을 발견해요',color:0xffffff},{id:'wind-hill',x:350,z:400,label:'시민 방문 코스 게시판',description:'이웃들이 함께 만든 실제 세종 코스를 둘러봐요',color:0xffffff}]};
+export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크',theme:'blue'},fixedPortals:[{...CAMPUS_PORTAL_POSITION,destination:'campus',label:'공동캠퍼스',theme:'blue'}],lakeExperiences:[{id:'central-plaza',x:1150,z:950,label:'축제 부스',description:'관심 있는 세종 축제를 저장해요',color:0xffffff},{id:'activity-zone',x:1450,z:1080,label:'공연 부스',description:'좋아하는 공연 콘텐츠를 골라요',color:0xffffff},{id:'food-shop-zone',x:900,z:1250,label:'먹거리·상점 부스',description:'관심 음식과 지역 상점을 저장해요',color:0xffffff},{id:'wind-hill',x:350,z:400,label:'세종 추천 코스 게시판',description:'가보고 싶은 세종 코스를 저장해요',color:0xffffff}]};
 export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:BEAR_TREE_PARK_SPAWN.x,z:BEAR_TREE_PARK_SPAWN.z,destination:'town',label:'세종호수공원',theme:'blue'},fixedPortals:[{x:682,z:735,destination:'garden',label:'세종수목원',appearance:'white-circle',fixedPosition:true}],interaction:{x:1616,z:601,destination:'bear-play-zone',label:'곰 놀이 공간',buttonLabel:'곰 키우기',fixedPosition:true},cameraScreenOffsetY:90,cameraZoom:.78,characterHeight:154};
 export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearPlayZoneModelUrl,mapName:'곰 놀이 공간',spawn:BEAR_PLAY_ZONE_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'베어트리파크로 돌아가기'},resident:{modelUrl:bearCubModelUrl,x:1200,z:1450,height:105,yaw:Math.PI,patrol:BEAR_PATROL_POINTS,walkSpeed:RESIDENT_WALK_SPEED},cameraScreenOffsetY:90,cameraZoom:.78,characterHeight:154};
 export const GARDEN_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:gardenModelUrl,mapName:'수목원',spawn:GARDEN_SPAWN,interaction:{x:1200,z:1260,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'베어트리파크로 돌아가기',fixedPosition:true},cameraScreenOffsetY:90,cameraZoom:.78,characterHeight:154,mapScaleMultiplier:.67,greenhouse:true};
@@ -216,7 +217,7 @@ function savedLakeExperiencePosition(config:LakeExperienceConfig){
 const modelConfig:Record<Exclude<CharacterModel,'custom'>,{urls:Record<MotionState,string>;clips:Record<MotionState,string>}>= {
   chungnyeong:{urls:{idle:chungnyeongIdleUrl,walk:chungnyeongWalkUrl,run:chungnyeongRunUrl},clips:{idle:'NlaTrack',walk:'NlaTrack',run:'NlaTrack'}},
   girl1:{urls:{idle:girlUrl,walk:girlUrl,run:girlUrl},clips:{idle:'NlaTrack.002',walk:'NlaTrack.001',run:'NlaTrack'}},
-  boy1:{urls:{idle:boyUrl,walk:boyUrl,run:boyUrl},clips:{idle:'NlaTrack.001',walk:'NlaTrack.002',run:'NlaTrack'}},
+  boy1:{urls:{idle:boyUrl,walk:boyUrl,run:boyUrl},clips:{idle:'NlaTrack',walk:'NlaTrack.002',run:'NlaTrack.001'}},
   cloths:{urls:{idle:clothsUrl,walk:clothsUrl,run:clothsUrl},clips:{idle:'root|root|mixamo.com',walk:'root|root|mixamo.com',run:'root|root|mixamo.com'}}
 };
 
@@ -397,6 +398,7 @@ export class VillageMapRenderer{
   private interactionPosition?:{x:number;z:number};
   private interactionRoot?:THREE.Group;
   private lakeExperienceNearby?:LakeExperienceId;
+  private lakeBoothCompletion:Partial<Record<LakeExperienceId,boolean>>={};
   private lakeExperiencePositions=new Map<LakeExperienceId,{x:number;z:number}>();
   private lakeExperienceRoots=new Map<LakeExperienceId,THREE.Group>();
   private portalRoot?:THREE.Group;
@@ -458,7 +460,10 @@ export class VillageMapRenderer{
     if(options.overview)gameEvents.on('map-overview-toggle',this.onMapOverviewToggle);
     if(options.portal)gameEvents.on('portal-move-to-player',this.onMovePortalToPlayer);
     if(options.interaction)gameEvents.on('interaction-move-to-player',this.onMoveInteractionToPlayer);
-    if(options.lakeExperiences)gameEvents.on('lake-experience-move-to-player',this.onMoveLakeExperienceToPlayer);
+    if(options.lakeExperiences){
+      gameEvents.on('lake-experience-move-to-player',this.onMoveLakeExperienceToPlayer);
+      gameEvents.on('lake-booth-completion-changed',this.onLakeBoothCompletionChanged);
+    }
     if(options.greenhouse){
       this.renderer.domElement.addEventListener('pointerdown',this.onGreenhousePointerDown);
       gameEvents.on('greenhouse-progress-changed',this.onGreenhouseProgressChanged);
@@ -481,7 +486,11 @@ export class VillageMapRenderer{
       if(this.mapMeshes.length>1)this.mapMeshes.forEach(mesh=>{const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];materials.forEach(material=>this.classifyMaterial(material))});
       this.scene.add(model);
       if(this.options.greenhouse)this.setupGreenhouse(model);
-      const spawn=this.sampleGround(this.localX,this.localZ,0,true);if(spawn){this.localGround=spawn.height;this.localNormal.copy(spawn.normal)}
+      const safeSpawn=this.findSafeSpawn(this.localX,this.localZ);
+      if(safeSpawn){
+        this.localX=safeSpawn.x;this.localZ=safeSpawn.z;
+        this.localGround=safeSpawn.ground.height;this.localNormal.copy(safeSpawn.ground.normal);
+      }
       if(this.options.guide){
         const initialGuide=guidePatrolFrame(Date.now()+this.worldClockOffset);
         this.guidePosition={x:initialGuide.x,z:initialGuide.z,yaw:initialGuide.yaw};
@@ -511,8 +520,8 @@ export class VillageMapRenderer{
       }
       this.options.lakeExperiences?.forEach(config=>{
         const position=this.lakeExperiencePositions.get(config.id)??config;
-        const ground=this.sampleExperienceGround(position.x,position.z);
-        if(ground)this.lakeExperienceRoots.set(config.id,this.createLakeExperienceCircle({...config,...position},ground.height));
+        const ground=this.sampleExperienceGround(position.x,position.z,true)??this.sampleVisibleSurfaceGround(position.x,position.z);
+        this.lakeExperienceRoots.set(config.id,this.createLakeExperienceCircle({...config,...position},ground?.height??0));
       });
       const residentReady=this.options.resident?this.createResident(this.options.resident):Promise.resolve();
       const startPosition=new THREE.Vector3(this.localX,this.localGround+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(this.localZ));
@@ -659,7 +668,7 @@ export class VillageMapRenderer{
     this.lakeExperienceNearby=undefined;
     gameEvents.emit('lake-experience-proximity-changed',null);
     if(!this.mapReady)return;
-    const ground=this.sampleExperienceGround(position.x,position.z)??(Number.isFinite(fallbackGround)?{height:fallbackGround!,normal:new THREE.Vector3(0,1,0)}:undefined);
+    const ground=this.sampleExperienceGround(position.x,position.z,true)??this.sampleVisibleSurfaceGround(position.x,position.z)??(Number.isFinite(fallbackGround)?{height:fallbackGround!,normal:new THREE.Vector3(0,1,0)}:undefined);
     if(!ground)return;
     const root=this.lakeExperienceRoots.get(position.experience);
     if(root){
@@ -771,10 +780,29 @@ export class VillageMapRenderer{
     center.position.z=.2;ring.position.z=.4;middleRing.position.z=.6;innerRing.position.z=.8;pulseRing.position.z=.1;
     for(const object of [center,ring,middleRing,innerRing,pulseRing])object.renderOrder=30;
     root.add(center,ring,middleRing,innerRing,pulseRing);
-    root.userData.center=center;root.userData.ring=ring;root.userData.innerRing=innerRing;root.userData.pulseRing=pulseRing;root.userData.groundHeight=groundHeight;root.userData.phase=config.id==='wind-hill'?Math.PI:0;
+    root.userData.center=center;root.userData.ring=ring;root.userData.middleRing=middleRing;root.userData.innerRing=innerRing;root.userData.pulseRing=pulseRing;root.userData.groundHeight=groundHeight;root.userData.phase=config.id==='wind-hill'?Math.PI:0;root.userData.experienceId=config.id;
     const light=new THREE.PointLight(config.color,2.2,155);light.position.set(0,0,38);root.add(light);
+    root.userData.light=light;
     this.scene.add(root);
+    this.applyLakeJourneyHighlight(root);
     return root;
+  }
+  private onLakeBoothCompletionChanged=(completion:Partial<Record<LakeExperienceId,boolean>>)=>{
+    this.lakeBoothCompletion=completion;
+    this.lakeExperienceRoots.forEach(root=>this.applyLakeJourneyHighlight(root));
+  };
+  private applyLakeJourneyHighlight(root:THREE.Group){
+    const id=root.userData.experienceId as LakeExperienceId;
+    const guided=id!=='wind-hill',completed=!!this.lakeBoothCompletion[id];
+    const color=new THREE.Color(!guided?0xffffff:completed?0x49c879:0xff8a24);
+    const parts=['center','ring','middleRing','innerRing','pulseRing'] as const;
+    parts.forEach(key=>{
+      const mesh=root.userData[key] as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>|undefined;
+      mesh?.material.color.copy(color);
+    });
+    const light=root.userData.light as THREE.PointLight|undefined;
+    if(light){light.color.copy(color);light.intensity=guided?(completed?3.4:5.5):2.2;light.distance=guided?230:155}
+    root.userData.journeyActive=guided&&!completed;
   }
   private createInteractionCircle(position:{x:number;z:number},groundHeight:number){
     const root=new THREE.Group();
@@ -848,7 +876,7 @@ export class VillageMapRenderer{
     const elapsed=(Date.now()+this.worldClockOffset)/1000;
     const roots=[...this.lakeExperienceRoots.values(),...(this.interactionRoot?[this.interactionRoot]:[])];
     roots.forEach(root=>{
-      const phase=root.userData.phase as number,wave=1+Math.sin(elapsed*2.15+phase)*0.035;
+      const phase=root.userData.phase as number,active=!!root.userData.journeyActive,wave=1+Math.sin(elapsed*(active?3.2:2.15)+phase)*(active ? .075 : .035);
       root.scale.setScalar(wave);
       const center=root.userData.center as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
       const innerRing=root.userData.innerRing as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
@@ -857,7 +885,7 @@ export class VillageMapRenderer{
       center.material.opacity=.22+(Math.sin(elapsed*1.8+phase)+1)*.055;
       innerRing.rotation.z=elapsed*.35;
       pulseRing.scale.setScalar(1+pulse*.5);
-      pulseRing.material.opacity=.5*(1-pulse);
+      pulseRing.material.opacity=(active ? .9 : .5)*(1-pulse);
     });
   }
   private updateGuideNpc(delta:number){
@@ -937,7 +965,7 @@ export class VillageMapRenderer{
         const normal=hit.face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld));
         return normal.y>=MIN_WALKABLE_NORMAL&&!this.blockedMaterials.has(this.materialForHit(hit))?[{height:hit.point.y,normal}]:[];
       });
-      const viable=initial?candidates.sort((a,b)=>b.height-a.height):candidates.filter(sample=>{const heightDelta=sample.height-currentHeight;return heightDelta<=maxStepHeight&&heightDelta>=-MAX_STEP_HEIGHT}).sort((a,b)=>Math.abs(a.height-currentHeight)-Math.abs(b.height-currentHeight));
+      const viable=initial?candidates.sort((a,b)=>b.height-a.height):candidates.filter(sample=>{const heightDelta=sample.height-currentHeight;return heightDelta<=maxStepHeight&&heightDelta>=-MAX_DROP_HEIGHT}).sort((a,b)=>Math.abs(a.height-currentHeight)-Math.abs(b.height-currentHeight));
       if(!viable.length){if(index===0)return;continue}
       samples.push(viable[0]);
     }
@@ -946,6 +974,40 @@ export class VillageMapRenderer{
     if(samples.some(sample=>Math.abs(sample.height-height)>MAX_STEP_HEIGHT))return;
     const normal=samples.reduce((sum,sample)=>sum.add(sample.normal),new THREE.Vector3()).normalize();
     return {height,normal};
+  }
+
+  private sampleVisibleSurfaceGround(worldX:number,worldZ:number):GroundSample|undefined{
+    if(!this.mapMeshes.length)return {height:this.localGround,normal:new THREE.Vector3(0,1,0)};
+    this.raycaster.near=0;this.raycaster.far=Infinity;
+    this.raycaster.set(new THREE.Vector3(worldX,1200,this.worldToSceneZ(worldZ)),new THREE.Vector3(0,-1,0));
+    const hit=this.raycaster.intersectObjects(this.groundMeshesAt(worldX,worldZ),false).sort((a,b)=>b.point.y-a.point.y)[0];
+    return hit?{height:hit.point.y+.15,normal:new THREE.Vector3(0,1,0)}:undefined;
+  }
+
+  private spawnSpaceClear(worldX:number,worldZ:number,groundHeight:number){
+    this.raycaster.near=4;this.raycaster.far=(this.options.characterHeight??CHARACTER_HEIGHT)+70;
+    this.raycaster.set(new THREE.Vector3(worldX,groundHeight+4,this.worldToSceneZ(worldZ)),new THREE.Vector3(0,1,0));
+    return this.raycaster.intersectObjects(this.groundMeshesAt(worldX,worldZ),false).length===0;
+  }
+
+  private findSafeSpawn(preferredX:number,preferredZ:number){
+    const offsets:Array<[number,number]>=[[0,0]];
+    for(const radius of [55,90,130,180]){
+      for(let index=0;index<16;index++){
+        const angle=index/16*Math.PI*2;
+        offsets.push([Math.cos(angle)*radius,Math.sin(angle)*radius]);
+      }
+    }
+    for(const [offsetX,offsetZ] of offsets){
+      const x=Math.max(20,Math.min(WORLD_WIDTH-20,preferredX+offsetX));
+      const z=Math.max(20,Math.min(WORLD_HEIGHT-20,preferredZ+offsetZ));
+      // Choose the walkable surface closest to the map's base level instead of
+      // treating a tree canopy or roof as the spawn floor.
+      const ground=this.sampleGround(x,z,0,false,1200);
+      if(ground&&this.spawnSpaceClear(x,z,ground.height))return {x,z,ground};
+    }
+    const fallback=this.sampleGround(preferredX,preferredZ,0,true);
+    return fallback?{x:preferredX,z:preferredZ,ground:fallback}:undefined;
   }
 
   private bodyPathClear(worldX:number,worldZ:number){
@@ -974,7 +1036,10 @@ export class VillageMapRenderer{
     this.updateLakeExperienceCircles();
     if(this.overviewActive){this.showMapOverview();this.renderAccumulator+=delta;if(this.renderAccumulator>=this.renderInterval){this.renderAccumulator%=this.renderInterval;this.render()}return {x:this.localX,z:this.localZ,groundHeight:this.localGround}}
     const positionChanged=Math.hypot(proposedX-this.localX,proposedZ-this.localZ)>.001;
-    const canCrossBody=jumpHeight>8,reachableHeight=MAX_STEP_HEIGHT+jumpHeight;
+    // Jumping may clear a low obstacle, but must not make roofs count as
+    // reachable ground. A larger downward allowance lets a character already
+    // stranded on a roof step back onto the real terrain.
+    const canCrossBody=jumpHeight>8,reachableHeight=MAX_STEP_HEIGHT;
     let nextX=proposedX,nextZ=proposedZ,sample=positionChanged?(canCrossBody||this.bodyPathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround,false,reachableHeight):undefined):{height:this.localGround,normal:this.localNormal};
     if(!sample){nextZ=this.localZ;sample=canCrossBody||this.bodyPathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround,false,reachableHeight):undefined}
     if(!sample){nextX=this.localX;nextZ=proposedZ;sample=canCrossBody||this.bodyPathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround,false,reachableHeight):undefined}
@@ -1098,7 +1163,10 @@ export class VillageMapRenderer{
     if(this.options.overview)gameEvents.off('map-overview-toggle',this.onMapOverviewToggle);
     if(this.options.portal)gameEvents.off('portal-move-to-player',this.onMovePortalToPlayer);
     if(this.options.interaction)gameEvents.off('interaction-move-to-player',this.onMoveInteractionToPlayer);
-    if(this.options.lakeExperiences)gameEvents.off('lake-experience-move-to-player',this.onMoveLakeExperienceToPlayer);
+    if(this.options.lakeExperiences){
+      gameEvents.off('lake-experience-move-to-player',this.onMoveLakeExperienceToPlayer);
+      gameEvents.off('lake-booth-completion-changed',this.onLakeBoothCompletionChanged);
+    }
     if(this.options.greenhouse){
       gameEvents.emit('greenhouse-nearby-changed',null);
       gameEvents.off('greenhouse-progress-changed',this.onGreenhouseProgressChanged);
@@ -1106,6 +1174,6 @@ export class VillageMapRenderer{
     }
     this.localCharacter?.destroy();this.guideNpc?.destroy();this.remotes.forEach(character=>character.destroy());this.remotes.clear();this.remoteGrounds.clear();
     this.scene.traverse(object=>{if(object instanceof THREE.Mesh||object instanceof THREE.Points){object.geometry.dispose();const materials=Array.isArray(object.material)?object.material:[object.material];materials.forEach(material=>material.dispose())}if(object instanceof THREE.Sprite){object.material.map?.dispose();object.material.dispose()}});
-    this.renderer.dispose();this.renderer.domElement.remove();
+    this.renderer.dispose();this.renderer.forceContextLoss();this.renderer.domElement.remove();
   }
 }

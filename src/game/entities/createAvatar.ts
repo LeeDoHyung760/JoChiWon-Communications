@@ -6,7 +6,7 @@ import chungnyeongIdleModel from '../../assets/characters/chungnyeong_idle.glb?u
 import chungnyeongWalkModel from '../../assets/characters/chungnyeong_walk.glb?url';
 import chungnyeongRunModel from '../../assets/characters/chungnyeong_run.glb?url';
 import girl1Model from '../../assets/characters/girl_metaverse_animated.glb?url';
-import boy1Model from '../../assets/characters/boy1_3.glb?url';
+import boy1Model from '../../assets/characters/boy_metaverse.glb?url';
 import clothsModel from '../../assets/characters/cloths_rig.glb?url';
 import type { CharacterModel,CharacterParts } from '../../types';
 import type { MotionState } from '../../../shared/socket-events';
@@ -24,7 +24,7 @@ export const CHARACTER_ANIMATION_CLIP='NlaTrack';
 const animationClipByState:{[K in Exclude<CharacterModel,'custom'>]:Record<MotionState,string>}={
   chungnyeong:{idle:'NlaTrack',walk:'NlaTrack',run:'NlaTrack'},
   girl1:{idle:'NlaTrack.002',walk:'NlaTrack.001',run:'NlaTrack'},
-  boy1:{idle:'NlaTrack.001',walk:'NlaTrack.002',run:'NlaTrack'},
+  boy1:{idle:'NlaTrack',walk:'NlaTrack.002',run:'NlaTrack.001'},
   cloths:{idle:'root|mixamo.com',walk:'root|mixamo.com',run:'root|mixamo.com'}
 };
 export const CHARACTER_MODEL_FILES={idle:'chungnyeong_idle.glb',walk:'chungnyeong_walk.glb',run:'chungnyeong_run.glb'} as const;
@@ -99,7 +99,7 @@ export function animateAvatar(avatar:AvatarContainer,update:AvatarMotionUpdate,d
       const graphics=avatar.debugGraphics.clear(),draw=(yaw:number,color:number,length:number)=>{const x=Math.sin(yaw)*length,y=Math.cos(yaw)*length;graphics.lineStyle(3,color,1).lineBetween(0,0,x,y).fillStyle(color,1).fillTriangle(x,y,x+Math.sin(yaw+2.5)*9,y+Math.cos(yaw+2.5)*9,x+Math.sin(yaw-2.5)*9,y+Math.cos(yaw-2.5)*9)};
       draw(currentYaw,0xff4d4d,58);if(movementX||movementY)draw(Math.atan2(movementX,movementY),0x35a7ff,45);
     }
-    if(characterDebugEnabled&&!avatar.getData('network-user')&&performance.now()-lastDebugPublished>100){lastDebugPublished=performance.now();window.dispatchEvent(new CustomEvent('character-debug-frame',{detail:{file:model==='girl1'?'girl_metaverse_animated.glb':model==='boy1'?'boy1_3.glb':model==='cloths'?'cloths_rig.glb':CHARACTER_MODEL_FILES[motionState],position:{x:avatar.x,y:avatar.y},yaw:currentYaw,targetYaw,motionState,clip:animationClipByState[model][motionState],movement:{x:movementX,y:movementY},speed:motionState==='run'?characterSettings.runSpeed:motionState==='walk'?characterSettings.walkSpeed:0,deltaTime:deltaSeconds,availableClips:element?.availableAnimations??[],rootMotionDetected:false}}))}
+    if(characterDebugEnabled&&!avatar.getData('network-user')&&performance.now()-lastDebugPublished>100){lastDebugPublished=performance.now();window.dispatchEvent(new CustomEvent('character-debug-frame',{detail:{file:model==='girl1'?'girl_metaverse_animated.glb':model==='boy1'?'boy_metaverse.glb':model==='cloths'?'cloths_rig.glb':CHARACTER_MODEL_FILES[motionState],position:{x:avatar.x,y:avatar.y},yaw:currentYaw,targetYaw,motionState,clip:animationClipByState[model][motionState],movement:{x:movementX,y:movementY},speed:motionState==='run'?characterSettings.runSpeed:motionState==='walk'?characterSettings.walkSpeed:0,deltaTime:deltaSeconds,availableClips:element?.availableAnimations??[],rootMotionDetected:false}}))}
     return;
   }
   const swing=motionState==='idle'?0:Math.sin(performance.now()*.015)*24;avatar.limbs.leftArm.setAngle(swing);avatar.limbs.rightArm.setAngle(-swing);avatar.limbs.leftLeg.setAngle(-swing*.55);avatar.limbs.rightLeg.setAngle(swing*.55);avatar.bodyLayer.setScale(movementX<0?-1:1,1);

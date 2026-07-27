@@ -13,7 +13,7 @@ import { buildExperienceRecommendationProfile } from '../services/experienceReco
 
 import chungnyeongUrl from '../assets/characters/chungnyeong.glb?url'
 import girl1Url from '../assets/characters/girl_metaverse_animated.glb?url'
-import boy1Url from '../assets/characters/boy1_3.glb?url'
+import boy1Url from '../assets/characters/boy_metaverse.glb?url'
 import clothsUrl from '../assets/characters/cloths_rig.glb?url'
 
 import type {

@@ -7,6 +7,7 @@ import type { UserProfile } from '../types';
 import { CharacterDebugPanel } from '../components/CharacterDebugPanel';
 import { LakeParkExperiences } from '../components/LakeParkExperiences';
 import { GreenhouseExperience } from '../components/GreenhouseExperience';
+import { ChungnyeongNotebook } from '../components/ChungnyeongNotebook';
 import { BEAR_PLAY_ZONE_RENDERER_OPTIONS,BEAR_TREE_PARK_RENDERER_OPTIONS,CAMPUS_RENDERER_OPTIONS,GARDEN_RENDERER_OPTIONS,LAKE_PARK_RENDERER_OPTIONS,LAKE_PARK_SPAWN,preloadBearTreeParkDownload,VillageMapRenderer } from './renderers/VillageMapRenderer';
 import type { LakeExperiencePosition,MapId,PortalPosition,RespawnPosition,WorldInteractionPosition } from '../../shared/socket-events';
 import { buildExperienceRecommendationProfile,recordMapExperience } from '../services/experienceRecommendationProfile';
@@ -24,25 +25,18 @@ const MAP_LOADING_COPY:Record<MapId,{place:string;title:string}>={
 };
 
 export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}){
-  const storageKey=`sejong-respawn-position:${profile.nickname}`;
   const [entrySpawn,setEntrySpawn]=useState<RespawnPosition>();
   const ref=useRef<HTMLDivElement>(null),[loading,setLoading]=useState(true),[loadingTitle,setLoadingTitle]=useState('세종호수공원을 준비하고 있어요'),[loadingPlace,setLoadingPlace]=useState('세종호수공원'),[loadError,setLoadError]=useState('');
   useEffect(()=>{
     let active=true,settled=false,fallbackTimer=0;
     const finish=(position:RespawnPosition)=>{if(!active||settled)return;settled=true;window.clearTimeout(fallbackTimer);setEntrySpawn(position)};
-    const resolveRespawn=()=>{
-      let legacy:RespawnPosition|undefined;
-      try{const saved=JSON.parse(localStorage.getItem(storageKey)??'null') as Partial<RespawnPosition>|null;if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))legacy={x:saved.x!,z:saved.z!,yaw:Number.isFinite(saved.yaw)?saved.yaw!:LAKE_PARK_SPAWN.yaw}}catch{/* Use the shared server position. */}
-      if(legacy){
-        finish(legacy);
-        socket.emit('saveRespawnPosition',legacy,result=>{if(result.ok)localStorage.removeItem(storageKey)});
-      }else socket.emit('getRespawnPosition',finish);
-    };
-    fallbackTimer=window.setTimeout(()=>finish(LAKE_PARK_SPAWN),700);
+    const resolveRespawn=()=>socket.emit('getRespawnPosition',finish);
+    // Remote shared servers can need more than a local round trip.
+    fallbackTimer=window.setTimeout(()=>finish(LAKE_PARK_SPAWN),5000);
     socket.on('connect',resolveRespawn);
     if(socket.connected)resolveRespawn();else socket.connect();
     return()=>{active=false;window.clearTimeout(fallbackTimer);socket.off('connect',resolveRespawn)};
-  },[storageKey]);
+  },[]);
   useEffect(()=>{
     if(!ref.current||!entrySpawn)return;
     let cancelled=false,mapTravelActive=false;
@@ -58,14 +52,11 @@ export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}
     };
     const savedPortalPositions=():PortalPosition[]=>[{destination:'bear-tree-park' as const,key:'world-portal-position-bear-tree-park'},{destination:'town' as const,key:'world-portal-position-town'},{destination:'campus' as const,key:'world-portal-position-campus'}].flatMap(({destination,key})=>{try{const saved=JSON.parse(localStorage.getItem(key)??'null') as {x?:number;z?:number}|null;return saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z)?[{destination,x:saved.x!,z:saved.z!}]:[]}catch{return[]}});
     const savedInteractionPositions=():WorldInteractionPosition[]=>[{destination:'bear-play-zone' as const,key:'world-interaction-position-bear-play-zone'},{destination:'bear-tree-park' as const,key:'world-interaction-position-bear-tree-park'}].flatMap(({destination,key})=>{try{const saved=JSON.parse(localStorage.getItem(key)??'null') as {x?:number;z?:number}|null;return saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z)?[{destination,x:saved.x!,z:saved.z!}]:[]}catch{return[]}});
-    const savedLakeExperiencePositions=():LakeExperiencePosition[]=>[{experience:'central-plaza' as const,key:'lake-experience-position-central-plaza'},{experience:'wind-hill' as const,key:'lake-experience-position-wind-hill'}].flatMap(({experience,key})=>{try{const saved=JSON.parse(localStorage.getItem(key)??'null') as {x?:number;z?:number}|null;return saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z)?[{experience,x:saved.x!,z:saved.z!}]:[]}catch{return[]}});
     const publishSavedPortalPositions=()=>savedPortalPositions().forEach(position=>socket.emit('savePortalPosition',position));
     const publishSavedInteractionPositions=()=>savedInteractionPositions().forEach(position=>socket.emit('saveInteractionPosition',position));
-    const publishSavedLakeExperiencePositions=()=>savedLakeExperiencePositions().forEach(position=>socket.emit('saveLakeExperiencePosition',position));
     const applySharedPortalPositions=(positions:PortalPosition[])=>positions.forEach(position=>Object.values(worldRenderers).forEach(renderer=>renderer?.setPortalPosition(position)));
     const applySharedInteractionPositions=(positions:WorldInteractionPosition[])=>positions.forEach(position=>Object.values(worldRenderers).forEach(renderer=>renderer?.setInteractionPosition(position)));
     const applySharedLakeExperiencePositions=(positions:LakeExperiencePosition[])=>positions.forEach(position=>townRenderer.setLakeExperiencePosition(position));
-    const saveMovedLakeExperiencePosition=(position:LakeExperiencePosition)=>socket.emit('saveLakeExperiencePosition',position);
     const saveMovedPortalPosition=(position:PortalPosition)=>socket.emit('savePortalPosition',position);
     const saveMovedInteractionPosition=(position:WorldInteractionPosition)=>socket.emit('saveInteractionPosition',position);
     const showMapTravelLoading=(mapId:MapId)=>{mapTravelActive=true;const copy=MAP_LOADING_COPY[mapId];setLoadingPlace(copy.place);setLoadingTitle(copy.title);setLoadError('');setLoading(true)};
@@ -73,17 +64,15 @@ export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}
     const showMapTravelError=({message}:{message:string})=>{if(!mapTravelActive)return;mapTravelActive=false;setLoadError(message);setLoading(false)};
     socket.on('connect',publishSavedPortalPositions);
     socket.on('connect',publishSavedInteractionPositions);
-    socket.on('connect',publishSavedLakeExperiencePositions);
     socket.on('portalPositionsUpdated',applySharedPortalPositions);
     socket.on('interactionPositionsUpdated',applySharedInteractionPositions);
     socket.on('lakeExperiencePositionsUpdated',applySharedLakeExperiencePositions);
-    gameEvents.on('lake-experience-position-changed',saveMovedLakeExperiencePosition);
     gameEvents.on('portal-position-changed',saveMovedPortalPosition);
     gameEvents.on('interaction-position-changed',saveMovedInteractionPosition);
     gameEvents.on('map-travel-started',showMapTravelLoading);
     gameEvents.on('map-travel-complete',hideMapTravelLoading);
     gameEvents.on('map-travel-failed',showMapTravelError);
-    if(socket.connected){publishSavedPortalPositions();publishSavedInteractionPositions();publishSavedLakeExperiencePositions()}
+    if(socket.connected){publishSavedPortalPositions();publishSavedInteractionPositions()}
     void townRenderer.ready.then(()=>{
       if(cancelled)return;
       setLoading(false);
@@ -98,7 +87,17 @@ export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}
     const publishRecommendationProfile=()=>socket.emit('updateMatchProfile',recommendationProfile());
     const enrich=()=>socket.emit('joinMap',{mapId:'town',nickname:profile.nickname,appearance:profile.character,model:profile.model,matchProfile:recommendationProfile(),x:entrySpawn.x,y:entrySpawn.z});
     const experienceChanged=()=>publishRecommendationProfile();
-    const mapExperienceChanged=(mapId:MapId)=>{recordMapExperience(profile.nickname,mapId);publishRecommendationProfile()};
+    const mapExperienceChanged=(mapId:MapId)=>{
+      recordMapExperience(profile.nickname,mapId);
+      publishRecommendationProfile();
+      // The garden is one of the heaviest worlds. Keeping its WebGL renderer
+      // alive after returning to Bear Tree Park leaves both maps resident on
+      // the GPU and causes severe frame drops.
+      if(mapId!=='garden'&&worldRenderers.garden){
+        worldRenderers.garden.destroy();
+        delete worldRenderers.garden;
+      }
+    };
     socket.on('worldClock',syncWorldClock);
     socket.once('currentMapUsers',enrich);
     window.addEventListener('sejong-lake-interest-updated',experienceChanged);
@@ -119,11 +118,9 @@ export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}
       gameEvents.off('map-travel-complete',mapExperienceChanged);
       socket.off('connect',publishSavedPortalPositions);
       socket.off('connect',publishSavedInteractionPositions);
-      socket.off('connect',publishSavedLakeExperiencePositions);
       socket.off('portalPositionsUpdated',applySharedPortalPositions);
       socket.off('interactionPositionsUpdated',applySharedInteractionPositions);
       socket.off('lakeExperiencePositionsUpdated',applySharedLakeExperiencePositions);
-      gameEvents.off('lake-experience-position-changed',saveMovedLakeExperiencePosition);
       gameEvents.off('portal-position-changed',saveMovedPortalPosition);
       gameEvents.off('interaction-position-changed',saveMovedInteractionPosition);
       gameEvents.off('map-travel-started',showMapTravelLoading);
@@ -134,5 +131,5 @@ export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}
       Object.values(worldRenderers).forEach(renderer=>renderer?.destroy());
     };
   },[profile,entrySpawn]);
-  return <><div className="game-canvas" ref={ref}/>{loading&&<div className="game-loading" role="status" aria-live="polite"><div className="game-loading-brand"><span>🧑🏻‍🌾</span><div><b>세종한바퀴</b><small>세종 소통형 체험 공간</small></div></div><div className="game-loading-center"><i/><span>{loadingPlace}</span><h1>{loadingTitle}</h1><p>{loadError||'호수공원의 지도와 캐릭터를 불러오는 중이에요. 잠시만 기다려 주세요.'}</p><div className="world-loading-tasks"><span>✓ 시작 위치 준비</span><span>● 호수공원 불러오기</span><span>● 캐릭터 배치</span><span>● 체험 기록 연결</span><span>● 다른 사용자 연결</span></div><div className="game-loading-progress"><em/></div></div></div>}<LakeParkExperiences/><GreenhouseExperience userKey={profile.nickname}/><CharacterDebugPanel/></>;
+  return <><div className="game-canvas" ref={ref}/>{loading&&<div className="game-loading" role="status" aria-live="polite"><div className="game-loading-brand"><span>🧑🏻‍🌾</span><div><b>세종한바퀴</b><small>세종 소통형 체험 공간</small></div></div><div className="game-loading-center"><i/><span>{loadingPlace}</span><h1>{loadingTitle}</h1><p>{loadError||'호수공원의 지도와 캐릭터를 불러오는 중이에요. 잠시만 기다려 주세요.'}</p><div className="world-loading-tasks"><span>✓ 시작 위치 준비</span><span>● 호수공원 불러오기</span><span>● 캐릭터 배치</span><span>● 체험 기록 연결</span><span>● 다른 사용자 연결</span></div><div className="game-loading-progress"><em/></div></div></div>}<ChungnyeongNotebook profile={profile}/><LakeParkExperiences/><GreenhouseExperience userKey={profile.nickname}/><CharacterDebugPanel/></>;
 });

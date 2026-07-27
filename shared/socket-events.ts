@@ -10,10 +10,10 @@ export interface MovementPayload { mapId:MapId; x:number; y:number; direction:Di
 export interface RespawnPosition { x:number; z:number; yaw:number }
 export interface PortalPosition { destination:Extract<MapId,'town'|'bear-tree-park'|'garden'|'campus'>; x:number; z:number }
 export interface WorldInteractionPosition { destination:Extract<MapId,'bear-tree-park'|'bear-play-zone'>; x:number; z:number }
-export type LakeExperienceId = 'central-plaza' | 'wind-hill';
+export type LakeExperienceId = 'central-plaza' | 'activity-zone' | 'food-shop-zone' | 'wind-hill';
 export interface LakeExperiencePosition { experience:LakeExperienceId; x:number; z:number }
 export interface LakeWish { id:string;nickname:string;message:string;createdAt:number }
-export interface LakeDailyStats { date:string;visitors:number;centralPlazaVisits:number;windHillVisits:number;popularExperience:string }
+export interface LakeDailyStats { date:string;visitors:number;centralPlazaVisits:number;activityZoneVisits:number;foodShopZoneVisits:number;windHillVisits:number;popularExperience:string }
 export interface ChatMessage { id:string; mapId:MapId; senderId:string; nickname:string; message:string; createdAt:number; channel:'nearby'|'group' }
 export interface DirectRequest { requestId:string; from:Pick<PlayerState,'id'|'nickname'|'appearance'>; toId:string }
 export interface DirectRoomMeetingPlace {roomId:string;placeId:string;placeName:string;category:string;address:string;roadAddress?:string;externalUrl?:string;selectedByUserId:string;selectedByNickname:string;selectedAt:string;status:'proposed'|'confirmed'|'cancelled'}
