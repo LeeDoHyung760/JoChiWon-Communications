@@ -1,165 +1,128 @@
-import { useEffect,useMemo,useRef,useState } from 'react';
-import { BookOpen,Check,ChevronRight,Send,Sparkles,X } from 'lucide-react';
-import type { MapId } from '../../shared/socket-events';
-import { BEAR_CLUES,loadBearProgress,saveBearProgress,type BearClue,type BearWildlifeProgress } from '../data/bear-wildlife';
+import { useEffect,useRef,useState } from 'react';
+import { Check,ChevronRight,Sparkles,Users,X } from 'lucide-react';
+import type { BearExplorationCardId,BearExplorationPointId,BearExplorationRole,BearExplorationState,MapId,PlayerState } from '../../shared/socket-events';
 import { gameEvents } from '../game/events';
-import { requestBearAnswer,requestClueExplanation } from '../services/bearWildlifeAi';
+import { socket } from '../game/systems/socketClient';
 import './BearWildlifeExperience.css';
 
-type View='intro'|'clue'|'result'|'book';
-type ChatItem={question:string;answer:string};
-const examples=['반달가슴곰은 사람을 공격하나요?','곰 발자국은 어떻게 구별하나요?','겨울잠은 얼마나 자나요?'];
+type PointInfo={id:BearExplorationPointId;icon:string;name:string;card:BearExplorationCardId;clue:string};
+const POINTS:PointInfo[]=[
+  {id:'waterfall',icon:'💧',name:'폭포',card:'card_1',clue:'물가에서 발견한 곰 털'},
+  {id:'cave',icon:'🪨',name:'동굴',card:'card_2',clue:'동굴 앞에서 발견한 곰 발자국'},
+  {id:'tree',icon:'🌲',name:'큰 나무',card:'card_3',clue:'나무에 남은 발톱 자국'},
+];
+const ROLE_INFO:Record<BearExplorationRole,{icon:string;name:string;description:string}>={
+  explorer:{icon:'🧭',name:'탐험가',description:'맵을 돌아다니며 현장 단서를 찾습니다.'},
+  recorder:{icon:'📒',name:'기록가',description:'발견된 단서를 AI로 분석해 지도에 연결합니다.'},
+  photographer:{icon:'📷',name:'사진가',description:'완성된 이동 경로를 공동 탐험 카드로 기록합니다.'},
+};
+const EMPTY_STATE:BearExplorationState={missionId:'',title:'오늘의 탐험',prompt:'잃어버린 탐험 기록 3개를 찾아주세요.',role:'explorer',roleMembers:[],foundCards:[],pendingCards:[],mergedCards:[],members:[],photoReady:false,photoComplete:false,completed:false};
 
-export function BearWildlifeExperience({userKey,mapId}:{userKey:string;mapId:MapId}){
-  const [nearbyClueId,setNearbyClueId]=useState<string|null>(null);
-  const [progress,setProgress]=useState<BearWildlifeProgress>(()=>loadBearProgress(userKey));
-  const [view,setView]=useState<View|null>(null);
-  const [clueIndex,setClueIndex]=useState(0);
-  const [selected,setSelected]=useState<number|null>(null);
-  const [explanation,setExplanation]=useState('');
-  const [loadingExplanation,setLoadingExplanation]=useState(false);
-  const [question,setQuestion]=useState('');
-  const [asking,setAsking]=useState(false);
-  const [chat,setChat]=useState<ChatItem[]>([]);
-  const modalRef=useRef<HTMLDivElement>(null);
+export function BearWildlifeExperience({mapId}:{userKey:string;mapId:MapId}){
+  const [state,setState]=useState<BearExplorationState>(EMPTY_STATE);
+  const [nearbyPointId,setNearbyPointId]=useState<string|null>(null);
+  const [onlineCount,setOnlineCount]=useState(1);
+  const [introOpen,setIntroOpen]=useState(false);
+  const [resultOpen,setResultOpen]=useState(false);
+  const [notice,setNotice]=useState('');
+  const [collecting,setCollecting]=useState(false);
+  const previousCards=useRef(0);
   const active=mapId==='bear-play-zone';
-  const completed=progress.completedClues.length;
-  const clue=BEAR_CLUES[clueIndex];
+  const nearbyPoint=POINTS.find(point=>point.id===nearbyPointId);
 
-  useEffect(()=>{setProgress(loadBearProgress(userKey))},[userKey]);
   useEffect(()=>{
-    if(mapId!=='bear-play-zone'){setView(null);setNearbyClueId(null);return}
-    const saved=loadBearProgress(userKey);setProgress(saved);
-    if(saved.completedAt)return;
-    const introTimer=window.setTimeout(()=>setView('intro'),700);
-    return()=>window.clearTimeout(introTimer);
-  },[mapId,userKey]);
-  useEffect(()=>{
-    const nearbyChanged=(id:string|null)=>setNearbyClueId(id);
-    gameEvents.on('bear-clue-proximity-changed',nearbyChanged);
-    return()=>{gameEvents.off('bear-clue-proximity-changed',nearbyChanged)};
+    const update=(next:BearExplorationState)=>{
+      if(next.mergedCards.length>previousCards.current&&previousCards.current>0)setNotice(`AI가 탐험 기록 ${next.mergedCards.length}개를 연결했습니다.`);
+      previousCards.current=next.mergedCards.length;
+      setState(next);
+      if(next.completed&&next.story)setResultOpen(true);
+    };
+    const users=(players:PlayerState[])=>setOnlineCount(Math.max(1,players.filter(player=>player.mapId==='bear-play-zone').length));
+    socket.on('bearExplorationUpdated',update);
+    socket.on('currentMapUsers',users);
+    socket.on('onlineUsersUpdated',users);
+    return()=>{socket.off('bearExplorationUpdated',update);socket.off('currentMapUsers',users);socket.off('onlineUsersUpdated',users)};
   },[]);
-
   useEffect(()=>{
-    gameEvents.emit('game-input-lock',view!==null);
-    if(view)window.setTimeout(()=>modalRef.current?.focus(),0);
-    return()=>{if(view)gameEvents.emit('game-input-lock',false)};
-  },[view]);
+    if(!active){setIntroOpen(false);setResultOpen(false);setNearbyPointId(null);return}
+    socket.emit('getBearExploration',next=>{previousCards.current=next.mergedCards.length;setState(next);if(!next.ownedCard)setIntroOpen(true)});
+  },[active]);
+  useEffect(()=>{
+    const changed=(id:string|null)=>setNearbyPointId(id);
+    gameEvents.on('bear-clue-proximity-changed',changed);
+    return()=>{gameEvents.off('bear-clue-proximity-changed',changed)};
+  },[]);
+  useEffect(()=>{
+    const locked=introOpen||resultOpen;
+    gameEvents.emit('game-input-lock',locked);
+    return()=>{if(locked)gameEvents.emit('game-input-lock',false)};
+  },[introOpen,resultOpen]);
 
-  const publish=(next:BearWildlifeProgress)=>{
-    saveBearProgress(userKey,next);setProgress(next);
-    gameEvents.emit('bear-wildlife-progress-changed',next);
+  const collect=()=>{
+    if(!nearbyPoint||collecting)return;
+    setCollecting(true);setNotice('');
+    socket.emit('collectBearExplorationCard',nearbyPoint.id,result=>{
+      setState(result.state);setNotice(result.message);setCollecting(false);
+    });
   };
-  const openClue=(index:number)=>{
-    setClueIndex(index);setSelected(null);setExplanation('');setView('clue');
+  const analyze=()=>{
+    if(collecting)return;setCollecting(true);
+    socket.emit('analyzeBearExplorationCards',result=>{setState(result.state);setNotice(result.message);setCollecting(false)});
   };
-  const start=()=>{
-    setView(null);
+  const capture=()=>{
+    if(collecting)return;setCollecting(true);
+    socket.emit('captureBearExplorationPhoto',result=>{setState(result.state);setNotice(result.message);setCollecting(false)});
   };
-  const close=()=>setView(null);
-  const choose=async(index:number)=>{
-    if(selected!==null||loadingExplanation)return;
-    setSelected(index);setLoadingExplanation(true);
-    const answer=await requestClueExplanation(clue,clue.options[index]);
-    setExplanation(answer);setLoadingExplanation(false);
-    if(!progress.completedClues.includes(clue.id)){
-      publish({...progress,completedClues:[...progress.completedClues,clue.id]});
-    }
-  };
-  const nextClue=()=>{
-    const saved=loadBearProgress(userKey);
-    if(saved.completedClues.length<BEAR_CLUES.length){setView(null);return}
-    const final={...saved,completedClues:BEAR_CLUES.map(item=>item.id),completedAt:saved.completedAt??new Date().toISOString()};
-    publish(final);setView('result');
-  };
-  const ask=async(value=question)=>{
-    const normalized=value.trim();if(normalized.length<2||asking)return;
-    setQuestion('');setAsking(true);
-    const answer=await requestBearAnswer(normalized);
-    setChat(current=>[...current.slice(-3),{question:normalized,answer}]);
-    const saved=loadBearProgress(userKey);
-    publish({...saved,questionsAsked:saved.questionsAsked+1});
-    setAsking(false);
-  };
-
-  const level=completed===BEAR_CLUES.length?1:0;
-  const progressPercent=Math.round(completed/BEAR_CLUES.length*100);
-  const clueCards=useMemo(()=>BEAR_CLUES.map(item=>({...item,done:progress.completedClues.includes(item.id)})),[progress.completedClues]);
-  const nearbyClue=BEAR_CLUES.find(item=>item.id===nearbyClueId);
+  const roleInfo=ROLE_INFO[state.role];
   if(!active)return null;
 
-  return <div className="bear-wildlife-ui">
-    {!view&&<aside className="bear-wildlife-map-guide">
-      <div><small>AI 야생 탐험가</small><b>곰 주변의 빛나는 흔적 3개를 찾아보세요</b></div>
-      <span>{clueCards.map(item=><i className={item.done?'done':''} key={item.id}>{item.done?'✓':item.icon}</i>)}</span>
-    </aside>}
-    {!view&&nearbyClue&&<button type="button" className="bear-clue-nearby" onClick={()=>openClue(BEAR_CLUES.indexOf(nearbyClue))}>
-      <span>{nearbyClue.icon}</span><div><small>{progress.completedClues.includes(nearbyClue.id)?'조사한 흔적을 다시 발견했어요':'빛나는 야생 흔적을 발견했어요'}</small><b>{nearbyClue.title} 조사하기</b></div><ChevronRight size={18}/>
-    </button>}
-    {!view&&!nearbyClue&&<button type="button" className={`bear-wildlife-launch ${progress.completedAt?'is-complete':''}`} onClick={()=>progress.completedAt?setView('book'):setView('intro')}>
-      <span>{progress.completedAt?'🏅':'🐾'}</span>
-      <div><small>AI 야생 탐험가 · {completed}/3 흔적</small><b>{progress.completedAt?'반달가슴곰 생태도감':'첫 번째 흔적 조사하기'}</b></div>
+  return <div className="bear-coop">
+    <aside className="bear-coop-status">
+      <div><small>🐻 함께 만드는 자연 탐험 · {roleInfo.name}</small><b>{state.title}</b><span>{state.mergedCards.length}/3 기록 연결</span></div>
+      <div className="bear-coop-card-dots">{POINTS.map(point=><i className={state.mergedCards.includes(point.card)?'found':''} key={point.id}>{state.mergedCards.includes(point.card)?<Check size={14}/>:point.icon}</i>)}</div>
+    </aside>
+
+    {!introOpen&&!resultOpen&&nearbyPoint&&state.role==='explorer'&&<button type="button" className="bear-clue-nearby" onClick={collect} disabled={collecting}>
+      <span>{nearbyPoint.icon}</span>
+      <div><small>{state.foundCards.includes(nearbyPoint.card)?'이미 발견한 기록이에요':'잃어버린 탐험 기록이 가까이 있어요'}</small><b>{collecting?'조사 중...':`${nearbyPoint.name} 조사하기`}</b></div>
       <ChevronRight size={18}/>
     </button>}
-    {view&&<section className="bear-wildlife-overlay" role="dialog" aria-modal="true" onMouseDown={event=>{if(event.target===event.currentTarget)close()}}>
-      <div className={`bear-wildlife-modal is-${view}`} ref={modalRef} tabIndex={-1} onKeyDown={event=>event.stopPropagation()} onKeyUp={event=>event.stopPropagation()}>
-        <button type="button" className="bear-wildlife-close" onClick={close} aria-label="닫기"><X size={18}/></button>
-        <header className="bear-wildlife-header">
-          <span>🐻</span>
-          <div><small>AI 야생 탐험가</small><b>반달가슴곰 흔적 연구소</b></div>
-          <em>Lv.{level}</em>
-        </header>
 
-        {view==='intro'&&<>
-          <div className="bear-wildlife-hero">🐾<i>✦</i></div>
-          <small className="bear-wildlife-kicker">BEAR TRACE MISSION</small>
-          <h2>흔적을 따라가며<br/>곰 전문가가 되어보세요</h2>
-          <p>맵에 빛나는 세 흔적을 직접 찾아보세요. 가까이에서 관찰하고, 궁금한 점은 AI 생태 해설사에게 자유롭게 물어볼 수 있어요.</p>
-          <div className="bear-wildlife-route">
-            {clueCards.map((item,index)=><span className={item.done?'done':''} key={item.id}><i>{item.done?<Check size={15}/>:item.icon}</i><b>{index+1}</b><small>{item.title}</small></span>)}
-          </div>
-          <button type="button" className="bear-wildlife-primary" onClick={start}>{completed?'다음 흔적 찾으러 가기':'빛나는 흔적 찾으러 가기'} <ChevronRight size={17}/></button>
-        </>}
+    {!introOpen&&!resultOpen&&<section className="bear-coop-guide">
+      <span className="bear-role-icon">{roleInfo.icon}</span><div><small>나의 역할 · {roleInfo.name}</small><b>{state.completed?'모든 역할이 탐험을 완성했습니다.':roleInfo.description}</b><p>{onlineCount===1?'혼자 플레이 중이라 부족한 역할은 AI가 대신합니다.':`${onlineCount}명이 역할을 나누어 함께 진행 중입니다.`}</p></div>
+      {state.role==='recorder'&&<button type="button" disabled={!state.pendingCards.length||collecting} onClick={analyze}>AI 분석 {state.pendingCards.length?`(${state.pendingCards.length})`:''}</button>}
+      {state.role==='photographer'&&<button type="button" disabled={!state.photoReady||state.photoComplete||collecting} onClick={capture}>포토 기록</button>}
+    </section>}
+    {notice&&<div className="bear-coop-notice" role="status">{notice}</div>}
 
-        {view==='clue'&&<>
-          <div className="bear-clue-progress"><span>흔적 {clueIndex+1} / {BEAR_CLUES.length}</span><i><b style={{width:`${(clueIndex+1)/BEAR_CLUES.length*100}%`}}/></i></div>
-          <div className="bear-clue-icon">{clue.icon}<i/></div>
-          <small className="bear-wildlife-kicker">{clue.title}</small>
-          <h2>{clue.question}</h2>
-          <div className="bear-clue-options">
-            {clue.options.map((option,index)=><button type="button" className={selected===index?(index===clue.answer?'correct':'wrong'):selected!==null&&index===clue.answer?'correct':''} disabled={selected!==null} onClick={()=>void choose(index)} key={option}><span>{String.fromCharCode(65+index)}</span><b>{option}</b>{selected!==null&&index===clue.answer&&<Check size={17}/>}</button>)}
-          </div>
-          {selected!==null&&<section className="bear-ai-explanation" aria-live="polite">
-            <Sparkles size={19}/><div><small>AI 생태 해설사</small><p>{loadingExplanation?'흔적과 생태 자료를 함께 살펴보고 있어요…':explanation}</p></div>
-          </section>}
-          {selected!==null&&!loadingExplanation&&<button type="button" className="bear-wildlife-primary" onClick={nextClue}>{progress.completedClues.length===BEAR_CLUES.length?'탐험 결과 확인':'맵에서 다음 흔적 찾기'} <ChevronRight size={17}/></button>}
-        </>}
+    {introOpen&&<section className="bear-wildlife-overlay" role="dialog" aria-modal="true">
+      <div className="bear-wildlife-modal">
+        <button type="button" className="bear-wildlife-close" onClick={()=>setIntroOpen(false)} aria-label="닫기"><X size={18}/></button>
+        <header className="bear-wildlife-header"><span>🐻</span><div><small>COOPERATIVE NATURE QUEST</small><b>함께 만드는 자연 탐험</b></div><em>{onlineCount}명</em></header>
+        <div className="bear-wildlife-hero">🧭</div>
+        <small className="bear-wildlife-kicker">TODAY'S EXPLORATION</small>
+        <h2>{state.title}</h2>
+        <p>{state.prompt}</p>
+        <section className="bear-role-assignment"><span>{roleInfo.icon}</span><div><small>이번 탐험의 역할</small><b>{roleInfo.name}</b><p>{roleInfo.description}</p></div></section>
+        <div className="bear-coop-rules">
+          <article><span>1</span><b>탐험가</b><p>세 지점을 직접 이동하며 현장 단서를 발견해요.</p></article>
+          <article><span>2</span><b>기록가</b><p>새 단서를 AI로 분석해 하나의 이동 경로로 연결해요.</p></article>
+          <article><span>3</span><b>사진가</b><p>완성된 경로와 참여자를 공동 탐험 카드에 기록해요.</p></article>
+        </div>
+        <button type="button" className="bear-wildlife-primary" onClick={()=>setIntroOpen(false)}>첫 기록 찾으러 가기 <ChevronRight size={17}/></button>
+      </div>
+    </section>}
 
-        {view==='result'&&<>
-          <div className="bear-result-badge"><span>🐻</span><i>AI</i></div>
-          <small className="bear-wildlife-kicker">WILDLIFE EXPLORER COMPLETE</small>
-          <h2>반달가슴곰 생태 전문가</h2>
-          <strong className="bear-result-level">Lv.1</strong>
-          <p>발자국·먹이·겨울 보금자리의 세 흔적을 조사했어요. 이제 나만의 생태도감에서 기록을 다시 보고 AI 해설사에게 질문할 수 있어요.</p>
-          <div className="bear-result-stats"><span><b>3</b><small>조사한 흔적</small></span><span><b>{progress.questionsAsked}</b><small>AI 질문</small></span><span><b>100%</b><small>첫 탐험</small></span></div>
-          <button type="button" className="bear-wildlife-primary" onClick={()=>setView('book')}><BookOpen size={17}/> 생태도감 열기</button>
-        </>}
-
-        {view==='book'&&<>
-          <div className="bear-book-heading"><div><small>나의 반달가슴곰 생태도감</small><h2>발견한 흔적과 AI 해설</h2></div><strong>{progressPercent}%</strong></div>
-          <div className="bear-book-clues">
-            {clueCards.map((item,index)=><article className={item.done?'done':''} key={item.id}><span>{item.icon}</span><div><small>RECORD {index+1}</small><b>{item.title}</b><p>{item.done?item.fallbackExplanation:'아직 조사하지 않은 흔적이에요.'}</p></div>{item.done?<Check size={17}/>:<button type="button" onClick={close}>찾기</button>}</article>)}
-          </div>
-          <section className="bear-question-panel">
-            <header><Sparkles size={19}/><div><small>무엇이든 물어보세요</small><b>AI 반달가슴곰 생태 해설사</b></div></header>
-            <div className="bear-question-examples">{examples.map(item=><button type="button" onClick={()=>void ask(item)} disabled={asking} key={item}>{item}</button>)}</div>
-            {chat.map((item,index)=><div className="bear-chat-item" key={`${item.question}-${index}`}><p><b>나</b>{item.question}</p><p><b>AI</b>{item.answer}</p></div>)}
-            {asking&&<p className="bear-chat-loading">생태 자료에서 답을 찾고 있어요…</p>}
-            <form onSubmit={event=>{event.preventDefault();void ask()}}><input value={question} maxLength={200} onChange={event=>setQuestion(event.target.value)} placeholder="반달가슴곰에 대해 궁금한 점을 입력하세요"/><button type="submit" disabled={asking||question.trim().length<2} aria-label="질문 보내기"><Send size={17}/></button></form>
-            <small className="bear-ai-notice">AI는 준비된 생태 자료를 바탕으로 답해요. 실제 야생동물 조우 시에는 현장 및 국립공원 안전 안내를 우선하세요.</small>
-          </section>
-          <div className="bear-source-links"><span>생태 자료</span><a href="https://species.nibr.go.kr/digital/mobile/viewSpeciesDetail.do?content_type=ID&ktsn=120000212858" target="_blank" rel="noreferrer">국립생물자원관</a><a href="https://reservation.knps.or.kr/contents/G/serviceGuide.do?parkId=B991" target="_blank" rel="noreferrer">국립공원공단</a></div>
-        </>}
+    {resultOpen&&<section className="bear-wildlife-overlay" role="dialog" aria-modal="true">
+      <div className="bear-wildlife-modal">
+        <button type="button" className="bear-wildlife-close" onClick={()=>setResultOpen(false)} aria-label="닫기"><X size={18}/></button>
+        <header className="bear-wildlife-header"><span>🐻</span><div><small>EXPLORATION COMPLETE</small><b>오늘의 공동 탐험 카드</b></div><em>완료</em></header>
+        <div className="bear-result-badge"><span>🧭</span><i>AI</i></div>
+        <h2>우리가 자연 기록을 완성했어요</h2>
+        <section className="bear-research-report"><small>AI가 연결한 곰의 이동 이야기</small><p>{state.story}</p></section>
+        <div className="bear-coop-members">{state.roleMembers.map(member=><article key={member.playerId}><span>{ROLE_INFO[member.role].icon}</span><div><b>{member.nickname} · {ROLE_INFO[member.role].name}</b><small>{ROLE_INFO[member.role].description}</small></div></article>)}</div>
+        <div className="bear-campus-next"><Users size={20}/><div><small>다음 연결</small><b>함께 탐험했던 사람과 공동캠퍼스에서 다시 만나보세요.</b></div></div>
+        <button type="button" className="bear-wildlife-primary" onClick={()=>setResultOpen(false)}>탐험 공간으로 돌아가기</button>
       </div>
     </section>}
   </div>;

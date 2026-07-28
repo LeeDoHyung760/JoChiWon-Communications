@@ -23,15 +23,37 @@ export interface DirectRecommendationPlace { id:string;name:string;category:stri
 export interface DirectRecommendation { recommendationId:string;summary:string;basis?:{activity:string;region:string;rejectedCategories:string[];mood:string[];regionNotice?:string};places:DirectRecommendationPlace[];provider?:{ai:'openai'|'mock';place:'kakao'|'mock';fallbackUsed:boolean;fallbackReason?:string};debug?:{intent:string;rejectedCategories:string[];queries:string[];rawResultCount:number;compatibleResultCount:number;filteredOutCount:number;provider:'kakao'|'mock';fallbackUsed:boolean;expandedRegion:boolean} }
 export interface DirectMessage { id:string; directRoomId:string; senderId:string; nickname:string; message:string; createdAt:number; type:'user'|'system'|'ai-recommendation'|'system-meeting-place'; deleted?:boolean; recommendation?:DirectRecommendation;meetingPlace?:DirectRoomMeetingPlace|null;previousMeetingPlace?:DirectRoomMeetingPlace }
 export interface GroupRoom { id:string; name:string; ownerId:string; memberIds:string[]; mapId:MapId }
+export type BearExplorationPointId='waterfall'|'cave'|'tree';
+export type BearExplorationCardId='card_1'|'card_2'|'card_3';
+export type BearExplorationRole='explorer'|'recorder'|'photographer';
+export interface BearExplorationMember {playerId:string;nickname:string;cardId:BearExplorationCardId}
+export interface BearExplorationRoleMember {playerId:string;nickname:string;role:BearExplorationRole}
+export interface BearExplorationState {
+ missionId:string;
+ title:string;
+ prompt:string;
+ ownedCard?:BearExplorationCardId;
+ role:BearExplorationRole;
+ roleMembers:BearExplorationRoleMember[];
+ foundCards:BearExplorationCardId[];
+ pendingCards:BearExplorationCardId[];
+ mergedCards:BearExplorationCardId[];
+ members:BearExplorationMember[];
+ photoReady:boolean;
+ photoComplete:boolean;
+ story?:string;
+ completed:boolean;
+}
 export interface ServerToClientEvents {
  worldClock:(serverNow:number)=>void; respawnPositionUpdated:(position:RespawnPosition)=>void; portalPositionsUpdated:(positions:PortalPosition[])=>void; bearTreePortalPositionsUpdated:(positions:BearTreePortalPositions)=>void; interactionPositionsUpdated:(positions:WorldInteractionPosition[])=>void; lakeExperiencePositionsUpdated:(positions:LakeExperiencePosition[])=>void; lakeWishesUpdated:(wishes:LakeWish[])=>void; lakeWishAdded:(wish:LakeWish)=>void; lakeDailyStatsUpdated:(stats:LakeDailyStats)=>void; currentMapUsers:(players:PlayerState[])=>void; userJoined:(player:PlayerState)=>void; userMoved:(player:PlayerState)=>void; userLeft:(id:string)=>void; onlineUsersUpdated:(players:PlayerState[])=>void;
  nearbyChat:(message:ChatMessage)=>void; directChatRequested:(request:DirectRequest)=>void; directChatRejected:(data:{requestId:string;byId:string})=>void; directChatStarted:(room:DirectRoom)=>void; directMessageReceived:(message:DirectMessage)=>void; directChatClosed:(data:{directRoomId:string;byId:string})=>void;
  directRecommendationStarted:(data:{directRoomId:string;stage:'analyzing'|'searching'})=>void; directRecommendationCompleted:(data:{directRoomId:string;message:DirectMessage})=>void; directRecommendationFailed:(data:{directRoomId:string;category:'permission'|'message_shortage'|'cooldown'|'openai'|'kakao_authentication'|'place_empty'|'network'|'unknown';message:string})=>void;
  directMeetingPlaceUpdated:(data:{roomId:string;meetingPlace:DirectRoomMeetingPlace|null})=>void;
- groupCreated:(group:GroupRoom)=>void; groupUpdated:(group:GroupRoom)=>void; errorMessage:(message:string)=>void;
+ groupCreated:(group:GroupRoom)=>void; groupUpdated:(group:GroupRoom)=>void; bearExplorationUpdated:(state:BearExplorationState)=>void; errorMessage:(message:string)=>void;
 }
 export interface ClientToServerEvents {
  getRespawnPosition:(ack:(position:RespawnPosition)=>void)=>void; saveRespawnPosition:(position:RespawnPosition,ack:(result:{ok:boolean;position:RespawnPosition})=>void)=>void; migrateBearTreePortalPositions:(positions:BearTreePortalPositions,ack:(result:{ok:boolean;positions:BearTreePortalPositions})=>void)=>void; joinMap:(payload:JoinMapPayload)=>void; changeMap:(payload:JoinMapPayload)=>void; updateMatchProfile:(profile:PublicMatchProfile)=>void; userMoved:(payload:MovementPayload)=>void; savePortalPosition:(position:PortalPosition)=>void; saveInteractionPosition:(position:WorldInteractionPosition)=>void; saveLakeExperiencePosition:(position:LakeExperiencePosition)=>void; enterLakeExperience:(experience:LakeExperienceId)=>void; addLakeWish:(message:string,ack:(result:{ok:boolean;wish?:LakeWish;message?:string})=>void)=>void; sendNearbyChat:(message:string)=>void;
  directChatRequest:(toId:string)=>void; directChatAccept:(requestId:string)=>void; directChatReject:(requestId:string)=>void; directMessage:(data:{directRoomId:string;message:string})=>void; directChatClosed:(directRoomId:string)=>void;
  createGroup:(data:{name:string;inviteeIds:string[]})=>void; joinGroup:(groupId:string)=>void; sendGroupChat:(data:{groupId:string;message:string})=>void;
+ getBearExploration:(ack:(state:BearExplorationState)=>void)=>void; collectBearExplorationCard:(pointId:BearExplorationPointId,ack:(result:{ok:boolean;message:string;state:BearExplorationState})=>void)=>void; analyzeBearExplorationCards:(ack:(result:{ok:boolean;message:string;state:BearExplorationState})=>void)=>void; captureBearExplorationPhoto:(ack:(result:{ok:boolean;message:string;state:BearExplorationState})=>void)=>void;
 }
