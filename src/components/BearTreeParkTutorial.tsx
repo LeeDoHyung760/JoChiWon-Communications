@@ -5,27 +5,15 @@ const BEAR_TUTORIAL_HIDDEN_KEY='bear-tree-park-tutorial-hidden-v1';
 const tutorialSteps=[
   {
     icon:'🌳',
-    label:'하나 · 자유롭게 둘러보기',
-    title:'베어트리파크에서 자연 감성을 발견해요',
-    description:'정해진 순서 없이 공원을 산책하다가 끌리는 체험 지점부터 방문해 보세요.',
+    label:'베어트리파크 · AI 여행 행동 분석',
+    title:'자연을 탐험하며 나의 여행 방식을 발견해요',
+    description:'베어트리 AI 탐험 연구소에서 폭포, 동굴, 큰 나무를 자유롭게 둘러보세요. 생태환경을 관찰하는 방식과 이동 기록을 AI가 하나의 탐험 프로필로 분석합니다.',
     actions:[
-      {key:'↑ ↓ ← →',title:'공원 산책',copy:'방향키로 자유롭게 이동'},
-      {key:'🐻',title:'곰 만나기',copy:'곰 가족 체험 지점 방문'},
-      {key:'🌿',title:'수목원 탐험',copy:'식물을 보고 감정 기록'},
+      {key:'💧',title:'폭포',copy:'물가와 곰의 생활환경 관찰'},
+      {key:'🪨',title:'동굴',copy:'곰의 휴식·보금자리 환경 탐색'},
+      {key:'🌲',title:'큰 나무',copy:'먹이와 휴식 환경 관찰'},
     ],
-    hint:'곰 만나기와 수목원 탐험은 어느 쪽을 먼저 해도 괜찮아요.',
-  },
-  {
-    icon:'🟠',
-    label:'둘 · 빛나는 체험 지점',
-    title:'주황색 지점을 찾아 체험을 시작해요',
-    description:'주황색 원은 아직 남은 체험이에요. 가까이 가면 이동하거나 체험을 시작하는 안내가 나타납니다.',
-    actions:[
-      {key:'🟠',title:'진행 전',copy:'아직 남아 있는 체험'},
-      {key:'🟢',title:'완료',copy:'기록을 남긴 체험'},
-      {key:'2곳',title:'자유 순서',copy:'원하는 곳부터 방문'},
-    ],
-    hint:'곰 공간 방문과 식물 감정 3종 기록을 마치면 두 체험 지점이 모두 초록색으로 바뀌어요.',
+    hint:'정해진 순서는 없어요. 포토존 기록과 마지막 동행 선택도 여행 스타일 분석에 함께 반영됩니다.',
   },
 ] as const;
 
@@ -47,6 +35,6 @@ export function BearTreeParkTutorial({step,onPrevious,onNext}:{step:number;onPre
     <div className="lake-tutorial-actions">{current.actions.map(action=><article key={action.title}><kbd>{action.key}</kbd><strong>{action.title}</strong><small>{action.copy}</small></article>)}</div>
     <p className="lake-tutorial-hint"><span>인공지능 동행자 충녕이</span>{current.hint}</p>
     <label className="lake-tutorial-never-show"><input type="checkbox" checked={neverShowAgain} onChange={event=>setNeverShowAgain(event.target.checked)}/><span>다시는 이 시작 안내를 보지 않기</span></label>
-    <footer className="guide-dialog-actions">{step>0&&<button type="button" onClick={onPrevious}>이전</button>}<button type="button" className="guide-dialog-primary" onClick={proceed}>{last?'자유롭게 탐험 시작하기':'다음'}</button></footer>
+    <footer className="guide-dialog-actions">{step>0&&<button type="button" onClick={onPrevious}>이전</button>}<button type="button" className="guide-dialog-primary" onClick={proceed}>체험 시작하기</button></footer>
   </section>;
 }

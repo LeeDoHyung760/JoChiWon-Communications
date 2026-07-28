@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { BearExplorationCardId,BearExplorationMember,BearExplorationPointId,BearExplorationRole,BearExplorationState,BearTreePortalPositions,DirectMessage,DirectRecommendationPlace,DirectRoom,GroupRoom,LakeDailyStats,LakeExperienceId,LakeExperiencePosition,LakeWish,PlayerState,PortalPosition,RespawnPosition,WorldInteractionPosition } from '../../../shared/socket-events.js';
+import type { BearExplorationAnalysis,BearExplorationCardId,BearExplorationMember,BearExplorationPointId,BearExplorationReport,BearExplorationRole,BearExplorationState,BearTreePortalPositions,DirectMessage,DirectRecommendationPlace,DirectRoom,GroupRoom,LakeDailyStats,LakeExperienceId,LakeExperiencePosition,LakeWish,PlayerState,PortalPosition,RespawnPosition,WorldInteractionPosition } from '../../../shared/socket-events.js';
 export class RoomStore {
  players=new Map<string,PlayerState>(); groups=new Map<string,GroupRoom>(); pendingDirect=new Map<string,{fromId:string;toId:string}>(); directRooms=new Map<string,DirectRoom>(); directMessages=new Map<string,DirectMessage[]>(); recommendationCache=new Map<string,{roomId:string;places:DirectRecommendationPlace[];expiresAt:number}>(); blockedPairs=new Set<string>();
- bearExplorationCards=new Map<BearExplorationCardId,string>();bearExplorationAnalyzed=new Set<BearExplorationCardId>();bearExplorationJoinedAt=new Map<string,number>();bearExplorationStory='';bearExplorationPhotoComplete=false;
+ bearExplorationCards=new Map<BearExplorationCardId,string>();bearExplorationAnalyzed=new Set<BearExplorationCardId>();bearExplorationAnalyses=new Map<BearExplorationCardId,BearExplorationAnalysis>();bearExplorationJoinedAt=new Map<string,number>();bearExplorationStory='';bearExplorationReport?:BearExplorationReport;completedBearRoutes:string[][]=[];
  portalPositions=new Map<PortalPosition['destination'],PortalPosition>([['bear-tree-park',{destination:'bear-tree-park',x:2122,z:944}],['town',{destination:'town',x:1120,z:1731}],['garden',{destination:'garden',x:682,z:735}],['campus',{destination:'campus',x:1178,z:122}]]);
  bearTreePortalPositions:BearTreePortalPositions={town:{x:1230,z:1553},photo:{x:1569,z:1525}};
  interactionPositions=new Map<WorldInteractionPosition['destination'],WorldInteractionPosition>([['bear-play-zone',{destination:'bear-play-zone',x:1616,z:601}],['bear-tree-park',{destination:'bear-tree-park',x:1200,z:1650}]]);
@@ -49,10 +49,9 @@ export class RoomStore {
   const foundCards=[...this.bearExplorationCards.keys()].sort() as BearExplorationCardId[];
   const mergedCards=[...this.bearExplorationAnalyzed].sort() as BearExplorationCardId[];
   const members=[...this.bearExplorationCards].flatMap(([cardId,id])=>{const player=this.players.get(id);return player?[{playerId:id,nickname:player.nickname,cardId} as BearExplorationMember]:[]});
-  const recorderPresent=roleMembers.some(member=>member.role==='recorder'),photographerPresent=roleMembers.some(member=>member.role==='photographer');
-  if(!recorderPresent)foundCards.forEach(card=>this.bearExplorationAnalyzed.add(card));
-  if(!photographerPresent&&this.bearExplorationAnalyzed.size===3)this.bearExplorationPhotoComplete=true;
-  return {...mission,ownedCard:members.find(member=>member.playerId===playerId)?.cardId,role,roleMembers,foundCards,pendingCards:foundCards.filter(card=>!this.bearExplorationAnalyzed.has(card)),mergedCards:[...this.bearExplorationAnalyzed].sort(),members,photoReady:this.bearExplorationAnalyzed.size===3,photoComplete:this.bearExplorationPhotoComplete,story:this.bearExplorationStory||undefined,completed:this.bearExplorationAnalyzed.size===3&&this.bearExplorationPhotoComplete};
+  const analyses=[...this.bearExplorationAnalyses.values()];
+  const latest=analyses.at(-1);
+  return {...mission,ownedCard:members.find(member=>member.playerId===playerId)?.cardId,role,roleMembers,foundCards,pendingCards:foundCards.filter(card=>!this.bearExplorationAnalyzed.has(card)),mergedCards:[...this.bearExplorationAnalyzed].sort(),members,analyses:role==='recorder'?analyses:[],aiGuidance:role==='recorder'?(latest?.nextHint??'탐험가가 첫 단서를 찾으면 AI 지도가 분석을 시작합니다.'):undefined,photoReady:this.bearExplorationAnalyzed.size===3&&!!this.bearExplorationStory,photoComplete:!!this.bearExplorationReport?.published,story:this.bearExplorationStory||undefined,report:this.bearExplorationReport,completedRouteCount:this.completedBearRoutes.length,completedRoutes:this.completedBearRoutes.slice(-5),completed:!!this.bearExplorationReport?.published};
  }
  collectBearExplorationCard(playerId:string,pointId:BearExplorationPointId){
   const player=this.players.get(playerId),points:Record<BearExplorationPointId,{x:number;y:number;card:BearExplorationCardId}>={waterfall:{x:2099,y:829,card:'card_1'},cave:{x:1545,y:267,card:'card_2'},tree:{x:562,y:585,card:'card_3'}},point=points[pointId];
@@ -62,25 +61,31 @@ export class RoomStore {
   if(this.bearExplorationState(playerId).role!=='explorer')return {ok:false,message:'현장 단서 수집은 탐험가의 역할이에요.'};
   if(this.bearExplorationCards.has(point.card))return {ok:false,message:'이미 발견한 탐험 기록입니다.'};
   this.bearExplorationCards.set(point.card,playerId);
-  const recorderPresent=this.bearExplorationState(playerId).roleMembers.some(member=>member.role==='recorder');
-  if(!recorderPresent)this.bearExplorationAnalyzed.add(point.card);
-  return {ok:true,message:recorderPresent?'기록을 발견했습니다. 기록가의 AI 분석을 기다리고 있어요.':'기록을 발견했습니다. AI 기록가가 단서를 지도에 연결했어요.'};
+  return {ok:true,message:'현장 단서를 발견했습니다. AI가 기록가의 지도를 분석하고 있어요.'};
  }
+ setBearExplorationAnalysis(analysis:BearExplorationAnalysis){this.bearExplorationAnalyses.set(analysis.cardId,analysis);this.bearExplorationAnalyzed.add(analysis.cardId)}
  analyzeBearExploration(playerId:string){
   if(this.bearExplorationState(playerId).role!=='recorder')return {ok:false,message:'AI 단서 분석은 기록가의 역할이에요.'};
   const pending=[...this.bearExplorationCards.keys()].filter(card=>!this.bearExplorationAnalyzed.has(card));
   if(!pending.length)return {ok:false,message:'새롭게 발견된 기록을 기다리고 있어요.'};
   pending.forEach(card=>this.bearExplorationAnalyzed.add(card));
-  const photographerPresent=this.bearExplorationState(playerId).roleMembers.some(member=>member.role==='photographer');
-  if(!photographerPresent&&this.bearExplorationAnalyzed.size===3)this.bearExplorationPhotoComplete=true;
   return {ok:true,message:`AI가 새 기록 ${pending.length}개를 분석해 지도에 연결했습니다.`};
  }
  captureBearExplorationPhoto(playerId:string){
   if(this.bearExplorationState(playerId).role!=='photographer')return {ok:false,message:'최종 포토 기록은 사진가의 역할이에요.'};
   if(this.bearExplorationAnalyzed.size<3)return {ok:false,message:'세 기록의 분석이 끝나야 사진을 남길 수 있어요.'};
-  this.bearExplorationPhotoComplete=true;return {ok:true,message:'사진가가 오늘의 공동 탐험을 기록했습니다.'};
+  return {ok:true,message:'최종 기록 담당자가 탐험 보고서를 편집할 수 있습니다.'};
  }
  setBearExplorationStory(_playerIds:string[],story:string){this.bearExplorationStory=story}
+ finalizeBearExplorationReport(playerId:string,title:string,cover:BearExplorationReport['cover']){
+  const state=this.bearExplorationState(playerId),photographerPresent=state.roleMembers.some(member=>member.role==='photographer');
+  if(!state.photoReady)return {ok:false,message:'AI 탐험 보고서가 완성될 때까지 기다려 주세요.'};
+  if(photographerPresent&&state.role!=='photographer')return {ok:false,message:'최종 보고서 편집과 게시는 기록 담당자의 역할이에요.'};
+  const route=[...this.bearExplorationAnalyses.values()].map(item=>item.place),teamName=state.roleMembers.map(member=>member.nickname).join('·')||'AI 생태 탐험팀';
+  this.bearExplorationReport={title:title.trim().slice(0,40)||'곰의 이동을 추적했습니다',cover,content:this.bearExplorationStory,route,published:true,teamName};
+  this.completedBearRoutes.push(route);return {ok:true,message:'공동 탐험 카드가 공동캠퍼스 게시판에 등록되었습니다.'};
+ }
+ resetBearExploration(){this.bearExplorationCards.clear();this.bearExplorationAnalyzed.clear();this.bearExplorationAnalyses.clear();this.bearExplorationJoinedAt.clear();this.bearExplorationStory='';this.bearExplorationReport=undefined}
  removePlayer(id:string){this.players.delete(id);this.bearExplorationJoinedAt.delete(id);for(const group of this.groups.values()){group.memberIds=group.memberIds.filter(x=>x!==id);if(!group.memberIds.length)this.groups.delete(group.id)}for(const [key,req] of this.pendingDirect)if(req.fromId===id||req.toId===id)this.pendingDirect.delete(key)}
  createGroup(owner:PlayerState,name:string,inviteeIds:string[]){const id=`group-${crypto.randomUUID()}`;const group:GroupRoom={id,name:name.trim()||`${owner.nickname}의 모임`,ownerId:owner.id,memberIds:[...new Set([owner.id,...inviteeIds.filter(id=>this.players.has(id))])],mapId:owner.mapId};this.groups.set(id,group);return group}
  pairKey(firstId:string,secondId:string){return [firstId,secondId].sort().join(':')}

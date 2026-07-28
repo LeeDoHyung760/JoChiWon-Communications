@@ -28,6 +28,8 @@ export type BearExplorationCardId='card_1'|'card_2'|'card_3';
 export type BearExplorationRole='explorer'|'recorder'|'photographer';
 export interface BearExplorationMember {playerId:string;nickname:string;cardId:BearExplorationCardId}
 export interface BearExplorationRoleMember {playerId:string;nickname:string;role:BearExplorationRole}
+export interface BearExplorationAnalysis {cardId:BearExplorationCardId;place:string;clue:string;analysis:string;nextHint:string}
+export interface BearExplorationReport {title:string;cover:'waterfall'|'cave'|'tree';content:string;route:string[];published:boolean;teamName:string}
 export interface BearExplorationState {
  missionId:string;
  title:string;
@@ -39,9 +41,14 @@ export interface BearExplorationState {
  pendingCards:BearExplorationCardId[];
  mergedCards:BearExplorationCardId[];
  members:BearExplorationMember[];
+ analyses:BearExplorationAnalysis[];
+ aiGuidance?:string;
  photoReady:boolean;
  photoComplete:boolean;
  story?:string;
+ report?:BearExplorationReport;
+ completedRouteCount:number;
+ completedRoutes:string[][];
  completed:boolean;
 }
 export interface ServerToClientEvents {
@@ -55,5 +62,5 @@ export interface ClientToServerEvents {
  getRespawnPosition:(ack:(position:RespawnPosition)=>void)=>void; saveRespawnPosition:(position:RespawnPosition,ack:(result:{ok:boolean;position:RespawnPosition})=>void)=>void; migrateBearTreePortalPositions:(positions:BearTreePortalPositions,ack:(result:{ok:boolean;positions:BearTreePortalPositions})=>void)=>void; joinMap:(payload:JoinMapPayload)=>void; changeMap:(payload:JoinMapPayload)=>void; updateMatchProfile:(profile:PublicMatchProfile)=>void; userMoved:(payload:MovementPayload)=>void; savePortalPosition:(position:PortalPosition)=>void; saveInteractionPosition:(position:WorldInteractionPosition)=>void; saveLakeExperiencePosition:(position:LakeExperiencePosition)=>void; enterLakeExperience:(experience:LakeExperienceId)=>void; addLakeWish:(message:string,ack:(result:{ok:boolean;wish?:LakeWish;message?:string})=>void)=>void; sendNearbyChat:(message:string)=>void;
  directChatRequest:(toId:string)=>void; directChatAccept:(requestId:string)=>void; directChatReject:(requestId:string)=>void; directMessage:(data:{directRoomId:string;message:string})=>void; directChatClosed:(directRoomId:string)=>void;
  createGroup:(data:{name:string;inviteeIds:string[]})=>void; joinGroup:(groupId:string)=>void; sendGroupChat:(data:{groupId:string;message:string})=>void;
- getBearExploration:(ack:(state:BearExplorationState)=>void)=>void; collectBearExplorationCard:(pointId:BearExplorationPointId,ack:(result:{ok:boolean;message:string;state:BearExplorationState})=>void)=>void; analyzeBearExplorationCards:(ack:(result:{ok:boolean;message:string;state:BearExplorationState})=>void)=>void; captureBearExplorationPhoto:(ack:(result:{ok:boolean;message:string;state:BearExplorationState})=>void)=>void;
+ getBearExploration:(ack:(state:BearExplorationState)=>void)=>void; collectBearExplorationCard:(pointId:BearExplorationPointId,ack:(result:{ok:boolean;message:string;state:BearExplorationState})=>void)=>void; analyzeBearExplorationCards:(ack:(result:{ok:boolean;message:string;state:BearExplorationState})=>void)=>void; captureBearExplorationPhoto:(ack:(result:{ok:boolean;message:string;state:BearExplorationState})=>void)=>void; finalizeBearExplorationReport:(payload:{title:string;cover:'waterfall'|'cave'|'tree'},ack:(result:{ok:boolean;message:string;state:BearExplorationState})=>void)=>void;
 }

@@ -3,6 +3,7 @@ import type { UserProfile } from '../types';
 import { greenhousePlantById } from '../data/greenhouse-plants';
 import { analyzeNatureTaste,dominantEmotion,parseGreenhouseProgress } from './greenhouseProgress';
 import { loadBearProgress } from '../data/bear-wildlife';
+import { loadBearTravelProgress } from './bearTravelStyle';
 
 const LAKE_INTEREST_KEY='sejong-lake-interest-profile-v1';
 const MAP_RECORD_PREFIX='sejong-map-experience-v1:';
@@ -103,6 +104,10 @@ export function countTasteDiscoveryRecords(profile:UserProfile){
     if(bear.questionsAsked)records.push('bear-ai-question');
   }catch{/* Ignore malformed bear exploration progress. */}
   try{
+    const style=loadBearTravelProgress(profile.nickname).result;
+    if(style)records.push('bear-travel-style');
+  }catch{/* Ignore malformed travel style progress. */}
+  try{
     const visited=JSON.parse(localStorage.getItem(mapKey(profile.nickname))??'[]') as unknown;
     if(Array.isArray(visited))visited.forEach(record=>{
       if(typeof record==='string'&&Object.values(mapRecords).some(item=>item?.record===record))records.push(`map:${record}`);
@@ -156,6 +161,13 @@ export function buildExperienceRecommendationProfile(profile:UserProfile):Public
     }
     if(bear.questionsAsked)experienceRecords.push(`AI 생태 해설 질문 ${bear.questionsAsked}회`);
   }catch{/* Ignore malformed bear exploration progress. */}
+  try{
+    const style=loadBearTravelProgress(profile.nickname).result;
+    if(style){
+      experienceRecords.push(`여행 이동 방식: ${style.movement}`,`관람 속도: ${style.pace}`,`활동 선호: ${style.activity}`,`동행 방식: ${style.companion}`,`정보 선호: ${style.information}`);
+      preferredPlaceCategories.push('공원','관광명소');
+    }
+  }catch{/* Ignore malformed travel style progress. */}
   try{
     const visited=JSON.parse(localStorage.getItem(mapKey(profile.nickname))??'[]') as unknown;
     if(Array.isArray(visited))visited.filter((value):value is string=>typeof value==='string').forEach(record=>{

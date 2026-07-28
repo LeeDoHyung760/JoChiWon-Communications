@@ -3,12 +3,17 @@ import { bearWildlifeAnswer } from '../services/ai/bearWildlife.js';
 type IO=Server<ClientToServerEvents,ServerToClientEvents>;type Client=Socket<ClientToServerEvents,ServerToClientEvents>;
 const clean=(value:string,max=180)=>value.trim().slice(0,max);
 const pendingBearStories=new Set<string>();
+const BEAR_POINTS={
+ waterfall:{cardId:'card_1' as const,place:'폭포',clue:'물가에서 발견한 곰 털'},
+ cave:{cardId:'card_2' as const,place:'동굴',clue:'동굴 앞에서 발견한 곰 발자국'},
+ tree:{cardId:'card_3' as const,place:'큰 나무',clue:'나무에 남은 발톱 자국'},
+};
 export function registerSocketHandlers(io:IO,socket:Client){
  const publish=(mapId:PlayerState['mapId'])=>io.to(mapId).emit('onlineUsersUpdated',roomStore.playersIn(mapId));
- const publishBearExploration=(ids:string[])=>ids.forEach(id=>io.to(id).emit('bearExplorationUpdated',roomStore.bearExplorationState(id)));
+ const publishBearExploration=(ids:string[])=>{if(!ids.length)roomStore.resetBearExploration();ids.forEach(id=>io.to(id).emit('bearExplorationUpdated',roomStore.bearExplorationState(id)))};
  const activeBearExplorers=()=>roomStore.playersIn('bear-play-zone').map(player=>player.id);
  const completeBearStory=async(ids:string[])=>{
-  const state=roomStore.bearExplorationState(ids[0]);if(!state.completed||state.story||pendingBearStories.has(state.missionId+ids.sort().join(':')))return;
+  const state=roomStore.bearExplorationState(ids[0]);if(state.mergedCards.length<3||state.story||pendingBearStories.has(state.missionId+ids.sort().join(':')))return;
   const key=state.missionId+ids.sort().join(':');pendingBearStories.add(key);
   const story=await bearWildlifeAnswer({mode:'report',question:'서로 다른 탐험가가 찾은 세 기록을 연결해 곰의 이동 이야기를 작성해 주세요.',selected:'공동 탐험 완료',findings:[
    {card:'card_1',place:'폭포',clue:'물가에서 발견한 곰 털'},
@@ -30,9 +35,19 @@ export function registerSocketHandlers(io:IO,socket:Client){
  socket.on('addLakeWish',(raw,ack)=>{const player=roomStore.players.get(socket.id),message=clean(raw,80),reply=typeof ack==='function'?ack:undefined;if(!player||!message){reply?.({ok:false,message:'소원을 보내려면 월드에 다시 접속해 주세요.'});return}const wish=roomStore.addLakeWish(player.nickname,message);reply?.({ok:true,wish});socket.emit('lakeWishAdded',wish);socket.to('town').emit('lakeWishAdded',wish)});
  socket.on('userMoved',payload=>{const player=roomStore.players.get(socket.id);if(!player||player.mapId!==payload.mapId)return;Object.assign(player,{x:payload.x,y:payload.y,direction:payload.direction,isMoving:payload.isMoving,yaw:Number.isFinite(payload.yaw)?payload.yaw:player.yaw,motionState:payload.motionState,jumpHeight:Number.isFinite(payload.jumpHeight)?Math.max(0,Math.min(140,payload.jumpHeight!)):0,timestamp:payload.timestamp});socket.to(player.mapId).emit('userMoved',player)});
  socket.on('getBearExploration',ack=>{if(typeof ack==='function')ack(roomStore.bearExplorationState(socket.id))});
- socket.on('collectBearExplorationCard',(pointId,ack)=>{const result=roomStore.collectBearExplorationCard(socket.id,pointId),ids=activeBearExplorers(),state=roomStore.bearExplorationState(socket.id);if(typeof ack==='function')ack({...result,state});if(result.ok){publishBearExploration(ids);void completeBearStory(ids)}});
+ socket.on('collectBearExplorationCard',async(pointId,ack)=>{
+  const result=roomStore.collectBearExplorationCard(socket.id,pointId),ids=activeBearExplorers();
+  if(result.ok){
+   const point=BEAR_POINTS[pointId],found=roomStore.bearExplorationState(socket.id).foundCards,next=(Object.values(BEAR_POINTS).find(item=>!found.includes(item.cardId)));
+   const analysis=await bearWildlifeAnswer({mode:'clue',clueId:pointId,question:`${point.place}에서 ${point.clue}을 발견했습니다. 현재까지의 단서가 의미하는 점과 다음 조사 방향을 짧게 알려주세요.`,findings:[...roomStore.bearExplorationAnalyses.values()]});
+   roomStore.setBearExplorationAnalysis({cardId:point.cardId,place:point.place,clue:point.clue,analysis,nextHint:next?`다음은 ${next.place} 근처를 조사하도록 탐험가에게 알려주세요.`:'세 단서가 모였습니다. AI가 최종 탐험 보고서를 작성하고 있습니다.'});
+   publishBearExploration(ids);await completeBearStory(ids);
+  }
+  const state=roomStore.bearExplorationState(socket.id);if(typeof ack==='function')ack({...result,state});
+ });
  socket.on('analyzeBearExplorationCards',ack=>{const result=roomStore.analyzeBearExploration(socket.id),ids=activeBearExplorers(),state=roomStore.bearExplorationState(socket.id);if(typeof ack==='function')ack({...result,state});if(result.ok){publishBearExploration(ids);void completeBearStory(ids)}});
  socket.on('captureBearExplorationPhoto',ack=>{const result=roomStore.captureBearExplorationPhoto(socket.id),ids=activeBearExplorers(),state=roomStore.bearExplorationState(socket.id);if(typeof ack==='function')ack({...result,state});if(result.ok){publishBearExploration(ids);void completeBearStory(ids)}});
+ socket.on('finalizeBearExplorationReport',(payload,ack)=>{const result=roomStore.finalizeBearExplorationReport(socket.id,clean(payload.title,40),payload.cover),ids=activeBearExplorers(),state=roomStore.bearExplorationState(socket.id);if(typeof ack==='function')ack({...result,state});if(result.ok)publishBearExploration(ids)});
  socket.on('sendNearbyChat',raw=>{const player=roomStore.players.get(socket.id),message=clean(raw);if(!player||!message)return;const data:ChatMessage={id:crypto.randomUUID(),mapId:player.mapId,senderId:socket.id,nickname:player.nickname,message,createdAt:Date.now(),channel:'nearby'};io.to(player.mapId).emit('nearbyChat',data)});
  socket.on('directChatRequest',toId=>{const from=roomStore.players.get(socket.id),to=roomStore.players.get(toId);if(!from||!to)return socket.emit('errorMessage','접속 중인 사용자에게만 요청할 수 있어요.');const requestId=crypto.randomUUID();roomStore.pendingDirect.set(requestId,{fromId:from.id,toId});io.to(toId).emit('directChatRequested',{requestId,from:{id:from.id,nickname:from.nickname,appearance:from.appearance},toId})});
  socket.on('directChatAccept',requestId=>{const req=roomStore.pendingDirect.get(requestId);if(!req||req.toId!==socket.id)return;roomStore.pendingDirect.delete(requestId);const first=roomStore.players.get(req.fromId),second=roomStore.players.get(req.toId);if(!first||!second)return;const room=roomStore.createDirectRoom(first,second);room.participants.forEach(p=>{io.sockets.sockets.get(p.id)?.join(room.id);io.to(p.id).emit('directChatStarted',room)})});

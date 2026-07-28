@@ -8,7 +8,7 @@ import { loadBearProgress } from '../data/bear-wildlife';
 import './ChungnyeongNotebook.css';
 
 const TOTAL_PAGES=8;
-const NATURE_LOCATIONS=['베어트리파크','곰 놀이 공간','수목원'];
+const NATURE_LOCATIONS=['베어트리파크','수목원'];
 
 function natureChapterSnapshot(userKey:string,location:string){
   let visits:string[]=[];
@@ -26,7 +26,7 @@ function natureChapterSnapshot(userKey:string,location:string){
     :!forest
       ?'다음 체험: 베어트리파크를 걸으며 숲 산책 시작하기'
       :!bear
-         ?visits.includes('bear')||location==='곰 놀이 공간'?'다음 체험: 다른 탐험가와 세 가지 자연 기록 연결하기':'다음 체험: 곰 가족 체험 지점에서 함께 만드는 탐험 들어가기'
+         ?visits.includes('bear')||location==='AI 생태 탐험 연구소'?'다음 체험: 역할을 나눠 AI 생태 보고서 완성하기':'다음 체험: AI 생태 탐험 연구소 들어가기'
         :!completion.analysisUnlocked
           ?`다음 체험: 수목원에서 식물 감정 기록하기 (${completion.count}/3종)`
           :'다음 체험: 세 식물 중 가장 기억에 남는 대표 식물과 이유 선택하기';

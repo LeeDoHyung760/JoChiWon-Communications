@@ -134,8 +134,8 @@ export type WorldMapRendererOptions={
   bearPhotoZone?:boolean;
 };
 export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크',theme:'blue'},fixedPortals:[{...CAMPUS_PORTAL_POSITION,destination:'campus',label:'공동캠퍼스',theme:'blue'}],lakeExperiences:[{id:'central-plaza',x:1219,z:1462,label:'축제 취향 부스',description:'끌리는 분위기로 축제 취향을 찾아요',color:0xffffff},{id:'activity-zone',x:603,z:452,label:'공연 취향 부스',description:'충녕이와 나의 공연 스타일을 알아봐요',color:0xffffff},{id:'food-shop-zone',x:491,z:1556,label:'미식 취향 부스',description:'맛과 공간 선택으로 여행 스타일을 찾아요',color:0xffffff},{id:'wind-hill',x:1908,z:549,label:'세종 추천 코스 게시판',description:'발견한 취향으로 코스를 살펴봐요',color:0xffffff}]};
-export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:1230,z:1553,destination:'town',label:'세종호수공원',theme:'blue',fixedPosition:true,chargeSeconds:3,sharedPosition:false},fixedPortals:[{x:682,z:735,destination:'garden',label:'세종수목원',appearance:'white-circle',fixedPosition:true,chargeSeconds:3}],interaction:{x:1616,z:601,destination:'bear-play-zone',label:'곰 놀이 공간',buttonLabel:'곰 만나기',fixedPosition:true,chargeSeconds:3},cameraZoom:.86,characterHeight:140,groundFillColor:0xead9ad,performanceMode:true,simplifiedCollision:true,bearPhotoZone:true};
-export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearPlayZoneModelUrl,mapName:'함께 만드는 탐험',spawn:BEAR_PLAY_ZONE_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'베어트리파크로 돌아가기'},resident:{modelUrl:bearCubModelUrl,x:1200,z:1450,height:105,yaw:Math.PI,stationary:true},wildlifeClues:[{id:'waterfall',x:2099,z:829,icon:'💧',label:'폭포 탐험 기록'},{id:'cave',x:1545,z:267,icon:'🪨',label:'동굴 탐험 기록'},{id:'tree',x:562,z:585,icon:'🌲',label:'큰 나무 탐험 기록'}],cameraZoom:.86,characterHeight:140,groundFillColor:0xead9ad};
+export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:1230,z:1553,destination:'town',label:'세종호수공원',theme:'blue',fixedPosition:true,chargeSeconds:3,sharedPosition:false},fixedPortals:[{x:682,z:735,destination:'garden',label:'세종수목원',appearance:'white-circle',fixedPosition:true,chargeSeconds:3}],interaction:{x:1616,z:601,destination:'bear-play-zone',label:'베어트리 AI 탐험 연구소',buttonLabel:'자연 탐험 시작하기',fixedPosition:true,chargeSeconds:3},cameraZoom:.86,characterHeight:140,groundFillColor:0xead9ad,performanceMode:true,simplifiedCollision:true,bearPhotoZone:true};
+export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearPlayZoneModelUrl,mapName:'베어트리 AI 탐험 연구소',spawn:BEAR_PLAY_ZONE_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'탐험 마치고 돌아가기'},resident:{modelUrl:bearCubModelUrl,x:1200,z:1450,height:105,yaw:Math.PI,stationary:true},wildlifeClues:[{id:'waterfall',x:2099,z:829,icon:'💧',label:'폭포 환경 관찰'},{id:'cave',x:1545,z:267,icon:'🪨',label:'동굴 환경 탐색'},{id:'tree',x:562,z:585,icon:'🌲',label:'큰 나무 환경 관찰'}],cameraZoom:.86,characterHeight:140,groundFillColor:0xead9ad};
 export const GARDEN_RENDERER_OPTIONS:WorldMapRendererOptions={
   modelUrl:gardenModelUrl,
   mapName:'수목원',
@@ -572,7 +572,9 @@ export class VillageMapRenderer{
     try{
       const gltf=this.options.modelUrl===bearTreeParkModelUrl?await loadModel(this.options.modelUrl):await new GLTFLoader().loadAsync(this.options.modelUrl);
       if(this.destroyed)return;
-      const model=gltf.scene;model.updateMatrixWorld(true);
+      // Cached GLTF scenes are mutable. Always transform a fresh clone so a
+      // renderer recreated after HMR or navigation cannot scale the map twice.
+      const model=cloneSkeleton(gltf.scene);model.updateMatrixWorld(true);
       sharpenObjectTextures(model,this.options.performanceMode);
       const bounds=new THREE.Box3().setFromObject(model),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
       const scale=Math.min((WORLD_WIDTH-180)/size.x,(WORLD_HEIGHT-120)/size.z)*(this.options.mapScaleMultiplier??1),depthScale=scale/GROUND_PROJECTION;
@@ -811,6 +813,7 @@ export class VillageMapRenderer{
 
   setVisible(visible:boolean){
     this.renderer.domElement.style.display=visible?'block':'none';
+    if(visible)this.render();
     if(!visible&&this.guideNearby){this.guideNearby=false;gameEvents.emit('guide-proximity-changed',false)}
     if(!visible&&this.mapSignNearby){this.mapSignNearby=false;gameEvents.emit('map-sign-proximity-changed',false)}
     if(!visible&&this.portalNearby){this.portalNearby=false;this.activePortal=undefined;this.resetPortalCharge();gameEvents.emit('world-portal-proximity-changed',null)}
@@ -886,6 +889,7 @@ export class VillageMapRenderer{
   private onBearPhotoCapture=()=>{
     if(!this.bearPhotoMode)return;
     this.render();
+    gameEvents.emit('bear-photo-captured');
     this.renderer.domElement.toBlob(blob=>{
       if(!blob)return;
       const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`곰-가족-포토존-${Date.now()}.png`;link.click();

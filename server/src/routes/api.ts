@@ -54,10 +54,11 @@ apiRouter.post('/greenhouse/public-memories',recommendationRateLimit,(req,res)=>
 });
 
 apiRouter.post('/bear-wildlife/ask',recommendationRateLimit,async(req,res)=>{
-  const mode=req.body?.mode==='clue'?'clue':'question';
+  const mode=req.body?.mode==='clue'?'clue':req.body?.mode==='report'?'report':'question';
   const question=typeof req.body?.question==='string'?req.body.question.trim().slice(0,240):'';
   const clueId=typeof req.body?.clueId==='string'?req.body.clueId.trim().slice(0,40):undefined;
   const selected=typeof req.body?.selected==='string'?req.body.selected.trim().slice(0,120):undefined;
   if(question.length<2)return res.status(400).json({error:'궁금한 내용을 두 글자 이상 입력해 주세요.'});
-  return res.json({answer:await bearWildlifeAnswer({mode,question,clueId,selected})});
+  const findings=Array.isArray(req.body?.findings)?req.body.findings.slice(0,3):undefined;
+  return res.json({answer:await bearWildlifeAnswer({mode,question,clueId,selected,findings})});
 });

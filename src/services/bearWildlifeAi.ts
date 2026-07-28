@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '../config/api';
-import type { BearClue } from '../data/bear-wildlife';
+import type { BearClue,BearFinding,BearVerdict } from '../data/bear-wildlife';
 
 async function ask(body:unknown){
   const controller=new AbortController(),timer=window.setTimeout(()=>controller.abort(),10000);
@@ -17,20 +17,21 @@ async function ask(body:unknown){
   }finally{window.clearTimeout(timer)}
 }
 
-export async function requestClueExplanation(clue:BearClue,selected:string){
+export async function requestClueExplanation(clue:BearClue,finding:BearFinding){
   try{
-    return await ask({mode:'clue',clueId:clue.id,question:clue.question,selected});
+    return await ask({mode:'clue',clueId:clue.id,question:clue.question,selected:finding.species,findings:[finding]});
   }catch{return clue.fallbackExplanation}
 }
 
-const fallbackAnswers=[
-  {pattern:/공격|위험|만나/,answer:'반달가슴곰은 야생동물이므로 가까이 다가가거나 먹이를 주면 안 돼요. 야외에서 마주치면 뛰거나 등을 보이지 말고, 거리를 유지하며 현장 안내와 국립공원 안전 수칙을 따라야 합니다.'},
-  {pattern:/겨울잠|동면/,answer:'겨울철 먹이가 줄어드는 시기에 활동과 에너지 소비를 낮추기 위한 생존 전략이에요. 시기와 기간은 개체와 기온, 먹이 상황에 따라 달라집니다.'},
-  {pattern:/먹|도토리|열매/,answer:'반달가슴곰은 잡식동물이며 도토리와 열매 같은 식물성 먹이를 폭넓게 이용해요. 계절과 서식 환경에 따라 곤충 등 다른 먹이도 먹습니다.'},
-  {pattern:/발자국|발/,answer:'곰의 발자국은 넓은 발바닥과 발가락 흔적이 단서가 돼요. 다만 실제 조사에서는 크기, 보행 간격, 주변의 털·배설물 같은 여러 흔적을 함께 확인합니다.'},
-];
+const reportFallbacks:Record<BearVerdict,string>={
+  반달곰:'조사 결과, 비교적 작은 발자국과 가려진 보금자리 단서가 확인되었습니다. 먹이 흔적은 두 곰 모두에게 나타날 수 있지만, 수집한 단서를 종합하면 반달곰일 가능성이 높습니다. 다만 정확한 판별을 위해 털이나 배설물 같은 추가 흔적이 필요합니다.',
+  불곰:'조사된 발자국은 크고 발톱 자국이 선명했으며 넓은 동굴형 보금자리 흔적이 확인되었습니다. 이러한 단서를 종합하면 불곰일 가능성이 높습니다. 다만 먹이 흔적만으로는 반달곰과 구분하기 어려우므로 털이나 배설물 같은 추가 흔적이 필요합니다.',
+  '두 곰의 흔적이 섞여 있음':'발자국, 먹이, 보금자리에서 서로 다른 특징이 확인되었습니다. 먹이 흔적은 두 곰 모두에게 나타날 수 있고 다른 단서도 한 종으로 일치하지 않아 두 종의 흔적이 섞였을 가능성이 있습니다. 정확한 판별을 위해 털, 배설물, 이동 경로를 추가로 조사해야 합니다.',
+};
 
-export async function requestBearAnswer(question:string){
-  const fallback=fallbackAnswers.find(item=>item.pattern.test(question))?.answer??'좋은 질문이에요. 지금 가진 반달가슴곰 생태 자료만으로 확실하게 답하기 어려워요. 현장 해설사나 국립공원공단의 최신 안내를 함께 확인해 주세요.';
-  try{return await ask({mode:'question',question})}catch{return fallback}
+export async function requestResearchReport(findings:BearFinding[],verdict:BearVerdict){
+  const fallback=reportFallbacks[verdict];
+  try{
+    return await ask({mode:'report',question:'수집한 단서를 바탕으로 반달곰·불곰 비교 연구 보고서를 작성해 주세요.',selected:verdict,findings});
+  }catch{return fallback}
 }

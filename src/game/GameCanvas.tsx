@@ -9,7 +9,7 @@ import { LakeParkExperiences } from '../components/LakeParkExperiences';
 import { GreenhouseExperience } from '../components/GreenhouseExperience';
 import { ChungnyeongNotebook } from '../components/ChungnyeongNotebook';
 import { NatureDiscoveryGuide } from '../components/NatureDiscoveryGuide';
-import { BearWildlifeExperience } from '../components/BearWildlifeExperience';
+import { BearTravelStyleExperience } from '../components/BearTravelStyleExperience';
 import { BEAR_PLAY_ZONE_RENDERER_OPTIONS,BEAR_TREE_PARK_RENDERER_OPTIONS,CAMPUS_RENDERER_OPTIONS,GARDEN_RENDERER_OPTIONS,LAKE_PARK_RENDERER_OPTIONS,LAKE_PARK_SPAWN,preloadBearTreeParkDownload,VillageMapRenderer } from './renderers/VillageMapRenderer';
 import type { BearTreePortalPositions,LakeExperiencePosition,MapId,PortalPosition,RespawnPosition,WorldInteractionPosition } from '../../shared/socket-events';
 import { buildExperienceRecommendationProfile,recordMapExperience } from '../services/experienceRecommendationProfile';
@@ -17,7 +17,7 @@ import { buildExperienceRecommendationProfile,recordMapExperience } from '../ser
 const MAP_LOADING_COPY:Record<MapId,{place:string;title:string;description:string;tasks:string[]}>={
   town:{place:'세종호수공원',title:'세종호수공원으로 이동중...',description:'호수 산책로와 다양한 취향 체험을 준비하고 있어요.',tasks:['입장 위치 확인','호수공원 산책로 불러오기','캐릭터 배치','축제·공연 체험 연결','주변 사용자 연결']},
   'bear-tree-park':{place:'베어트리파크',title:'베어트리파크로 이동중...',description:'숲길과 자연 관찰 공간을 준비하고 있어요.',tasks:['숲길 입구 확인','베어트리파크 숲 불러오기','탐험 캐릭터 배치','자연 관찰 기록 연결','주변 탐험가 연결']},
-  'bear-play-zone':{place:'곰 놀이 공간',title:'곰 놀이 공간으로 이동중...',description:'아기곰을 가까이에서 만나는 놀이 공간을 준비하고 있어요.',tasks:['놀이 공간 입구 확인','아기곰 공간 불러오기','캐릭터와 아기곰 배치','곰 관찰 체험 연결','주변 탐험가 연결']},
+  'bear-play-zone':{place:'베어트리 AI 탐험 연구소',title:'베어트리 AI 탐험 연구소로 이동중...',description:'자연환경 관찰과 여행 행동 분석을 준비하고 있어요.',tasks:['연구소 입구 확인','생태 탐험 공간 불러오기','관찰 지점 연결','여행 행동 분석 준비','탐험 프로필 준비']},
   garden:{place:'수목원',title:'수목원으로 이동중...',description:'정원과 온실의 식물 탐험을 준비하고 있어요.',tasks:['수목원 입구 확인','정원과 온실 불러오기','탐험 캐릭터 배치','식물도감 기록 연결','주변 탐험가 연결']},
   campus:{place:'공동캠퍼스',title:'공동캠퍼스로 이동중...',description:'관심사가 비슷한 이웃과 만날 캠퍼스를 준비하고 있어요.',tasks:['캠퍼스 입구 확인','공동캠퍼스 불러오기','캐릭터 배치','관심사·동아리 연결','다른 사용자 연결']},
   'jochwon-station':{place:'조치원역',title:'조치원역으로 이동중...',description:'세종 여행을 시작할 역 광장을 준비하고 있어요.',tasks:['도착 위치 확인','조치원역 광장 불러오기','캐릭터 배치','지역 이동 정보 연결','주변 사용자 연결']},
@@ -112,6 +112,7 @@ export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}
     window.addEventListener('sejong-lake-interest-updated',experienceChanged);
     gameEvents.on('greenhouse-progress-changed',experienceChanged);
     gameEvents.on('bear-wildlife-progress-changed',experienceChanged);
+    gameEvents.on('bear-travel-style-changed',experienceChanged);
     gameEvents.on('map-travel-complete',mapExperienceChanged);
     const game=new Phaser.Game({type:Phaser.AUTO,parent:ref.current,width:1100,height:700,transparent:true,backgroundColor:'rgba(0,0,0,0)',dom:{createContainer:true},physics:{default:'arcade'},scale:{mode:Phaser.Scale.RESIZE,autoCenter:Phaser.Scale.CENTER_BOTH}});
     game.canvas.classList.add('phaser-world-canvas');
@@ -126,6 +127,7 @@ export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}
       window.removeEventListener('sejong-lake-interest-updated',experienceChanged);
       gameEvents.off('greenhouse-progress-changed',experienceChanged);
       gameEvents.off('bear-wildlife-progress-changed',experienceChanged);
+      gameEvents.off('bear-travel-style-changed',experienceChanged);
       gameEvents.off('map-travel-complete',mapExperienceChanged);
       socket.off('portalPositionsUpdated',applySharedPortalPositions);
       socket.off('bearTreePortalPositionsUpdated',applyBearTreePortalPositions);
@@ -139,5 +141,5 @@ export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}
       Object.values(worldRenderers).forEach(renderer=>renderer?.destroy());
     };
   },[profile,entrySpawn]);
-  return <><div className="game-canvas" ref={ref}/>{loading&&<div className="game-loading" role="status" aria-live="polite"><div className="game-loading-brand"><span>🧑🏻‍🌾</span><div><b>세종한바퀴</b><small>세종 소통형 체험 공간</small></div></div><div className="game-loading-center"><i/><span>{loadingCopy.place}</span><h1>{loadingCopy.title}</h1><p>{loadError||loadingCopy.description}</p><div className="world-loading-tasks">{loadingCopy.tasks.map((task,index)=><span key={task}>{index===0?'✓':'●'} {task}</span>)}</div><div className="game-loading-progress"><em/></div></div></div>}<ChungnyeongNotebook profile={profile}/><LakeParkExperiences/><NatureDiscoveryGuide userKey={profile.nickname}/><BearWildlifeExperience userKey={profile.nickname} mapId={loadingMapId}/><GreenhouseExperience userKey={profile.nickname}/><CharacterDebugPanel/></>;
+  return <><div className="game-canvas" ref={ref}/>{loading&&<div className="game-loading" role="status" aria-live="polite"><div className="game-loading-brand"><span>🧑🏻‍🌾</span><div><b>세종한바퀴</b><small>세종 소통형 체험 공간</small></div></div><div className="game-loading-center"><i/><span>{loadingCopy.place}</span><h1>{loadingCopy.title}</h1><p>{loadError||loadingCopy.description}</p><div className="world-loading-tasks">{loadingCopy.tasks.map((task,index)=><span key={task}>{index===0?'✓':'●'} {task}</span>)}</div><div className="game-loading-progress"><em/></div></div></div>}<ChungnyeongNotebook profile={profile}/><LakeParkExperiences/><NatureDiscoveryGuide userKey={profile.nickname}/><BearTravelStyleExperience userKey={profile.nickname} mapId={loadingMapId}/><GreenhouseExperience userKey={profile.nickname}/><CharacterDebugPanel/></>;
 });

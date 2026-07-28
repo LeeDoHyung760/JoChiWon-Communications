@@ -5,7 +5,7 @@ import { directionFromMovement,directionYaw,jumpInputBlocked,motionState,movemen
 import { BEAR_PLAY_ZONE_SPAWN,BEAR_TREE_PARK_SPAWN,CAMPUS_SPAWN,GARDEN_SPAWN,LAKE_PARK_SPAWN,type VillageMapRenderer } from '../renderers/VillageMapRenderer';
 interface Remote { avatar:AvatarContainer; targetX:number; targetY:number; targetYaw:number; state:PlayerState;lastAnimationAt:number }
 interface SceneData {profile:UserProfile;mapId?:MapId;worldRenderers?:Partial<Record<MapId,VillageMapRenderer>>;ensureWorldRenderer?:(mapId:MapId)=>VillageMapRenderer|undefined;initialSpawn?:{x:number;z:number;yaw:number}}
-const labels:Record<MapId,string>={town:'세종호수공원','bear-tree-park':'베어트리파크','bear-play-zone':'곰 놀이 공간',garden:'수목원',campus:'공동캠퍼스','jochwon-station':'조치원역','traditional-market':'세종전통시장','jochwon-park':'조치원공원','college-street':'대학로'};
+const labels:Record<MapId,string>={town:'세종호수공원','bear-tree-park':'베어트리파크','bear-play-zone':'베어트리 AI 탐험 연구소',garden:'수목원',campus:'공동캠퍼스','jochwon-station':'조치원역','traditional-market':'세종전통시장','jochwon-park':'조치원공원','college-street':'대학로'};
 const MAIN={width:2400,height:1900};const DETAIL={width:1600,height:1100};
 type DetailMapId=Exclude<MapId,'town'|'bear-tree-park'|'bear-play-zone'|'garden'>;
 type IllustratedDetailMapId=Exclude<DetailMapId,'campus'>;
