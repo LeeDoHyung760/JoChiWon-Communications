@@ -136,3 +136,28 @@
 .world-location-chip{box-sizing:border-box;width:245px;min-width:245px;border-radius:17px 17px 0 0;box-shadow:0 8px 22px rgba(28,67,57,.12)}
 .game-page .chat-panel:has(.chat-empty){display:none}
 .game-page .online .group-box:has(>div:only-child){display:none}
+.world-community {
+  position: absolute;
+  top: 20px;
+  right: 120px;
+  z-index: 50;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  padding: 12px 16px;
+  border: none;
+  border-radius: 14px;
+
+  color: #ffffff;
+  background: #183f39;
+
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.world-community:hover {
+  background: #245a51;
+}
