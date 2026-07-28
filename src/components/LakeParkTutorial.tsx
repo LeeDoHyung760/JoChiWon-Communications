@@ -2,12 +2,12 @@ const tutorialSteps = [
   {
     icon:'🎮',
     label:'하나 · 이동하기',
-    title:'WASD로 자유롭게 움직여 보세요',
+    title:'방향키로 자유롭게 움직여 보세요',
     description:'호수공원을 돌아다니며 원하는 체험 부스를 먼저 방문할 수 있어요.',
     actions:[
-      {key:'W A S D',title:'이동',copy:'방향키로도 움직일 수 있어요'},
-      {key:'Shift',title:'달리기',copy:'이동 키와 함께 눌러요'},
-      {key:'Space',title:'점프',copy:'낮은 장애물을 넘어가요'},
+      {key:'↑ ↓ ← →',title:'이동',copy:'방향키로도 움직일 수 있어요'},
+      {key:'⇧ + 방향키',title:'달리기',copy:'이동 키와 함께 눌러요'},
+      {key:'스페이스 바',title:'점프',copy:'낮은 장애물을 넘어가요'},
     ],
     hint:'공연, 먹거리, 축제 부스는 원하는 순서대로 체험할 수 있어요.',
   },
@@ -41,7 +41,7 @@ export function LakeParkTutorial({step,onPrevious,onNext}:{step:number;onPreviou
     <div className="tutorial-progress">{tutorialSteps.map((_,index)=><i key={index} className={index<=step?'active':''}/>)}</div>
     <p className="lake-tutorial-description">{current.description}</p>
     <div className="lake-tutorial-actions">{current.actions.map(action=><article key={action.title}><kbd>{action.key}</kbd><strong>{action.title}</strong><small>{action.copy}</small></article>)}</div>
-    <p className="lake-tutorial-hint"><span>AI 동행자 충녕이</span>{current.hint}</p>
+    <p className="lake-tutorial-hint"><span>인공지능 동행자 충녕이</span>{current.hint}</p>
     <label className="lake-tutorial-never-show"><input type="checkbox" checked={neverShowAgain} onChange={event=>setNeverShowAgain(event.target.checked)}/><span>다시는 이 시작 안내를 보지 않기</span></label>
     <footer className="guide-dialog-actions">{step>0&&<button type="button" onClick={onPrevious}>이전</button>}<button type="button" className="guide-dialog-primary" onClick={proceed}>{last?'자유롭게 체험 시작하기':'다음'}</button></footer>
   </section>;

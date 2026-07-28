@@ -4,6 +4,7 @@ import type { LakeExperienceId,PlayerState } from '../../shared/socket-events';
 import { gameEvents } from '../game/events';
 import { socket } from '../game/systems/socketClient';
 import { API_BASE_URL } from '../config/api';
+import { analyzeLakeTaste,lakeTasteQuestions,type LakeTasteAnswers,type LakeTasteDomain,type LakeTasteInsights } from '../services/lakeTasteAnalysis';
 import './LakeParkExperiences.css';
 
 type NearbyExperience={id:LakeExperienceId;label:string;description:string};
@@ -12,11 +13,12 @@ type FoodPlaceInterest={id:string;name:string;type:'food'|'place';category:strin
 type BoothCompletion={activity:boolean;food:boolean;festival:boolean};
 type FestivalCard={id:string;category:'축제'|'공연';emoji:string;image:string;source:string;title:string;description:string;schedule:string;venue:string;status:string;tags:string[];tone:string};
 type ApiFestival={id:string;name:string;startDate:string;endDate:string;status:string;venue:string;description:string;organizer?:string;image?:string;source:string};
-type LakeInterestProfile={savedContentIds:string[];activities:string[];foodPlaceInterests:FoodPlaceInterest[];festivalTheme:string;likedCourseTitles:string[];updatedAt:number};
+type LakeInterestProfile={savedContentIds:string[];activities:string[];foodPlaceInterests:FoodPlaceInterest[];festivalTheme:string;likedCourseTitles:string[];tasteAnswers:LakeTasteAnswers;tasteInsights:LakeTasteInsights;updatedAt:number};
 
 const LAKE_INTEREST_KEY='sejong-lake-interest-profile-v1';
 const LAKE_JOURNEY_STEP_KEY='sejong-lake-journey-step-v1';
 const LAKE_BOOTH_COMPLETION_KEY='sejong-lake-booth-completion-v1';
+const LAKE_COMPLETION_DISMISSED_KEY='sejong-lake-taste-completion-dismissed-v1';
 const activities=[
   {id:'lunch-concert',emoji:'🎸',label:'12시 런치 콘서트',mood:'자유로운 라이브',description:'이한결 트리오의 대중음악을 가까이에서 즐기는 로비 콘서트',schedule:'2026. 7. 29. 12:00',venue:'세종예술의전당 로비',image:'/images/performances/lunch-concert-2026.jpg',detailUrl:'https://www.sjac.or.kr/base/nrr/performance/read?menuLevel=2&menuNo=77&performanceNo=667'},
   {id:'seopyeonje-musical',emoji:'🎭',label:'뮤지컬 〈서편제〉',mood:'전통과 감동',description:'우리 소리와 현대적인 음악이 어우러지는 창작 뮤지컬',schedule:'2026. 7. 30. ~ 8. 1.',venue:'세종예술의전당',image:'/images/performances/seopyeonje-2026.jpg',detailUrl:'https://www.sjac.or.kr/base/nrr/performance/read?menuLevel=2&menuNo=77&performanceNo=650'},
@@ -111,19 +113,21 @@ function readProfile():LakeInterestProfile{
       const content=foodShopContents.find(candidate=>candidate.id===item.id);
       return {id:item.id,name:item.name,type:content?.group==='지역 먹거리'?'food':'place',category:item.category,tags:item.tags} as FoodPlaceInterest;
     });
-    return {savedContentIds:Array.isArray(saved?.savedContentIds)?saved.savedContentIds:[],activities:Array.isArray(saved?.activities)?saved.activities.filter(id=>activities.some(activity=>activity.id===id)).slice(0,2):[],foodPlaceInterests:unified.slice(0,3),festivalTheme:typeof saved?.festivalTheme==='string'?saved.festivalTheme:'',likedCourseTitles:Array.isArray(saved?.likedCourseTitles)?saved.likedCourseTitles.slice(0,1):[],updatedAt:typeof saved?.updatedAt==='number'?saved.updatedAt:Date.now()};
-  }catch{return {savedContentIds:[],activities:[],foodPlaceInterests:[],festivalTheme:'',likedCourseTitles:[],updatedAt:Date.now()}}
+    const tasteAnswers=saved?.tasteAnswers&&typeof saved.tasteAnswers==='object'?saved.tasteAnswers as LakeTasteAnswers:{};
+    const tasteInsights=saved?.tasteInsights&&typeof saved.tasteInsights==='object'?saved.tasteInsights as LakeTasteInsights:{};
+    return {savedContentIds:Array.isArray(saved?.savedContentIds)?saved.savedContentIds:[],activities:Array.isArray(saved?.activities)?saved.activities.filter(id=>activities.some(activity=>activity.id===id)).slice(0,2):[],foodPlaceInterests:unified.slice(0,3),festivalTheme:typeof saved?.festivalTheme==='string'?saved.festivalTheme:'',likedCourseTitles:Array.isArray(saved?.likedCourseTitles)?saved.likedCourseTitles.slice(0,1):[],tasteAnswers,tasteInsights,updatedAt:typeof saved?.updatedAt==='number'?saved.updatedAt:Date.now()};
+  }catch{return {savedContentIds:[],activities:[],foodPlaceInterests:[],festivalTheme:'',likedCourseTitles:[],tasteAnswers:{},tasteInsights:{},updatedAt:Date.now()}}
 }
 
 function readBoothCompletion(profile:LakeInterestProfile):BoothCompletion{
   try{
     const saved=JSON.parse(localStorage.getItem(LAKE_BOOTH_COMPLETION_KEY)??'null') as Partial<BoothCompletion>|null;
-    if(saved)return {activity:!!saved.activity,food:!!saved.food,festival:!!saved.festival};
+    if(saved)return {activity:!!saved.activity&&!!profile.tasteInsights.performance,food:!!saved.food&&!!profile.tasteInsights.food,festival:!!saved.festival&&!!profile.tasteInsights.festival};
   }catch{/* Migrate the previous ordered progress below. */}
   const rawStep=localStorage.getItem(LAKE_JOURNEY_STEP_KEY);
   const savedStep=Number(rawStep);
-  if(rawStep!==null&&savedStep>=0)return {activity:savedStep>=1,food:savedStep>=2,festival:savedStep>=3};
-  return {activity:profile.activities.length>0,food:profile.foodPlaceInterests.length>0,festival:profile.savedContentIds.length>0};
+  if(rawStep!==null&&savedStep>=0)return {activity:savedStep>=1&&!!profile.tasteInsights.performance,food:savedStep>=2&&!!profile.tasteInsights.food,festival:savedStep>=3&&!!profile.tasteInsights.festival};
+  return {activity:profile.activities.length>0&&!!profile.tasteInsights.performance,food:profile.foodPlaceInterests.length>0&&!!profile.tasteInsights.food,festival:profile.savedContentIds.length>0&&!!profile.tasteInsights.festival};
 }
 
 export function LakeParkExperiences(){
@@ -146,13 +150,16 @@ export function LakeParkExperiences(){
   const [festivalLimitNotice,setFestivalLimitNotice]=useState(false);
   const [completedBooths,setCompletedBooths]=useState<BoothCompletion>(()=>readBoothCompletion(profile));
   const [showJourneyComplete,setShowJourneyComplete]=useState(false);
+  const [journeyCompleteDismissed,setJourneyCompleteDismissed]=useState(()=>localStorage.getItem(LAKE_COMPLETION_DISMISSED_KEY)==='true');
   const [journeyNotice,setJourneyNotice]=useState('');
+  const [coach,setCoach]=useState<{domain:LakeTasteDomain;step:number}|null>(null);
 
   const savedContents=useMemo(()=>festivals.filter(content=>profile.savedContentIds.includes(content.id)),[festivals,profile.savedContentIds]);
   const selectedFoodShops=profile.foodPlaceInterests;
   const visibleFoodShops=foodShopContents.filter(item=>item.group===foodCategory);
   const completedCount=Object.values(completedBooths).filter(Boolean).length;
   const allBoothsCompleted=completedCount===3;
+  const coachQuestion=coach?lakeTasteQuestions[coach.domain][coach.step]:null;
 
   useEffect(()=>{
     const proximity=(experience:NearbyExperience|null)=>setNearby(experience);
@@ -176,7 +183,7 @@ export function LakeParkExperiences(){
       'central-plaza':completedBooths.festival,
     });
   },[completedBooths]);
-  useEffect(()=>{if(allBoothsCompleted)setShowJourneyComplete(true)},[allBoothsCompleted]);
+  useEffect(()=>{if(allBoothsCompleted&&!journeyCompleteDismissed)setShowJourneyComplete(true)},[allBoothsCompleted,journeyCompleteDismissed]);
   useEffect(()=>{
     const controller=new AbortController();
     fetch(`${API_BASE_URL}/festivals`,{signal:controller.signal}).then(response=>{
@@ -188,7 +195,7 @@ export function LakeParkExperiences(){
       const cards=payload.festivals.map((festival,index)=>{
         const fallback=fallbackByName(festival.name);
         const schedule=festival.startDate===festival.endDate?festival.startDate:`${festival.startDate} ~ ${festival.endDate}`;
-        return {id:fallback?.id??festival.id,category:'축제' as const,emoji:fallback?.emoji??'🎪',image:festival.image||fallback?.image||'/images/festivals/hangeul-2026.jpg',source:festival.source==='tour-api'?'한국관광공사 TourAPI':festival.source==='sejong'?'세종특별자치시 OpenAPI':'세종 공식 2026 축제 데이터',title:festival.name,description:festival.description||fallback?.description||'세종에서 열리는 문화축제입니다.',schedule,venue:festival.venue||'세종특별자치시 일원',status:festival.status,tags:fallback?.tags??[festival.status,festival.organizer||'세종축제'].filter(Boolean),tone:fallback?.tone??['coral','violet','blue','green'][index%4]} satisfies FestivalCard;
+        return {id:fallback?.id??festival.id,category:'축제' as const,emoji:fallback?.emoji??'🎪',image:festival.image||fallback?.image||'/images/festivals/hangeul-2026.jpg',source:festival.source==='tour-api'?'한국관광공사 관광자료':festival.source==='sejong'?'세종특별자치시 공개자료':'세종 공식 2026 축제 데이터',title:festival.name,description:festival.description||fallback?.description||'세종에서 열리는 문화축제입니다.',schedule,venue:festival.venue||'세종특별자치시 일원',status:festival.status,tags:fallback?.tags??[festival.status,festival.organizer||'세종축제'].filter(Boolean),tone:fallback?.tone??['coral','violet','blue','green'][index%4]} satisfies FestivalCard;
       });
       setFestivals(cards);setFestivalDataSource('api');
     }).catch(error=>{if(error instanceof Error&&error.name!=='AbortError'){setFestivals(fallbackFestivalContents);setFestivalDataSource('fallback')}});
@@ -199,6 +206,7 @@ export function LakeParkExperiences(){
     gameEvents.emit('game-input-lock',true);
     const closeWithEscape=(event:KeyboardEvent)=>{
       if(event.key!=='Escape')return;
+      if(coach){setCoach(null);return}
       if(showJourneyComplete){setShowJourneyComplete(false);return}
       setSelectedFestival(null);
       setSelectedCourse(null);
@@ -211,7 +219,7 @@ export function LakeParkExperiences(){
       gameEvents.emit('game-input-lock',false);
       (document.activeElement as HTMLElement|null)?.blur?.();
     };
-  },[active,showJourneyComplete]);
+  },[active,showJourneyComplete,coach]);
 
   const openExperience=(id:LakeExperienceId)=>{
     socket.emit('enterLakeExperience',id);setActive(id);
@@ -236,17 +244,34 @@ export function LakeParkExperiences(){
     });
   };
   const toggleCourse=(title:string)=>setProfile(current=>({...current,likedCourseTitles:current.likedCourseTitles.includes(title)?[]:[title],updatedAt:Date.now()}));
-  const completeFoodSelection=()=>{if(!selectedFoodShops.length)return;setFoodSelectionComplete(true);setCompletedBooths(current=>({...current,food:true}));setSelectedFoodShop(null);setActive(null);setFoodSavedNotice(true);window.setTimeout(()=>setFoodSavedNotice(false),3500)};
+  const startTasteInterview=(domain:LakeTasteDomain)=>setCoach({domain,step:0});
+  const answerTasteQuestion=(value:string)=>{
+    if(!coach)return;
+    const question=lakeTasteQuestions[coach.domain][coach.step];
+    const nextAnswers={...profile.tasteAnswers,[question.id]:value};
+    if(coach.step<lakeTasteQuestions[coach.domain].length-1){
+      setProfile(current=>({...current,tasteAnswers:nextAnswers,updatedAt:Date.now()}));
+      setCoach({...coach,step:coach.step+1});
+      return;
+    }
+    const signals=coach.domain==='performance'?profile.activities:coach.domain==='food'?selectedFoodShops.flatMap(item=>[item.id,item.category,...item.tags]):savedContents.flatMap(item=>[item.id,item.title,...item.tags]);
+    const insight=analyzeLakeTaste(coach.domain,signals,nextAnswers);
+    setProfile(current=>({...current,tasteAnswers:nextAnswers,tasteInsights:{...current.tasteInsights,[coach.domain]:insight},updatedAt:Date.now()}));
+    setCompletedBooths(current=>({...current,[coach.domain==='performance'?'activity':coach.domain]:true}));
+    setCoach(null);setSelectedFestival(null);setSelectedFoodShop(null);setActive(null);
+    showCompletionNotice(`충녕이가 ${insight.label} 취향을 발견했어요!`);
+  };
+  const completeFoodSelection=()=>{if(!selectedFoodShops.length)return;setFoodSelectionComplete(true);startTasteInterview('food')};
   const showCompletionNotice=(message:string)=>{setCompletionNotice(message);window.setTimeout(()=>setCompletionNotice(''),3500)};
-  const completeActivitySelection=()=>{if(!profile.activities.length)return;setCompletedBooths(current=>({...current,activity:true}));setActive(null);showCompletionNotice(`공연 ${profile.activities.length}개 저장 완료!`)};
-  const completeFestivalSelection=()=>{if(!savedContents.length)return;setCompletedBooths(current=>({...current,festival:true}));setSelectedFestival(null);setActive(null);showCompletionNotice(`관심 축제 ${savedContents.length}개 저장 완료!`)};
+  const completeActivitySelection=()=>{if(!profile.activities.length)return;startTasteInterview('performance')};
+  const completeFestivalSelection=()=>{if(!savedContents.length)return;setSelectedFestival(null);startTasteInterview('festival')};
 
   if(location!=='세종호수공원')return null;
   return <>
     <aside className={`lake-journey-guide ${allBoothsCompleted?'step-3':''}`}>
-      <header><span>🧭</span><div><small>FREE EXPERIENCE JOURNEY</small><b>{allBoothsCompleted?'호수공원 체험 완료!':`자유 체험 ${completedCount} / 3`}</b></div></header>
+      <header><span>🧭</span><div><small>호수공원 취향 여정</small><b>{allBoothsCompleted?'호수공원 체험 완료!':`자유 체험 ${completedCount} / 3`}</b></div></header>
       <div className="lake-journey-steps">{([['공연',completedBooths.activity],['먹거리',completedBooths.food],['축제',completedBooths.festival]] as const).map(([label,done],index)=><div key={label} className={done?'done':'current'}><i>{done?<Check size={11}/>:index+1}</i><span>{label}</span></div>)}</div>
-      <p>{allBoothsCompleted?'세 가지 취향을 모두 저장했어요. 결과를 확인하고 다음 공간으로 이동하세요.':'주황색으로 빛나는 세 부스를 원하는 순서대로 체험해 보세요.'}</p>
+      <p>{allBoothsCompleted?'충녕이가 세 가지 취향 분석을 마쳤어요. 다음 공간의 안내가 내 취향에 맞게 달라집니다.':'부스에서 선택하고 충녕이의 짧은 질문에 답해 보세요.'}</p>
       {allBoothsCompleted&&<button type="button" onClick={()=>setShowJourneyComplete(true)}>내 취향 결과 보기 →</button>}
     </aside>
     {journeyNotice&&<div className="lake-journey-notice" role="status">{journeyNotice}</div>}
@@ -260,39 +285,49 @@ export function LakeParkExperiences(){
     {(active==='central-plaza'||active==='activity-zone'||active==='food-shop-zone')&&<div className="lake-experience-overlay festival-plaza-overlay" role="dialog" aria-modal="true" aria-labelledby="festival-title">
       <section className="festival-plaza-panel">
         <button type="button" className="lake-experience-close" onClick={()=>setActive(null)} aria-label="부스 닫기"><X size={18}/></button>
-        <header className="festival-plaza-header"><div className="festival-plaza-title"><span>{active==='activity-zone'?'🎤':active==='food-shop-zone'?'🍑':'🎪'}</span><div><small>DISCOVER MY TASTE</small><h2 id="festival-title">{active==='food-shop-zone'?'세종 맛 발견소':experienceName(active)}</h2><p>{active==='central-plaza'?'관심 있는 세종 축제를 저장해 보세요.':active==='activity-zone'?'좋아하는 공연 콘텐츠를 선택해 보세요.':'세종에서 먹어보고 싶거나 방문하고 싶은 곳을 골라보세요.'}</p></div></div><div className="festival-live"><Users size={15}/><span><b>{onlineCount}명</b>이 지금 각자의 취향을 찾고 있어요</span></div></header>
-        {active==='central-plaza'&&<><div className="booth-selection-progress"><div><b>관심 축제를 1~2개 선택해 주세요.</b><small>{festivalDataSource==='api'?'공식 API 데이터':'로컬 대체 데이터'}</small></div><strong>현재 선택 {savedContents.length} / 2</strong></div>{festivalLimitNotice&&<div className="performance-limit-notice" role="status">축제는 최대 2개까지 선택할 수 있어요.</div>}<div className="festival-card-grid">{festivals.map(content=>{const saved=profile.savedContentIds.includes(content.id);return <article className={`festival-card tone-${content.tone} ${saved?'is-saved':''}`} key={content.id} role="button" tabIndex={0} onClick={()=>setSelectedFestival(content)} onKeyDown={event=>{if(event.key==='Enter')setSelectedFestival(content)}}><div className="festival-card-visual"><span>{content.emoji}</span><img src={content.image} alt={`${content.title} 축제 사진`}/><small>{content.status}</small></div><div className="festival-card-copy"><small>REAL SEJONG FESTIVAL · 자세히 보기</small><h3>{content.title}</h3><p>{content.description}</p><dl><div><dt>시기</dt><dd>{content.schedule}</dd></div><div><dt>장소</dt><dd>{content.venue}</dd></div></dl><div>{content.tags.map(tag=><span key={tag}>#{tag}</span>)}</div><em>사진·정보 출처: {content.source}</em></div><button type="button" className="festival-save-button" onClick={event=>{event.stopPropagation();toggleContent(content.id)}}>{saved?<><Check size={14}/> 저장됨</>:<><Bookmark size={14}/> 관심 축제로 저장</>}</button></article>})}</div><footer className="festival-plaza-footer"><div><Heart size={16}/><span><b>{savedContents.length}개</b>의 관심 축제를 선택했어요.</span></div><button type="button" disabled={!savedContents.length} onClick={completeFestivalSelection}><Check size={15}/> 저장 완료하고 닫기</button></footer></>}
-        {active==='activity-zone'&&<><section className="lake-activity-section performance-choice-section"><div className="performance-poster-heading"><div><small>REAL SEJONG PERFORMANCE</small><h3>어떤 공연 분위기가 가장 끌리나요?</h3><p>세종의 실제 공연 중 마음에 드는 포스터를 최대 2개 골라보세요.</p></div><strong>{profile.activities.length}<span>/2 선택</span></strong></div>{performanceLimitNotice&&<div className="performance-limit-notice" role="status">공연 취향은 최대 2개까지 선택할 수 있어요.</div>}<div className="performance-poster-grid">{activities.map(activity=>{const selected=profile.activities.includes(activity.id);return <article key={activity.id} className={selected?'active':''} role="button" tabIndex={0} onClick={()=>toggleActivity(activity.id)} onKeyDown={event=>{if(event.key==='Enter')toggleActivity(activity.id)}}><div className="performance-poster-image"><img src={activity.image} alt={`${activity.label} 공식 포스터`}/><span>{activity.emoji} {activity.mood}</span></div><div className="performance-poster-copy"><small>세종예술의전당 공식 공연</small><h3>{activity.label}</h3><p>{activity.description}</p><dl><div><dt>일정</dt><dd>{activity.schedule}</dd></div><div><dt>장소</dt><dd>{activity.venue}</dd></div></dl><button type="button" className={selected?'active':''} onClick={event=>{event.stopPropagation();toggleActivity(activity.id)}}>{selected?<><Check size={15}/> 선택됨</>:<><Heart size={15}/> 관심 있어요</>}</button><a href={activity.detailUrl} target="_blank" rel="noreferrer" onClick={event=>event.stopPropagation()}>공식 공연 정보 보기 ↗</a></div></article>})}</div></section><footer className="festival-plaza-footer performance-footer"><div><Sparkles size={16}/><span><b>{profile.activities.length}개</b>의 공연을 선택했어요.</span></div><button type="button" disabled={!profile.activities.length} onClick={completeActivitySelection}><Check size={15}/> 저장 완료하고 닫기</button></footer></>}
-        {active==='food-shop-zone'&&<><div className="booth-selection-progress"><div><b>관심 있는 먹거리나 장소를 1~3개 선택해 주세요.</b><small>음식과 실제 방문 장소를 함께 저장해요.</small></div><strong>현재 선택 {selectedFoodShops.length} / 3</strong></div>{foodLimitNotice&&<div className="performance-limit-notice" role="status">먹거리·장소는 최대 3개까지 선택할 수 있어요.</div>}<nav className="festival-category-tabs food-category-tabs" aria-label="먹거리와 상점 분류">{foodCategories.map(category=><button type="button" key={category} className={foodCategory===category?'active':''} onClick={()=>setFoodCategory(category)}>{category}</button>)}</nav><div className="food-discovery-grid">{visibleFoodShops.map(item=>{const saved=selectedFoodShops.some(interest=>interest.id===item.id),image=foodShopImages[item.id];return <article className={saved?'active':''} key={item.id} role="button" tabIndex={0} onClick={()=>setSelectedFoodShop(item)} onKeyDown={event=>{if(event.key==='Enter')setSelectedFoodShop(item)}}><div className={`food-card-image ${image?'has-photo':'no-photo'}`} role="img" aria-label={`${item.name} 대표 이미지`} style={image?{backgroundImage:`url('${image}')`}:undefined}><span>{item.emoji}</span></div><div className="food-card-copy"><small>{item.group} · 자세히 보기</small><h3>{item.name}</h3><p>{item.description}</p><em>{item.location}</em><div>{item.tags.map(tag=><span key={tag}>#{tag}</span>)}</div></div><button type="button" onClick={event=>{event.stopPropagation();toggleFoodShop(item.id)}}>{saved?<><Check size={14}/> 선택했어요</>:<><Bookmark size={14}/> {item.action}</>}</button></article>})}</div><section className={`food-selection-summary ${foodSelectionComplete?'is-complete':''}`}><div className="food-selection-title"><span><Heart size={18} fill="currentColor"/></span><div><small>MY SEJONG TASTE</small><h3>내가 고른 세종 맛 <b>{selectedFoodShops.length}</b>개</h3></div></div>{selectedFoodShops.length?<div className="food-selection-chips">{selectedFoodShops.map(item=>{const content=foodShopContents.find(candidate=>candidate.id===item.id);return <button type="button" key={item.id} onClick={()=>toggleFoodShop(item.id)}>{content?.emoji} {item.name}<X size={12}/></button>})}</div>:<p>마음에 드는 카드를 골라 나만의 세종 맛을 만들어 보세요.</p>}<button type="button" className="food-complete-button" disabled={!selectedFoodShops.length} onClick={completeFoodSelection}><Check size={17}/>저장 완료하고 닫기</button></section></>}
+        <header className="festival-plaza-header"><div className="festival-plaza-title"><span>{active==='activity-zone'?'🎤':active==='food-shop-zone'?'🍑':'🎪'}</span><div><small>충녕이가 알아가는 나의 취향</small><h2 id="festival-title">{active==='food-shop-zone'?'세종 맛 발견소':experienceName(active)}</h2><p>{active==='central-plaza'?'끌리는 축제를 고르면 충녕이가 좋아하는 분위기를 분석해요.':active==='activity-zone'?'끌리는 공연과 짧은 답변으로 나만의 공연 취향을 찾아요.':'장소를 고른 뒤 충녕이가 나의 여행 미식 스타일을 알아가요.'}</p></div></div><div className="festival-live"><Users size={15}/><span><b>{onlineCount}명</b>이 지금 각자의 취향을 찾고 있어요</span></div></header>
+        {active==='central-plaza'&&<><div className="booth-selection-progress"><div><b>설명보다 분위기에 끌리는 축제를 1~2개 골라보세요.</b><small>{festivalDataSource==='api'?'공식 연계 자료':'저장된 축제 자료'}</small></div><strong>현재 선택 {savedContents.length} / 2</strong></div>{festivalLimitNotice&&<div className="performance-limit-notice" role="status">축제는 최대 2개까지 선택할 수 있어요.</div>}<div className="festival-card-grid">{festivals.map(content=>{const saved=profile.savedContentIds.includes(content.id);return <article className={`festival-card tone-${content.tone} ${saved?'is-saved':''}`} key={content.id} role="button" tabIndex={0} onClick={()=>setSelectedFestival(content)} onKeyDown={event=>{if(event.key==='Enter')setSelectedFestival(content)}}><div className="festival-card-visual"><span>{content.emoji}</span><img src={content.image} alt={`${content.title} 축제 사진`}/><small>{content.status}</small></div><div className="festival-card-copy"><small>세종의 실제 축제 · 자세히 보기</small><h3>{content.title}</h3><p>{content.description}</p><dl><div><dt>시기</dt><dd>{content.schedule}</dd></div><div><dt>장소</dt><dd>{content.venue}</dd></div></dl><div>{content.tags.map(tag=><span key={tag}>#{tag}</span>)}</div><em>사진·정보 출처: {content.source}</em></div><button type="button" className="festival-save-button" onClick={event=>{event.stopPropagation();toggleContent(content.id)}}>{saved?<><Check size={14}/> 끌려요</>:<><Heart size={14}/> 이 분위기가 좋아요</>}</button></article>})}</div><footer className="festival-plaza-footer"><div><Heart size={16}/><span><b>{savedContents.length}개</b>의 축제 분위기를 골랐어요.</span></div><button type="button" disabled={!savedContents.length} onClick={completeFestivalSelection}><Sparkles size={15}/> 충녕이와 취향 분석하기</button></footer></>}
+        {active==='activity-zone'&&<><section className="lake-activity-section performance-choice-section"><div className="performance-poster-heading"><div><small>세종의 실제 공연</small><h3>어떤 공연 분위기가 가장 끌리나요?</h3><p>장르를 고민하기보다 먼저 마음이 가는 포스터를 최대 2개 골라보세요.</p></div><strong>{profile.activities.length}<span>/2 선택</span></strong></div>{performanceLimitNotice&&<div className="performance-limit-notice" role="status">공연 취향은 최대 2개까지 선택할 수 있어요.</div>}<div className="performance-poster-grid">{activities.map(activity=>{const selected=profile.activities.includes(activity.id);return <article key={activity.id} className={selected?'active':''} role="button" tabIndex={0} onClick={()=>toggleActivity(activity.id)} onKeyDown={event=>{if(event.key==='Enter')toggleActivity(activity.id)}}><div className="performance-poster-image"><img src={activity.image} alt={`${activity.label} 공식 포스터`}/><span>{activity.emoji} {activity.mood}</span></div><div className="performance-poster-copy"><small>세종예술의전당 공식 공연</small><h3>{activity.label}</h3><p>{activity.description}</p><dl><div><dt>일정</dt><dd>{activity.schedule}</dd></div><div><dt>장소</dt><dd>{activity.venue}</dd></div></dl><button type="button" className={selected?'active':''} onClick={event=>{event.stopPropagation();toggleActivity(activity.id)}}>{selected?<><Check size={15}/> 이게 끌려요</>:<><Heart size={15}/> 마음에 들어요</>}</button><a href={activity.detailUrl} target="_blank" rel="noreferrer" onClick={event=>event.stopPropagation()}>공식 공연 정보 보기 ↗</a></div></article>})}</div></section><footer className="festival-plaza-footer performance-footer"><div><Sparkles size={16}/><span><b>{profile.activities.length}개</b>의 공연 분위기를 골랐어요.</span></div><button type="button" disabled={!profile.activities.length} onClick={completeActivitySelection}><Sparkles size={15}/> 충녕이와 취향 분석하기</button></footer></>}
+        {active==='food-shop-zone'&&<><div className="booth-selection-progress"><div><b>여행 중 실제로 끌리는 맛과 공간을 1~3개 골라보세요.</b><small>선택의 공통점을 충녕이가 찾아드려요.</small></div><strong>현재 선택 {selectedFoodShops.length} / 3</strong></div>{foodLimitNotice&&<div className="performance-limit-notice" role="status">먹거리·장소는 최대 3개까지 선택할 수 있어요.</div>}<nav className="festival-category-tabs food-category-tabs" aria-label="먹거리와 상점 분류">{foodCategories.map(category=><button type="button" key={category} className={foodCategory===category?'active':''} onClick={()=>setFoodCategory(category)}>{category}</button>)}</nav><div className="food-discovery-grid">{visibleFoodShops.map(item=>{const saved=selectedFoodShops.some(interest=>interest.id===item.id),image=foodShopImages[item.id];return <article className={saved?'active':''} key={item.id} role="button" tabIndex={0} onClick={()=>setSelectedFoodShop(item)} onKeyDown={event=>{if(event.key==='Enter')setSelectedFoodShop(item)}}><div className={`food-card-image ${image?'has-photo':'no-photo'}`} role="img" aria-label={`${item.name} 대표 이미지`} style={image?{backgroundImage:`url('${image}')`}:undefined}><span>{item.emoji}</span></div><div className="food-card-copy"><small>{item.group} · 자세히 보기</small><h3>{item.name}</h3><p>{item.description}</p><em>{item.location}</em><div>{item.tags.map(tag=><span key={tag}>#{tag}</span>)}</div></div><button type="button" onClick={event=>{event.stopPropagation();toggleFoodShop(item.id)}}>{saved?<><Check size={14}/> 이게 끌려요</>:<><Heart size={14}/> 마음에 들어요</>}</button></article>})}</div><section className={`food-selection-summary ${foodSelectionComplete?'is-complete':''}`}><div className="food-selection-title"><span><Heart size={18} fill="currentColor"/></span><div><small>내가 발견한 세종의 맛</small><h3>마음이 간 세종 맛 <b>{selectedFoodShops.length}</b>개</h3></div></div>{selectedFoodShops.length?<div className="food-selection-chips">{selectedFoodShops.map(item=>{const content=foodShopContents.find(candidate=>candidate.id===item.id);return <button type="button" key={item.id} onClick={()=>toggleFoodShop(item.id)}>{content?.emoji} {item.name}<X size={12}/></button>})}</div>:<p>마음에 드는 카드를 골라 나만의 세종 맛을 만들어 보세요.</p>}<button type="button" className="food-complete-button" disabled={!selectedFoodShops.length} onClick={completeFoodSelection}><Sparkles size={17}/>충녕이와 취향 분석하기</button></section></>}
       </section>
-      {selectedFestival&&<section className="festival-detail-modal" role="dialog" aria-modal="true" aria-labelledby="festival-detail-title"><button type="button" className="festival-detail-close" onClick={()=>setSelectedFestival(null)} aria-label="축제 상세 닫기"><X size={18}/></button><div className="festival-detail-image"><img src={selectedFestival.image} alt={`${selectedFestival.title} 대표 사진`}/><small>{selectedFestival.status}</small></div><div className="festival-detail-copy"><small>SEJONG OFFICIAL FESTIVAL</small><h2 id="festival-detail-title">{selectedFestival.title}</h2><p>{selectedFestival.description}</p><dl><div><dt>개최 시기</dt><dd>{selectedFestival.schedule}</dd></div><div><dt>개최 장소</dt><dd>{selectedFestival.venue}</dd></div></dl><h3>주요 키워드</h3><div className="festival-detail-tags">{selectedFestival.tags.map(tag=><span key={tag}>#{tag}</span>)}</div><footer><button type="button" onClick={()=>toggleContent(selectedFestival.id)}>{profile.savedContentIds.includes(selectedFestival.id)?<><Check size={14}/> 관심 축제 저장됨</>:<><Bookmark size={14}/> 관심 축제로 저장</>}</button></footer><em>사진·정보 출처: {selectedFestival.source}</em></div></section>}
-      {selectedFoodShop&&<section className="food-detail-modal" role="dialog" aria-modal="true" aria-labelledby="food-detail-title"><button type="button" className="festival-detail-close" onClick={()=>setSelectedFoodShop(null)} aria-label="먹거리 상세 닫기"><X size={18}/></button><div className={`food-detail-image ${foodShopImages[selectedFoodShop.id]?'has-photo':'no-photo'}`} style={foodShopImages[selectedFoodShop.id]?{backgroundImage:`url('${foodShopImages[selectedFoodShop.id]}')`}:undefined}><span>{selectedFoodShop.emoji}</span>{foodShopPhotoSource[selectedFoodShop.id]&&<small>사진 출처: {foodShopPhotoSource[selectedFoodShop.id]}</small>}</div><div className="food-detail-copy"><small>SEJONG FOOD & PLACE · {selectedFoodShop.group}</small><h2 id="food-detail-title">{selectedFoodShop.name}</h2><p>{selectedFoodShop.description}</p><dl><div><dt>분류</dt><dd>{selectedFoodShop.group}</dd></div><div><dt>위치</dt><dd>{selectedFoodShop.location}</dd></div></dl><h3>이곳의 특징</h3><div className="festival-detail-tags">{selectedFoodShop.tags.map(tag=><span key={tag}>#{tag}</span>)}</div><footer><button type="button" onClick={()=>toggleFoodShop(selectedFoodShop.id)}>{selectedFoodShops.some(item=>item.id===selectedFoodShop.id)?<><Check size={14}/> 선택했어요</>:<><Bookmark size={14}/> {selectedFoodShop.action}</>}</button></footer></div></section>}
+      {selectedFestival&&<section className="festival-detail-modal" role="dialog" aria-modal="true" aria-labelledby="festival-detail-title"><button type="button" className="festival-detail-close" onClick={()=>setSelectedFestival(null)} aria-label="축제 상세 닫기"><X size={18}/></button><div className="festival-detail-image"><img src={selectedFestival.image} alt={`${selectedFestival.title} 대표 사진`}/><small>{selectedFestival.status}</small></div><div className="festival-detail-copy"><small>세종 공식 축제</small><h2 id="festival-detail-title">{selectedFestival.title}</h2><p>{selectedFestival.description}</p><dl><div><dt>개최 시기</dt><dd>{selectedFestival.schedule}</dd></div><div><dt>개최 장소</dt><dd>{selectedFestival.venue}</dd></div></dl><h3>주요 키워드</h3><div className="festival-detail-tags">{selectedFestival.tags.map(tag=><span key={tag}>#{tag}</span>)}</div><footer><button type="button" onClick={()=>toggleContent(selectedFestival.id)}>{profile.savedContentIds.includes(selectedFestival.id)?<><Check size={14}/> 관심 축제 저장됨</>:<><Bookmark size={14}/> 관심 축제로 저장</>}</button></footer><em>사진·정보 출처: {selectedFestival.source}</em></div></section>}
+      {selectedFoodShop&&<section className="food-detail-modal" role="dialog" aria-modal="true" aria-labelledby="food-detail-title"><button type="button" className="festival-detail-close" onClick={()=>setSelectedFoodShop(null)} aria-label="먹거리 상세 닫기"><X size={18}/></button><div className={`food-detail-image ${foodShopImages[selectedFoodShop.id]?'has-photo':'no-photo'}`} style={foodShopImages[selectedFoodShop.id]?{backgroundImage:`url('${foodShopImages[selectedFoodShop.id]}')`}:undefined}><span>{selectedFoodShop.emoji}</span>{foodShopPhotoSource[selectedFoodShop.id]&&<small>사진 출처: {foodShopPhotoSource[selectedFoodShop.id]}</small>}</div><div className="food-detail-copy"><small>세종 먹거리와 장소 · {selectedFoodShop.group}</small><h2 id="food-detail-title">{selectedFoodShop.name}</h2><p>{selectedFoodShop.description}</p><dl><div><dt>분류</dt><dd>{selectedFoodShop.group}</dd></div><div><dt>위치</dt><dd>{selectedFoodShop.location}</dd></div></dl><h3>이곳의 특징</h3><div className="festival-detail-tags">{selectedFoodShop.tags.map(tag=><span key={tag}>#{tag}</span>)}</div><footer><button type="button" onClick={()=>toggleFoodShop(selectedFoodShop.id)}>{selectedFoodShops.some(item=>item.id===selectedFoodShop.id)?<><Check size={14}/> 선택했어요</>:<><Bookmark size={14}/> {selectedFoodShop.action}</>}</button></footer></div></section>}
+      {coach&&coachQuestion&&<section className="chungnyeong-taste-coach" role="dialog" aria-modal="true" aria-labelledby="chungnyeong-question">
+        <button type="button" className="festival-detail-close" onClick={()=>setCoach(null)} aria-label="충녕이 질문 닫기"><X size={18}/></button>
+        <div className="chungnyeong-coach-avatar"><span>👑</span><i><Sparkles size={14}/></i></div>
+        <small>인공지능 동행자 충녕이 · {coach.step+1} / {lakeTasteQuestions[coach.domain].length}</small>
+        <p>선택을 보니 조금씩 취향이 보여요.</p>
+        <h2 id="chungnyeong-question">{coachQuestion.question}</h2>
+        <div className="chungnyeong-answer-grid">{coachQuestion.options.map(option=><button type="button" key={option.value} onClick={()=>answerTasteQuestion(option.value)}><span>{option.emoji}</span><b>{option.label}</b></button>)}</div>
+        <div className="chungnyeong-question-progress">{lakeTasteQuestions[coach.domain].map((_,index)=><i className={index<=coach.step?'active':''} key={index}/>)}</div>
+        <em>정답은 없어요. 지금 더 끌리는 쪽을 골라주세요.</em>
+      </section>}
     </div>}
 
     {showJourneyComplete&&allBoothsCompleted&&<div className="lake-experience-overlay lake-completion-overlay" role="dialog" aria-modal="true" aria-labelledby="lake-completion-title">
       <section className="lake-completion-panel">
         <button type="button" className="lake-experience-close" onClick={()=>setShowJourneyComplete(false)} aria-label="완료 결과 닫기"><X size={18}/></button>
-        <span className="lake-completion-icon">✓</span><small>SEJONG LAKE PARK COMPLETE</small><h2 id="lake-completion-title">세종호수공원 탐색 완료</h2>
-        <p>세종에서 발견한 나의 취향이에요.</p>
-        <dl>
-          <div><dt>🎤 관심 공연</dt><dd>{profile.activities.map(id=>activities.find(item=>item.id===id)?.label).filter(Boolean).join(', ')||'선택 없음'}</dd></div>
-          <div><dt>🍑 관심 먹거리·장소</dt><dd>{selectedFoodShops.map(item=>item.name).join(', ')||'선택 없음'}</dd></div>
-          <div><dt>🎪 관심 축제</dt><dd>{savedContents.map(item=>item.title).join(', ')||'선택 없음'}</dd></div>
+        <span className="lake-completion-icon">🌸</span><small>충녕이의 취향 분석</small><h2 id="lake-completion-title">나의 취향을 분석했어요</h2>
+        <p>선택과 답변에서 발견한 나의 여행 취향이에요.</p>
+        <dl className="lake-taste-report">
+          <div><dt>🎤 공연</dt><dd><b>{profile.tasteInsights.performance?.label}</b><span>{'⭐'.repeat(profile.tasteInsights.performance?.stars??0)}</span><small>{profile.tasteInsights.performance?.detail}</small></dd></div>
+          <div><dt>🍑 음식</dt><dd><b>{profile.tasteInsights.food?.label}</b><span>{'⭐'.repeat(profile.tasteInsights.food?.stars??0)}</span><small>{profile.tasteInsights.food?.detail}</small></dd></div>
+          <div><dt>🎪 축제</dt><dd><b>{profile.tasteInsights.festival?.label}</b><span>{'⭐'.repeat(profile.tasteInsights.festival?.stars??0)}</span><small>{profile.tasteInsights.festival?.detail}</small></dd></div>
         </dl>
-        <em>이 선택은 마지막 세종 맞춤 코스에 반영됩니다.</em>
+        <em>이 취향을 기억하고 수목원의 관찰 안내와 이후 세종 맞춤 코스에 반영할게요.</em>
         <p className="lake-completion-portal-guide">맵으로 돌아가 캐릭터를 직접 움직인 뒤 베어트리파크 포털에 들어가세요.</p>
-        <button type="button" className="lake-completion-travel" onClick={()=>{setShowJourneyComplete(false);setJourneyNotice('빛나는 베어트리파크 포털을 찾아 직접 이동하세요!');window.setTimeout(()=>setJourneyNotice(''),4000)}}>맵으로 돌아가 포털 찾기</button>
+        <div className="lake-completion-actions"><button type="button" className="lake-completion-dismiss" onClick={()=>{localStorage.setItem(LAKE_COMPLETION_DISMISSED_KEY,'true');setJourneyCompleteDismissed(true);setShowJourneyComplete(false)}}>다시 안 보기</button><button type="button" className="lake-completion-travel" onClick={()=>{setShowJourneyComplete(false);setJourneyNotice('빛나는 베어트리파크 포털을 찾아 직접 이동하세요!');window.setTimeout(()=>setJourneyNotice(''),4000)}}>맵으로 돌아가 포털 찾기</button></div>
       </section>
     </div>}
 
     {active==='wind-hill'&&<div className="lake-experience-overlay lake-picnic-overlay" role="dialog" aria-modal="true" aria-labelledby="course-board-title">
       <section className="lake-picnic-panel">
         <button type="button" className="lake-experience-close" onClick={()=>setActive(null)} aria-label="세종 추천 코스 게시판 닫기"><X size={18}/></button>
-        <header><span>🗺️</span><small>SEJONG RECOMMENDED COURSES</small><h2 id="course-board-title">세종 추천 코스 게시판</h2><p>마음에 드는 코스를 열어 동선을 미리 보고 ‘나도 가고 싶어요’로 저장해 보세요.</p></header>
-        <section className="lake-saved-section"><div className="lake-section-heading"><div><small>REAL SEJONG ROUTES</small><h3>실제로 방문 가능한 세종 여행 코스</h3><p>공식 관광·시티투어 동선을 바탕으로 가까운 장소끼리 연결했어요.</p></div><button type="button" onClick={()=>setActive('central-plaza')}>내 관심사 더 담기</button></div><div className="lake-saved-list course-preview-list">{sharedCourses.map(course=>{const liked=profile.likedCourseTitles.includes(course.title);return <article key={course.title} role="button" tabIndex={0} onClick={()=>setSelectedCourse(course)} onKeyDown={event=>{if(event.key==='Enter')setSelectedCourse(course)}}><span>{course.emoji}</span><div><small>{course.tags.map(tag=>`#${tag}`).join(' ')} · {course.duration}</small><b>{course.title}</b><p>{course.stops.join(' → ')}</p><em>{course.source}</em></div><button type="button" onClick={event=>{event.stopPropagation();toggleCourse(course.title)}} aria-label={`${course.title} 나도 가고 싶어요`}><ThumbsUp size={14} fill={liked?'currentColor':'none'}/><small>{course.likes+(liked?1:0)}</small></button></article>})}</div></section>
+        <header><span>🗺️</span><small>세종 추천 여행 코스</small><h2 id="course-board-title">세종 추천 코스 게시판</h2><p>마음에 드는 코스를 열어 동선을 미리 보고 ‘나도 가고 싶어요’로 저장해 보세요.</p></header>
+        <section className="lake-saved-section"><div className="lake-section-heading"><div><small>실제 세종 여행 동선</small><h3>실제로 방문 가능한 세종 여행 코스</h3><p>공식 관광·시티투어 동선을 바탕으로 가까운 장소끼리 연결했어요.</p></div><button type="button" onClick={()=>setActive('central-plaza')}>내 관심사 더 담기</button></div><div className="lake-saved-list course-preview-list">{sharedCourses.map(course=>{const liked=profile.likedCourseTitles.includes(course.title);return <article key={course.title} role="button" tabIndex={0} onClick={()=>setSelectedCourse(course)} onKeyDown={event=>{if(event.key==='Enter')setSelectedCourse(course)}}><span>{course.emoji}</span><div><small>{course.tags.map(tag=>`#${tag}`).join(' ')} · {course.duration}</small><b>{course.title}</b><p>{course.stops.join(' → ')}</p><em>{course.source}</em></div><button type="button" onClick={event=>{event.stopPropagation();toggleCourse(course.title)}} aria-label={`${course.title} 나도 가고 싶어요`}><ThumbsUp size={14} fill={liked?'currentColor':'none'}/><small>{course.likes+(liked?1:0)}</small></button></article>})}</div></section>
         <footer className="lake-record-footer"><div><Route size={17}/><span><b>나만의 기록도 실제 방문으로 이어져요.</b><small>수목원에서 탐험 기록을 만들고 공동캠퍼스에서 함께할 사람을 만나보세요.</small></span></div><button type="button" onClick={()=>setActive(null)}>호수공원으로 돌아가기</button></footer>
       </section>
-      {selectedCourse&&<section className="course-detail-modal" role="dialog" aria-modal="true" aria-labelledby="course-detail-title"><button type="button" className="festival-detail-close" onClick={()=>setSelectedCourse(null)} aria-label="코스 미리보기 닫기"><X size={18}/></button><span>{selectedCourse.emoji}</span><small>REAL COURSE · {selectedCourse.duration}</small><h2 id="course-detail-title">{selectedCourse.title}</h2><div className="course-stop-list">{selectedCourse.stops.map((stop,index)=><div key={stop}><i>{index+1}</i><b>{stop}</b>{index<selectedCourse.stops.length-1&&<em>↓</em>}</div>)}</div><p className="course-detail-source">구성 기준: {selectedCourse.source}</p><button type="button" className={profile.likedCourseTitles.includes(selectedCourse.title)?'active':''} onClick={()=>toggleCourse(selectedCourse.title)}><ThumbsUp size={15}/>{profile.likedCourseTitles.includes(selectedCourse.title)?'가고 싶은 코스로 저장됨':'나도 이 코스 가고 싶어요'}</button></section>}
+      {selectedCourse&&<section className="course-detail-modal" role="dialog" aria-modal="true" aria-labelledby="course-detail-title"><button type="button" className="festival-detail-close" onClick={()=>setSelectedCourse(null)} aria-label="코스 미리보기 닫기"><X size={18}/></button><span>{selectedCourse.emoji}</span><small>실제 여행 코스 · {selectedCourse.duration}</small><h2 id="course-detail-title">{selectedCourse.title}</h2><div className="course-stop-list">{selectedCourse.stops.map((stop,index)=><div key={stop}><i>{index+1}</i><b>{stop}</b>{index<selectedCourse.stops.length-1&&<em>↓</em>}</div>)}</div><p className="course-detail-source">구성 기준: {selectedCourse.source}</p><button type="button" className={profile.likedCourseTitles.includes(selectedCourse.title)?'active':''} onClick={()=>toggleCourse(selectedCourse.title)}><ThumbsUp size={15}/>{profile.likedCourseTitles.includes(selectedCourse.title)?'가고 싶은 코스로 저장됨':'나도 이 코스 가고 싶어요'}</button></section>}
     </div>}
   </>;
 }

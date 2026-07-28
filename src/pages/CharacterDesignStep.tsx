@@ -7,7 +7,8 @@ const modelUrls: Record<Exclude<CharacterModel, 'custom'>, string> = {
   chungnyeong: new URL('../assets/characters/chungnyeong.glb', import.meta.url).href,
   girl1: new URL('../assets/characters/girl_metaverse_animated.glb', import.meta.url).href,
   boy1: new URL('../assets/characters/boy_metaverse.glb', import.meta.url).href,
-  cloths: new URL('../assets/characters/cloths_rig.glb', import.meta.url).href
+  cloths: new URL('../assets/characters/cloths_rig.glb', import.meta.url).href,
+  women: new URL('../assets/characters/women_total.glb', import.meta.url).href
 };
 
 const partLabels: Record<PartKind, {label: string; icon: string}> = {
@@ -20,10 +21,20 @@ const partLabels: Record<PartKind, {label: string; icon: string}> = {
   accessory: {label: '악세서리', icon: '👔'}
 };
 
+const modelDisplay: Record<CharacterModel, {name:string; description:string}> = {
+  custom:{name:'커스텀',description:'2D 미리보기'},
+  chungnyeong:{name:'충녕이',description:'3D 캐릭터'},
+  girl1:{name:'여성형',description:'기본 디자인 · 모션 3종'},
+  boy1:{name:'남성형',description:'기본 디자인 · 모션 3종'},
+  cloths:{name:'남성형 2',description:'확장 디자인 · 모션 1종'},
+  women:{name:'여성형 2',description:'확장 디자인 · 이모션 6종'},
+};
+
 export function CharacterDesignStep({
   model,
   character,
   part,
+  selectHairStyle,
   selectModel,
   onSubmit,
   editMode,
@@ -32,12 +43,13 @@ export function CharacterDesignStep({
   model: CharacterModel;
   character: UserProfile['character'];
   part: (k: PartKind, id: string) => void;
+  selectHairStyle: (style:'hair1'|'hair2'|'both') => void;
   selectModel: (m: CharacterModel) => void;
   onSubmit: () => void;
   editMode: boolean;
   onBack?: () => void;
 }) {
-  const modelFaces: Record<CharacterModel, string> = {chungnyeong: '🧑🏻‍🌾', girl1: '👧🏻', boy1: '👦🏻', cloths: '🧑🏻', custom: '＋'};
+  const modelFaces: Record<CharacterModel, string> = {chungnyeong: '🧑🏻‍🌾', girl1: '👧🏻', boy1: '👦🏻', cloths: '🧑🏻', women: '👩🏻', custom: '＋'};
 
   return (
     <main className="character-design-page">
@@ -66,7 +78,8 @@ export function CharacterDesignStep({
                   src={modelUrls[model]}
                   model={model}
                   parts={character}
-                  animationName={null}
+                  animationName={model==='women'?'standing':null}
+                  animationTime={model==='women'?0:undefined}
                 />
               )}
             </div>
@@ -76,24 +89,51 @@ export function CharacterDesignStep({
 
           <div className="character-design-controls">
             <div className="character-model-picker" aria-label="캐릭터 선택">
-              {(['girl1', 'boy1', 'cloths'] as CharacterModel[]).map(option => (
+              {(['girl1', 'boy1', 'cloths', 'women'] as CharacterModel[]).map(option => (
                 <button type="button" key={option} className={model === option ? 'selected' : ''} onClick={() => selectModel(option)}>
                   <span className="character-model-face">{modelFaces[option]}</span>
-                  <strong>{option === 'chungnyeong' ? '충녕이' : option === 'girl1' ? '여성형' : option === 'boy1' ? '남성형' : option === 'cloths' ? '캐주얼형' : '커스텀'}</strong>
-                  <small>{option === 'custom' ? '2D 미리보기' : option === 'chungnyeong' ? '3D 캐릭터' : option === 'girl1' ? '3D 여성형' : option === 'boy1' ? '3D 남성형' : '3D 리깅 캐릭터'}</small>
+                  <strong>{modelDisplay[option].name}</strong>
+                  <small>{modelDisplay[option].description}</small>
                 </button>
               ))}
             </div>
 
             <div className="character-style-list">
+              {model==='women'&&<div className="character-style-row">
+                <span className="character-style-name"><i>✂️</i><strong>머리 모양</strong></span>
+                <div className="character-style-options">
+                  {([
+                    {id:'hair1' as const,label:'헤어 1'},
+                    {id:'hair2' as const,label:'헤어 2'},
+                    {id:'both' as const,label:'헤어 1+2'},
+                  ]).map(option=><button
+                    type="button"
+                    key={option.id}
+                    title={option.label}
+                    aria-label={option.label}
+                    aria-pressed={(character.hairStyle??'hair1')===option.id}
+                    className={(character.hairStyle??'hair1')===option.id?'selected':''}
+                    style={{'--option-color':option.id==='hair1'?'#d9ece7':option.id==='hair2'?'#b9d9d0':'conic-gradient(#d9ece7,#8cbcaf,#d9ece7)'} as React.CSSProperties}
+                    onClick={()=>selectHairStyle(option.id)}
+                  ><span>{option.id==='hair1'?'1':option.id==='hair2'?'2':'1+2'}</span></button>)}
+                </div>
+              </div>}
               {(model==='boy1'
                 ?(['hair','face','top','topLayer','bottom','shoes','accessory'] as PartKind[])
+                :model==='women'
+                  ?(['hair','face','top','topLayer','bottom','shoes'] as PartKind[])
                 :(['hair','face','top','bottom','shoes','accessory'] as PartKind[]).filter(kind=>kind!=='accessory'||model==='cloths')).map(kind => (
                 <div className="character-style-row" key={kind}>
-                  <span className="character-style-name"><i>{partLabels[kind].icon}</i><strong>{kind==='top'&&model==='boy1'?'상의 위':partLabels[kind].label}</strong></span>
-                  <div className={`character-style-options ${model==='cloths'?'with-original':''}`}>
-                    {(model==='girl1'||model==='boy1'||model==='cloths'
-                        ?[{id:`${kind}-original`,label:'원본 색상',color:'conic-gradient(#f1a36b,#59372d,#f0d8bf,#7195ca,#f1a36b)'},...assetManifest[kind]]
+                  <span className="character-style-name"><i>{partLabels[kind].icon}</i><strong>{
+                    model==='women'&&kind==='top'?'겉옷':
+                    model==='women'&&kind==='topLayer'?'안쪽 옷':
+                    model==='women'&&kind==='shoes'?'샌들':
+                    kind==='top'&&model==='boy1'?'상의 위':
+                    partLabels[kind].label
+                  }</strong></span>
+                  <div className={`character-style-options ${model==='cloths'||model==='women'?'with-original':''}`}>
+                    {(model==='girl1'||model==='boy1'||model==='cloths'||model==='women'
+                        ?[{id:kind==='topLayer'?'top-layer-original':`${kind}-original`,label:'원본 색상',color:'conic-gradient(#f1a36b,#59372d,#f0d8bf,#7195ca,#f1a36b)'},...assetManifest[kind]]
                         :assetManifest[kind]).map(option => (
                       <button
                         type="button"

@@ -6,6 +6,7 @@ import { CreateProfilePage } from './pages/CreateProfilePage';
 import { SignupCompletePage } from './pages/SignupCompletePage';
 import { GamePage } from './pages/GamePage';
 import { CharacterTestPage } from './pages/CharacterTestPage';
+import { CommunityPage } from './pages/CommunityPage';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import {
   defaultProfile,
@@ -17,7 +18,7 @@ import {
 } from './stores/profileStore';
 import type { UserProfile } from './types';
 
-type Page = 'landing' | 'login' | 'terms' | 'create' | 'complete' | 'account' | 'game';
+type Page = 'landing' | 'login' | 'terms' | 'create' | 'complete' | 'account' | 'game' | 'community';
 
 export default function App() {
   const [page, setPage] = useState<Page>('landing');
@@ -91,6 +92,7 @@ export default function App() {
         onCancel={() => setPage('landing')}
         onWithdraw={() => {
           localStorage.removeItem('sejong-lake-interest-profile-v1');
+          localStorage.removeItem('sejong-lake-tutorial-hidden-v1');
           setProfile(defaultProfile);
           setJourney(defaultUserJourney);
           setPage('landing');
@@ -106,5 +108,15 @@ export default function App() {
       />
     );
   }
-  return <GamePage profile={profile} onExit={() => setPage('landing')} onEditProfile={() => setPage('account')} />;
+  if (page === 'community') {
+    return <CommunityPage profile={profile} onBack={() => setPage('game')} />;
+  }
+  return (
+    <GamePage
+      profile={profile}
+      onExit={() => setPage('landing')}
+      onEditProfile={() => setPage('account')}
+      onOpenCommunity={() => setPage('community')}
+    />
+  );
 }

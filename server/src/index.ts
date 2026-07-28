@@ -10,6 +10,8 @@ import { setSocketServer } from './socket/socketRuntime.js';
 import { apiRouter } from './routes/api.js';
 import { directRecommendationsRouter } from './routes/directRecommendations.js';
 import { directMeetingPlacesRouter } from './routes/directMeetingPlaces.js';
+import { communityRouter } from './routes/community.js';
+import { clubsRouter } from './routes/clubs.js';
 import { loadedEnvPath } from './loadEnv.js';
 import path from 'node:path';
 import { festivalsRouter } from './routes/festivals.js';
@@ -22,6 +24,8 @@ app.use('/api', apiRouter);
 app.use('/api/festivals',festivalsRouter);
 app.use('/api/direct-rooms',directRecommendationsRouter);
 app.use('/api/direct-rooms',directMeetingPlacesRouter);
+app.use('/api/community', communityRouter);
+app.use('/api/clubs', clubsRouter);
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('Request failed:', error instanceof Error ? error.name : 'unknown error');
   res.status(500).json({ error: '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.' });

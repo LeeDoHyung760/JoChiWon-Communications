@@ -1,0 +1,35 @@
+.nature-discovery-guide{
+  box-sizing:border-box;
+  position:fixed;
+  z-index:44;
+  left:20px;
+  top:78px;
+  width:245px;
+  min-height:154px;
+  padding:12px;
+  border:1px solid #dbe8e3;
+  border-top:0;
+  background:rgba(255,255,255,.93);
+  color:#294f47;
+  backdrop-filter:blur(15px);
+}
+.nature-discovery-guide header{display:flex;align-items:center;gap:8px}
+.nature-discovery-guide header>span{width:31px;height:31px;display:grid;flex:none;place-items:center;border-radius:10px;background:#e5f4ee;font-size:16px}
+.nature-discovery-guide header>div{min-width:0;display:grid;flex:1}
+.nature-discovery-guide header small{overflow:hidden;color:#4e9a82;font-size:6px;font-weight:950;letter-spacing:.05em;text-overflow:ellipsis;white-space:nowrap}
+.nature-discovery-guide header b{margin-top:2px;font-size:10px}
+.nature-discovery-guide header strong{padding:5px 7px;border-radius:999px;background:#e8f5f0;color:#34816a;font-size:8px}
+.nature-discovery-steps{margin-top:9px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+.nature-discovery-steps>div{min-width:0;padding:6px 5px;display:flex;align-items:center;gap:5px;border-radius:9px;background:#edf2f0;color:#82908c;font-size:7px;font-weight:850}
+.nature-discovery-steps i{width:17px;height:17px;display:grid;flex:none;place-items:center;border-radius:50%;background:#d9e2df;font-size:7px;font-style:normal}
+.nature-discovery-steps span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nature-discovery-steps>div.current{background:#fff0d7;color:#8c6124}
+.nature-discovery-steps>div.current i{background:#e5a84e;color:#fff}
+.nature-discovery-steps>div.done{background:#e0f3ec;color:#347b65}
+.nature-discovery-steps>div.done i{background:#43a084;color:#fff}
+.nature-discovery-guide>p{margin:8px 1px 0;color:#6f837c;font-size:7px;line-height:1.45}
+.nature-discovery-guide.is-complete{background:rgba(247,255,251,.95)}
+.nature-discovery-guide.is-complete header>span{background:#d8f2e8}
+@media(max-width:700px){
+  .nature-discovery-guide{left:12px;top:70px;width:245px}
+}
