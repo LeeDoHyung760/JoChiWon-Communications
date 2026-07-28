@@ -1,85 +1,16 @@
-import { Router } from 'express';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-
-type CommunityComment = {
-  id: string;
-  author: string;
-  content: string;
-  createdAt: string;
-};
-
-type CommunityPost = {
-  id: string;
-  author: string;
-  title: string;
-  content: string;
-  category: string;
-  likes: number;
-  likedBy: string[];
-  comments: CommunityComment[];
-  createdAt: string;
-};
+import { Router } from 'express';
+import { CommunityPostModel } from '../models/CommunityPost.js';
 
 const router = Router();
 
-const currentFilePath = fileURLToPath(import.meta.url);
-const currentDirectory = path.dirname(currentFilePath);
-
-const dataFilePath = path.join(
-  currentDirectory,
-  '../data/community-posts.json',
-);
-
-async function ensureDataFile(): Promise<void> {
-  try {
-    await fs.access(dataFilePath);
-  } catch {
-    await fs.mkdir(path.dirname(dataFilePath), {
-      recursive: true,
-    });
-
-    await fs.writeFile(dataFilePath, '[]', 'utf-8');
-  }
-}
-
-async function readPosts(): Promise<CommunityPost[]> {
-  await ensureDataFile();
-
-  try {
-    const fileContent = await fs.readFile(dataFilePath, 'utf-8');
-    const parsedData = JSON.parse(fileContent);
-
-    return Array.isArray(parsedData) ? parsedData : [];
-  } catch (error) {
-    console.error('[Community] 게시글 파일 읽기 실패:', error);
-    return [];
-  }
-}
-
-async function savePosts(posts: CommunityPost[]): Promise<void> {
-  await ensureDataFile();
-
-  await fs.writeFile(
-    dataFilePath,
-    JSON.stringify(posts, null, 2),
-    'utf-8',
-  );
-}
-
 router.get('/', async (_request, response) => {
   try {
-    const posts = await readPosts();
+    const posts = await CommunityPostModel
+      .find()
+      .sort({ createdAt: -1 });
 
-    const sortedPosts = [...posts].sort(
-      (firstPost, secondPost) =>
-        new Date(secondPost.createdAt).getTime() -
-        new Date(firstPost.createdAt).getTime(),
-    );
-
-    response.json(sortedPosts);
+    response.json(posts);
   } catch (error) {
     console.error('[Community] 게시글 조회 실패:', error);
 
@@ -111,9 +42,7 @@ router.post('/', async (request, response) => {
       return;
     }
 
-    const posts = await readPosts();
-
-    const newPost: CommunityPost = {
+    const newPost = await CommunityPostModel.create({
       id: randomUUID(),
       author: author?.trim() || '익명',
       title: title.trim(),
@@ -122,11 +51,8 @@ router.post('/', async (request, response) => {
       likes: 0,
       likedBy: [],
       comments: [],
-      createdAt: new Date().toISOString(),
-    };
-
-    posts.push(newPost);
-    await savePosts(posts);
+      createdAt: new Date(),
+    });
 
     response.status(201).json(newPost);
   } catch (error) {
@@ -141,22 +67,18 @@ router.post('/', async (request, response) => {
 router.delete('/:postId', async (request, response) => {
   try {
     const { postId } = request.params;
-    const posts = await readPosts();
 
-    const postIndex = posts.findIndex(
-      (post) => post.id === postId,
-    );
+    const deletedPost = await CommunityPostModel.findOneAndDelete({
+      id: postId,
+    });
 
-    if (postIndex === -1) {
+    if (!deletedPost) {
       response.status(404).json({
         message: '게시글을 찾을 수 없습니다.',
       });
 
       return;
     }
-
-    posts.splice(postIndex, 1);
-    await savePosts(posts);
 
     response.json({
       message: '게시글이 삭제되었습니다.',
@@ -177,12 +99,12 @@ router.post('/:postId/like', async (request, response) => {
       userId?: string;
     };
 
-    const currentUserId = userId?.trim() || 'anonymous-user';
-    const posts = await readPosts();
+    const currentUserId =
+      userId?.trim() || 'anonymous-user';
 
-    const post = posts.find(
-      (currentPost) => currentPost.id === postId,
-    );
+    const post = await CommunityPostModel.findOne({
+      id: postId,
+    });
 
     if (!post) {
       response.status(404).json({
@@ -192,15 +114,13 @@ router.post('/:postId/like', async (request, response) => {
       return;
     }
 
-    if (!Array.isArray(post.likedBy)) {
-      post.likedBy = [];
-    }
-
-    const alreadyLiked = post.likedBy.includes(currentUserId);
+    const alreadyLiked =
+      post.likedBy.includes(currentUserId);
 
     if (alreadyLiked) {
       post.likedBy = post.likedBy.filter(
-        (likedUserId) => likedUserId !== currentUserId,
+        (likedUserId) =>
+          likedUserId !== currentUserId,
       );
     } else {
       post.likedBy.push(currentUserId);
@@ -208,7 +128,7 @@ router.post('/:postId/like', async (request, response) => {
 
     post.likes = post.likedBy.length;
 
-    await savePosts(posts);
+    await post.save();
 
     response.json({
       postId: post.id,
@@ -225,63 +145,61 @@ router.post('/:postId/like', async (request, response) => {
   }
 });
 
-router.post('/:postId/comments', async (request, response) => {
-  try {
-    const { postId } = request.params;
+router.post(
+  '/:postId/comments',
+  async (request, response) => {
+    try {
+      const { postId } = request.params;
 
-    const {
-      author,
-      content,
-    } = request.body as {
-      author?: string;
-      content?: string;
-    };
+      const {
+        author,
+        content,
+      } = request.body as {
+        author?: string;
+        content?: string;
+      };
 
-    if (!content?.trim()) {
-      response.status(400).json({
-        message: '댓글 내용을 입력해주세요.',
+      if (!content?.trim()) {
+        response.status(400).json({
+          message: '댓글 내용을 입력해주세요.',
+        });
+
+        return;
+      }
+
+      const post = await CommunityPostModel.findOne({
+        id: postId,
       });
 
-      return;
-    }
+      if (!post) {
+        response.status(404).json({
+          message: '게시글을 찾을 수 없습니다.',
+        });
 
-    const posts = await readPosts();
+        return;
+      }
 
-    const post = posts.find(
-      (currentPost) => currentPost.id === postId,
-    );
+      const newComment = {
+        id: randomUUID(),
+        author: author?.trim() || '익명',
+        content: content.trim(),
+        createdAt: new Date(),
+      };
 
-    if (!post) {
-      response.status(404).json({
-        message: '게시글을 찾을 수 없습니다.',
+      post.comments.push(newComment);
+
+      await post.save();
+
+      response.status(201).json(newComment);
+    } catch (error) {
+      console.error('[Community] 댓글 작성 실패:', error);
+
+      response.status(500).json({
+        message: '댓글을 작성하지 못했습니다.',
       });
-
-      return;
     }
-
-    if (!Array.isArray(post.comments)) {
-      post.comments = [];
-    }
-
-    const newComment: CommunityComment = {
-      id: randomUUID(),
-      author: author?.trim() || '익명',
-      content: content.trim(),
-      createdAt: new Date().toISOString(),
-    };
-
-    post.comments.push(newComment);
-    await savePosts(posts);
-
-    response.status(201).json(newComment);
-  } catch (error) {
-    console.error('[Community] 댓글 작성 실패:', error);
-
-    response.status(500).json({
-      message: '댓글을 작성하지 못했습니다.',
-    });
-  }
-});
+  },
+);
 
 router.delete(
   '/:postId/comments/:commentId',
@@ -292,11 +210,9 @@ router.delete(
         commentId,
       } = request.params;
 
-      const posts = await readPosts();
-
-      const post = posts.find(
-        (currentPost) => currentPost.id === postId,
-      );
+      const post = await CommunityPostModel.findOne({
+        id: postId,
+      });
 
       if (!post) {
         response.status(404).json({
@@ -306,21 +222,21 @@ router.delete(
         return;
       }
 
-      const originalCommentCount = post.comments.length;
+     const commentIndex = post.comments.findIndex(
+  (comment) => comment.id === commentId,
+);
 
-      post.comments = post.comments.filter(
-        (comment) => comment.id !== commentId,
-      );
+if (commentIndex === -1) {
+  response.status(404).json({
+    message: '댓글을 찾을 수 없습니다.',
+  });
 
-      if (post.comments.length === originalCommentCount) {
-        response.status(404).json({
-          message: '댓글을 찾을 수 없습니다.',
-        });
+  return;
+}
 
-        return;
-      }
-
-      await savePosts(posts);
+post.comments.splice(commentIndex, 1);
+     
+      await post.save();
 
       response.json({
         message: '댓글이 삭제되었습니다.',

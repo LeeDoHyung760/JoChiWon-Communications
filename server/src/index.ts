@@ -15,12 +15,15 @@ import { clubsRouter } from './routes/clubs.js';
 import { loadedEnvPath } from './loadEnv.js';
 import path from 'node:path';
 import { festivalsRouter } from './routes/festivals.js';
+import { connectDatabase } from './config/database.js';
+import { authRouter } from './routes/auth.js';
 
 const app = express();
 app.use(cors({ origin: env.CLIENT_ORIGIN }));
 app.use(express.json({ limit: '100kb' }));
 app.get('/health', (_req, res) => res.json({ ok: true, service: '여기 사람 있음' }));
 app.use('/api', apiRouter);
+app.use('/api/auth', authRouter);
 app.use('/api/festivals',festivalsRouter);
 app.use('/api/direct-rooms',directRecommendationsRouter);
 app.use('/api/direct-rooms',directMeetingPlacesRouter);
@@ -35,15 +38,54 @@ const httpServer = createServer(app);
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, { cors: { origin: env.CLIENT_ORIGIN } });
 setSocketServer(io);
 io.on('connection', (socket) => registerSocketHandlers(io, socket));
-httpServer.listen(env.PORT, () => {
-  console.log(`[Config] Environment: ${env.NODE_ENV}`);
-  console.log(`[Config] Env file loaded: ${loadedEnvPath?path.relative(process.cwd(),loadedEnvPath):'none'}`);
-  console.log(`[Config] AI provider requested: ${providerStatus.ai.requested}`);
-  console.log(`[Config] AI provider active: ${providerStatus.ai.active}`);
-  console.log(`[Config] Place provider requested: ${providerStatus.place.requested}`);
-  console.log(`[Config] Place provider active: ${providerStatus.place.active}`);
-  console.log(`[Config] OpenAI key configured: ${providerStatus.ai.configured ? 'yes' : 'no'}`);
-  console.log(`[Config] Kakao key configured: ${providerStatus.place.configured ? 'yes' : 'no'}`);
-  console.log(`[Config] Mock fallback: ${env.ALLOW_MOCK_FALLBACK ? 'enabled' : 'disabled'}`);
-  console.log(`Server: http://localhost:${env.PORT}`);
+const startServer = async (): Promise<void> => {
+  await connectDatabase();
+
+  httpServer.listen(env.PORT, () => {
+    console.log(`[Config] Environment: ${env.NODE_ENV}`);
+    console.log(
+      `[Config] Env file loaded: ${
+        loadedEnvPath
+          ? path.relative(process.cwd(), loadedEnvPath)
+          : 'none'
+      }`,
+    );
+    console.log(
+      `[Config] AI provider requested: ${providerStatus.ai.requested}`,
+    );
+    console.log(
+      `[Config] AI provider active: ${providerStatus.ai.active}`,
+    );
+    console.log(
+      `[Config] Place provider requested: ${providerStatus.place.requested}`,
+    );
+    console.log(
+      `[Config] Place provider active: ${providerStatus.place.active}`,
+    );
+    console.log(
+      `[Config] OpenAI key configured: ${
+        providerStatus.ai.configured ? 'yes' : 'no'
+      }`,
+    );
+    console.log(
+      `[Config] Kakao key configured: ${
+        providerStatus.place.configured ? 'yes' : 'no'
+      }`,
+    );
+    console.log(
+      `[Config] Mock fallback: ${
+        env.ALLOW_MOCK_FALLBACK ? 'enabled' : 'disabled'
+      }`,
+    );
+    console.log(`Server: http://localhost:${env.PORT}`);
+  });
+};
+
+startServer().catch((error) => {
+  console.error(
+    '[Server] Failed to start:',
+    error instanceof Error ? error.message : error,
+  );
+
+  process.exit(1);
 });
