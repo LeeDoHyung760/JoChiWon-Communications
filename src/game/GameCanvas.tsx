@@ -44,15 +44,7 @@ export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}
     if(!ref.current||!entrySpawn)return;
     let cancelled=false,mapTravelActive=false,gardenReleaseTimer=0;
     let sharedPortalPositions:PortalPosition[]=[];
-    const savedBearTreePortalPositions=():BearTreePortalPositions|undefined=>{
-      try{
-        const town=JSON.parse(localStorage.getItem('bear-tree-park-town-portal-position')??'null') as {x?:number;z?:number}|null;
-        const photo=JSON.parse(localStorage.getItem('bear-photo-zone-portal-position')??'null') as {x?:number;z?:number}|null;
-        return town&&photo&&Number.isFinite(town.x)&&Number.isFinite(town.z)&&Number.isFinite(photo.x)&&Number.isFinite(photo.z)?{town:{x:town.x!,z:town.z!},photo:{x:photo.x!,z:photo.z!}}:undefined;
-      }catch{return}
-    };
-    let sharedBearTreePortalPositions=savedBearTreePortalPositions();
-    let bearTreePortalMigrationPending=!!sharedBearTreePortalPositions;
+    let sharedBearTreePortalPositions:BearTreePortalPositions|undefined;
     const preloadIdleHandles:number[]=[];
     const townRenderer=new VillageMapRenderer(ref.current,profile,{...LAKE_PARK_RENDERER_OPTIONS,spawn:entrySpawn});
     const worldRenderers:Partial<Record<MapId,VillageMapRenderer>>={town:townRenderer};
@@ -65,25 +57,10 @@ export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}
       if(mapId==='bear-tree-park'&&sharedBearTreePortalPositions)renderer.setBearTreePortalPositions(sharedBearTreePortalPositions);
       return renderer;
     };
-    const savedInteractionPositions=():WorldInteractionPosition[]=>[{destination:'bear-play-zone' as const,key:'world-interaction-position-bear-play-zone'},{destination:'bear-tree-park' as const,key:'world-interaction-position-bear-tree-park'}].flatMap(({destination,key})=>{try{const saved=JSON.parse(localStorage.getItem(key)??'null') as {x?:number;z?:number}|null;return saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z)?[{destination,x:saved.x!,z:saved.z!}]:[]}catch{return[]}});
-    const publishSavedInteractionPositions=()=>savedInteractionPositions().forEach(position=>socket.emit('saveInteractionPosition',position));
     const applySharedPortalPositions=(positions:PortalPosition[])=>{sharedPortalPositions=positions;positions.forEach(position=>Object.values(worldRenderers).forEach(renderer=>renderer?.setPortalPosition(position)))};
-    const applyBearTreePortalPositions=(positions:BearTreePortalPositions)=>{if(bearTreePortalMigrationPending)return;sharedBearTreePortalPositions=positions;worldRenderers['bear-tree-park']?.setBearTreePortalPositions(positions)};
-    const migrateSavedBearTreePortalPositions=()=>{
-      const saved=savedBearTreePortalPositions();
-      if(!saved)return;
-      sharedBearTreePortalPositions=saved;
-      worldRenderers['bear-tree-park']?.setBearTreePortalPositions(saved);
-      socket.emit('migrateBearTreePortalPositions',saved,result=>{
-        bearTreePortalMigrationPending=false;
-        sharedBearTreePortalPositions=result.positions;
-        worldRenderers['bear-tree-park']?.setBearTreePortalPositions(result.positions);
-      });
-    };
+    const applyBearTreePortalPositions=(positions:BearTreePortalPositions)=>{sharedBearTreePortalPositions=positions;worldRenderers['bear-tree-park']?.setBearTreePortalPositions(positions)};
     const applySharedInteractionPositions=(positions:WorldInteractionPosition[])=>positions.forEach(position=>Object.values(worldRenderers).forEach(renderer=>renderer?.setInteractionPosition(position)));
     const applySharedLakeExperiencePositions=(positions:LakeExperiencePosition[])=>positions.forEach(position=>townRenderer.setLakeExperiencePosition(position));
-    const saveMovedPortalPosition=(position:PortalPosition)=>socket.emit('savePortalPosition',position);
-    const saveMovedInteractionPosition=(position:WorldInteractionPosition)=>socket.emit('saveInteractionPosition',position);
     const showMapTravelLoading=(mapId:MapId)=>{
       mapTravelActive=true;setLoadingMapId(mapId);setLoadError('');setLoading(true);
       window.clearTimeout(gardenReleaseTimer);
@@ -99,18 +76,13 @@ export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}
     };
     const hideMapTravelLoading=()=>{if(!mapTravelActive)return;mapTravelActive=false;setLoading(false)};
     const showMapTravelError=({message}:{message:string})=>{if(!mapTravelActive)return;mapTravelActive=false;setLoadError(message);setLoading(false)};
-    socket.on('connect',publishSavedInteractionPositions);
-    socket.on('connect',migrateSavedBearTreePortalPositions);
     socket.on('portalPositionsUpdated',applySharedPortalPositions);
     socket.on('bearTreePortalPositionsUpdated',applyBearTreePortalPositions);
     socket.on('interactionPositionsUpdated',applySharedInteractionPositions);
     socket.on('lakeExperiencePositionsUpdated',applySharedLakeExperiencePositions);
-    gameEvents.on('portal-position-changed',saveMovedPortalPosition);
-    gameEvents.on('interaction-position-changed',saveMovedInteractionPosition);
     gameEvents.on('map-travel-started',showMapTravelLoading);
     gameEvents.on('map-travel-complete',hideMapTravelLoading);
     gameEvents.on('map-travel-failed',showMapTravelError);
-    if(socket.connected){publishSavedInteractionPositions();migrateSavedBearTreePortalPositions()}
     void townRenderer.ready.then(()=>{
       if(cancelled)return;
       setLoading(false);
@@ -155,14 +127,10 @@ export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}
       gameEvents.off('greenhouse-progress-changed',experienceChanged);
       gameEvents.off('bear-wildlife-progress-changed',experienceChanged);
       gameEvents.off('map-travel-complete',mapExperienceChanged);
-      socket.off('connect',publishSavedInteractionPositions);
-      socket.off('connect',migrateSavedBearTreePortalPositions);
       socket.off('portalPositionsUpdated',applySharedPortalPositions);
       socket.off('bearTreePortalPositionsUpdated',applyBearTreePortalPositions);
       socket.off('interactionPositionsUpdated',applySharedInteractionPositions);
       socket.off('lakeExperiencePositionsUpdated',applySharedLakeExperiencePositions);
-      gameEvents.off('portal-position-changed',saveMovedPortalPosition);
-      gameEvents.off('interaction-position-changed',saveMovedInteractionPosition);
       gameEvents.off('map-travel-started',showMapTravelLoading);
       gameEvents.off('map-travel-complete',hideMapTravelLoading);
       gameEvents.off('map-travel-failed',showMapTravelError);

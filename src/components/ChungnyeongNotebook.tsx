@@ -26,7 +26,7 @@ function natureChapterSnapshot(userKey:string,location:string){
     :!forest
       ?'다음 체험: 베어트리파크를 걸으며 숲 산책 시작하기'
       :!bear
-        ?visits.includes('bear')||location==='곰 놀이 공간'?'다음 체험: 곰의 흔적 3개를 조사해 생태 전문가 되기':'다음 체험: 곰 가족 체험 지점에서 곰 놀이 공간 들어가기'
+         ?visits.includes('bear')||location==='곰 놀이 공간'?'다음 체험: 다른 탐험가와 세 가지 자연 기록 연결하기':'다음 체험: 곰 가족 체험 지점에서 함께 만드는 탐험 들어가기'
         :!completion.analysisUnlocked
           ?`다음 체험: 수목원에서 식물 감정 기록하기 (${completion.count}/3종)`
           :'다음 체험: 세 식물 중 가장 기억에 남는 대표 식물과 이유 선택하기';

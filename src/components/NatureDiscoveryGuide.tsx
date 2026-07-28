@@ -83,7 +83,7 @@ export function NatureDiscoveryGuide({userKey}:{userKey:string}){
   const guide=current===0
     ?'베어트리파크를 걸으며 자연 감성 여정을 시작해 보세요.'
     :current===1
-      ?visits.includes('bear')?'곰의 세 가지 흔적을 조사하고 AI 생태 해설사에게 질문해 보세요.':'곰 가족 체험 지점에서 곰 놀이 공간에 들어가 보세요.'
+       ?visits.includes('bear')?'서로 다른 자연 기록을 가진 탐험가와 만나 오늘의 탐험을 완성해 보세요.':'곰 가족 체험 지점에서 함께 만드는 탐험에 들어가 보세요.'
       :current===2
         ?'주황색 수목원 포털로 이동해 식물 3종의 감정을 기록해 보세요.'
         :current===3

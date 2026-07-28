@@ -40,10 +40,6 @@ const GUIDE_WALK_SPEED=58;
 const GUIDE_PAUSE_SECONDS=4;
 const RESIDENT_WALK_SPEED=34;
 const DEFAULT_MAP_SIGN_POSITION={x:2090,z:1185} as const;
-const MAP_SIGN_POSITION_KEY='sejong-lake-park-map-sign-position';
-const PORTAL_POSITION_KEY_PREFIX='world-portal-position';
-const INTERACTION_POSITION_KEY_PREFIX='world-interaction-position';
-const LAKE_EXPERIENCE_POSITION_KEY_PREFIX='lake-experience-position';
 const MAP_SIGN_OPEN_DISTANCE=78;
 const MAP_SIGN_EXIT_DISTANCE=105;
 const PORTAL_OPEN_DISTANCE=62;
@@ -54,7 +50,7 @@ const LAKE_EXPERIENCE_OPEN_DISTANCE=92;
 const LAKE_EXPERIENCE_EXIT_DISTANCE=118;
 const GREENHOUSE_OPEN_DISTANCE=210;
 const GREENHOUSE_EXIT_DISTANCE=245;
-const DEFAULT_BEAR_PHOTO_PORTAL_POSITION={x:1563,z:1527} as const;
+const DEFAULT_BEAR_PHOTO_PORTAL_POSITION={x:1569,z:1525} as const;
 const BEAR_PHOTO_STAGE_FRONT_INSET=10;
 const BEAR_PHOTO_CAMERA_YAW=0;
 const BEAR_PHOTO_STAGE_NAME='tripo_node_816cfa46-0ef3-4a12-be52-0dae3d331bff';
@@ -85,7 +81,7 @@ export const BEAR_PLAY_ZONE_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1570,
 export const GARDEN_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1180,yaw:Math.PI};
 export const CAMPUS_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1500,yaw:Math.PI};
 export const BEAR_TREE_PORTAL_POSITION={x:2122,z:944} as const;
-const CAMPUS_PORTAL_POSITION={x:2000,z:1180} as const;
+const CAMPUS_PORTAL_POSITION={x:1178,z:122} as const;
 const LAKE_PARK_GUIDE={x:2045,z:1138,yaw:-.78} as const;
 const GUIDE_PATROL_POINTS=([
   [LAKE_PARK_GUIDE.x,LAKE_PARK_GUIDE.z],[2050,1150],[2000,1150],[2000,750],[1900,750],[1900,500],
@@ -111,7 +107,7 @@ type PortalConfig={x:number;z:number;destination:PortalPosition['destination'];l
 type InteractionConfig={x:number;z:number;destination:WorldInteractionPosition['destination'];label:string;buttonLabel:string;fixedPosition?:boolean;chargeSeconds?:number};
 type LakeExperienceConfig={id:LakeExperienceId;x:number;z:number;label:string;description:string;color:number};
 type ResidentConfig={modelUrl:string;x:number;z:number;height:number;yaw:number;stationary?:boolean;patrol?:readonly {x:number;z:number}[];walkSpeed?:number};
-type WildlifeClueConfig={id:'track'|'food'|'den';x:number;z:number;icon:string;label:string};
+type WildlifeClueConfig={id:'waterfall'|'cave'|'tree';x:number;z:number;icon:string;label:string};
 type GreenhouseTarget={id:string;objects:THREE.Object3D[];bounds:THREE.Box3;center:THREE.Vector3;marker:THREE.Sprite;kind:'plant'|'memory-tree'};
 export type WorldMapRendererOptions={
   modelUrl:string;
@@ -137,9 +133,9 @@ export type WorldMapRendererOptions={
   simplifiedCollision?:boolean;
   bearPhotoZone?:boolean;
 };
-export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크',theme:'blue'},fixedPortals:[{...CAMPUS_PORTAL_POSITION,destination:'campus',label:'공동캠퍼스',theme:'blue'}],lakeExperiences:[{id:'central-plaza',x:1150,z:950,label:'축제 취향 부스',description:'끌리는 분위기로 축제 취향을 찾아요',color:0xffffff},{id:'activity-zone',x:1450,z:1080,label:'공연 취향 부스',description:'충녕이와 나의 공연 스타일을 알아봐요',color:0xffffff},{id:'food-shop-zone',x:900,z:1250,label:'미식 취향 부스',description:'맛과 공간 선택으로 여행 스타일을 찾아요',color:0xffffff},{id:'wind-hill',x:350,z:400,label:'세종 추천 코스 게시판',description:'발견한 취향으로 코스를 살펴봐요',color:0xffffff}]};
-export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:1025,z:1543,destination:'town',label:'세종호수공원',theme:'blue',fixedPosition:true,chargeSeconds:3,sharedPosition:false},fixedPortals:[{x:682,z:735,destination:'garden',label:'세종수목원',appearance:'white-circle',fixedPosition:true,chargeSeconds:3}],interaction:{x:1616,z:601,destination:'bear-play-zone',label:'곰 놀이 공간',buttonLabel:'곰 만나기',fixedPosition:true,chargeSeconds:3},cameraZoom:.86,characterHeight:140,groundFillColor:0xead9ad,performanceMode:true,simplifiedCollision:true,bearPhotoZone:true};
-export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearPlayZoneModelUrl,mapName:'곰 놀이 공간',spawn:BEAR_PLAY_ZONE_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'베어트리파크로 돌아가기'},resident:{modelUrl:bearCubModelUrl,x:1200,z:1450,height:105,yaw:Math.PI,stationary:true},wildlifeClues:[{id:'track',x:1110,z:1530,icon:'🐾',label:'발자국 흔적'},{id:'food',x:1290,z:1460,icon:'🌰',label:'먹이 흔적'},{id:'den',x:1200,z:1360,icon:'🌲',label:'겨울 보금자리'}],cameraZoom:.86,characterHeight:140,groundFillColor:0xead9ad};
+export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크',theme:'blue'},fixedPortals:[{...CAMPUS_PORTAL_POSITION,destination:'campus',label:'공동캠퍼스',theme:'blue'}],lakeExperiences:[{id:'central-plaza',x:1219,z:1462,label:'축제 취향 부스',description:'끌리는 분위기로 축제 취향을 찾아요',color:0xffffff},{id:'activity-zone',x:603,z:452,label:'공연 취향 부스',description:'충녕이와 나의 공연 스타일을 알아봐요',color:0xffffff},{id:'food-shop-zone',x:491,z:1556,label:'미식 취향 부스',description:'맛과 공간 선택으로 여행 스타일을 찾아요',color:0xffffff},{id:'wind-hill',x:1908,z:549,label:'세종 추천 코스 게시판',description:'발견한 취향으로 코스를 살펴봐요',color:0xffffff}]};
+export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:1230,z:1553,destination:'town',label:'세종호수공원',theme:'blue',fixedPosition:true,chargeSeconds:3,sharedPosition:false},fixedPortals:[{x:682,z:735,destination:'garden',label:'세종수목원',appearance:'white-circle',fixedPosition:true,chargeSeconds:3}],interaction:{x:1616,z:601,destination:'bear-play-zone',label:'곰 놀이 공간',buttonLabel:'곰 만나기',fixedPosition:true,chargeSeconds:3},cameraZoom:.86,characterHeight:140,groundFillColor:0xead9ad,performanceMode:true,simplifiedCollision:true,bearPhotoZone:true};
+export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearPlayZoneModelUrl,mapName:'함께 만드는 탐험',spawn:BEAR_PLAY_ZONE_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'베어트리파크로 돌아가기'},resident:{modelUrl:bearCubModelUrl,x:1200,z:1450,height:105,yaw:Math.PI,stationary:true},wildlifeClues:[{id:'waterfall',x:2099,z:829,icon:'💧',label:'폭포 탐험 기록'},{id:'cave',x:1545,z:267,icon:'🪨',label:'동굴 탐험 기록'},{id:'tree',x:562,z:585,icon:'🌲',label:'큰 나무 탐험 기록'}],cameraZoom:.86,characterHeight:140,groundFillColor:0xead9ad};
 export const GARDEN_RENDERER_OPTIONS:WorldMapRendererOptions={
   modelUrl:gardenModelUrl,
   mapName:'수목원',
@@ -205,36 +201,18 @@ function sharpenObjectTextures(object:THREE.Object3D,reduced=false){
 }
 
 function savedMapSignPosition(){
-  try{
-    const saved=JSON.parse(localStorage.getItem(MAP_SIGN_POSITION_KEY)??'null') as {x?:number;z?:number}|null;
-    if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))return {x:saved.x!,z:saved.z!};
-  }catch{/* Keep the shared fallback when no valid saved position exists. */}
   return {...DEFAULT_MAP_SIGN_POSITION};
 }
 
 function savedPortalPosition(config:PortalConfig){
-  if(config.fixedPosition)return {x:config.x,z:config.z};
-  try{
-    const saved=JSON.parse(localStorage.getItem(config.positionStorageKey??`${PORTAL_POSITION_KEY_PREFIX}-${config.destination}`)??'null') as {x?:number;z?:number}|null;
-    if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))return {x:saved.x!,z:saved.z!};
-  }catch{/* Keep the configured portal position when no valid saved position exists. */}
   return {x:config.x,z:config.z};
 }
 
 function savedInteractionPosition(config:InteractionConfig){
-  if(config.fixedPosition)return {x:config.x,z:config.z};
-  try{
-    const saved=JSON.parse(localStorage.getItem(`${INTERACTION_POSITION_KEY_PREFIX}-${config.destination}`)??'null') as {x?:number;z?:number}|null;
-    if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))return {x:saved.x!,z:saved.z!};
-  }catch{/* Keep the configured interaction position when no valid saved position exists. */}
   return {x:config.x,z:config.z};
 }
 
 function savedLakeExperiencePosition(config:LakeExperienceConfig){
-  try{
-    const saved=JSON.parse(localStorage.getItem(`${LAKE_EXPERIENCE_POSITION_KEY_PREFIX}-${config.id}`)??'null') as {x?:number;z?:number}|null;
-    if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.z))return {x:saved.x!,z:saved.z!};
-  }catch{/* Keep the configured experience position when no valid saved position exists. */}
   return {x:config.x,z:config.z};
 }
 
@@ -577,13 +555,10 @@ export class VillageMapRenderer{
     this.resize();
     this.localCharacter=new WorldCharacter(this.scene,profile.nickname,profile.model,profile.character,options.characterHeight??CHARACTER_HEIGHT);
     if(options.overview)gameEvents.on('map-overview-toggle',this.onMapOverviewToggle);
-    if(options.portal)gameEvents.on('portal-move-to-player',this.onMovePortalToPlayer);
-    if(options.interaction)gameEvents.on('interaction-move-to-player',this.onMoveInteractionToPlayer);
     if(options.mapName==='베어트리파크')gameEvents.on('nature-chapter-progress-changed',this.onNatureChapterProgressChanged);
     if(options.bearPhotoZone)gameEvents.on('bear-photo-enter',this.onBearPhotoEnter);
     if(options.bearPhotoZone){gameEvents.on('bear-photo-capture',this.onBearPhotoCapture);gameEvents.on('bear-photo-exit',this.onBearPhotoExit)}
     if(options.lakeExperiences){
-      gameEvents.on('lake-experience-move-to-player',this.onMoveLakeExperienceToPlayer);
       gameEvents.on('lake-booth-completion-changed',this.onLakeBoothCompletionChanged);
     }
     if(options.greenhouse){
@@ -849,7 +824,6 @@ export class VillageMapRenderer{
     if(!this.options.interaction||position.destination!==this.options.interaction.destination)return;
     if(this.options.interaction.fixedPosition)return;
     this.interactionPosition={x:position.x,z:position.z};
-    localStorage.setItem(`${INTERACTION_POSITION_KEY_PREFIX}-${position.destination}`,JSON.stringify(this.interactionPosition));
     this.interactionNearby=false;
     this.resetInteractionCharge();
     gameEvents.emit('world-interaction-proximity-changed',null);
@@ -867,7 +841,6 @@ export class VillageMapRenderer{
     if(!config)return;
     const next={x:position.x,z:position.z};
     this.lakeExperiencePositions.set(position.experience,next);
-    localStorage.setItem(`${LAKE_EXPERIENCE_POSITION_KEY_PREFIX}-${position.experience}`,JSON.stringify(next));
     this.lakeExperienceNearby=undefined;
     gameEvents.emit('lake-experience-proximity-changed',null);
     if(!this.mapReady)return;
@@ -880,33 +853,8 @@ export class VillageMapRenderer{
     }else this.lakeExperienceRoots.set(position.experience,this.createLakeExperienceCircle({...config,...position},ground.height));
     this.render();
   }
-  private onMoveLakeExperienceToPlayer=(experience:LakeExperienceId)=>{
-    if(!this.options.lakeExperiences?.some(config=>config.id===experience)||!this.mapReady)return;
-    const position:LakeExperiencePosition={experience,x:Math.round(this.localX),z:Math.round(this.localZ)};
-    this.setLakeExperiencePosition(position,this.localGround);
-    gameEvents.emit('lake-experience-position-changed',position);
-  }
-  private onMovePortalToPlayer=(requestedDestination?:PortalPosition['destination'])=>{
-    if(!this.mapReady||this.renderer.domElement.style.display==='none')return;
-    const config=requestedDestination
-      ?[this.options.portal,...(this.options.fixedPortals??[])].find(portal=>portal?.destination===requestedDestination)
-      :this.options.portal;
-    if(!config||config.fixedPosition)return;
-    const position:PortalPosition={destination:config.destination,x:Math.round(this.localX),z:Math.round(this.localZ)};
-    this.setPortalPosition(position,false);
-    if(config.sharedPosition!==false)gameEvents.emit('portal-position-changed',position);
-  }
-  private onMoveInteractionToPlayer=(requestedDestination?:WorldInteractionPosition['destination'])=>{
-    if(!this.mapReady||this.renderer.domElement.style.display==='none'||!this.options.interaction)return;
-    if(requestedDestination&&requestedDestination!==this.options.interaction.destination)return;
-    const position:WorldInteractionPosition={destination:this.options.interaction.destination,x:Math.round(this.localX),z:Math.round(this.localZ)};
-    this.setInteractionPosition(position);
-    gameEvents.emit('interaction-position-changed',position);
-  }
   setBearTreePortalPositions(positions:BearTreePortalPositions){
     if(this.options.mapName!=='베어트리파크')return;
-    localStorage.setItem('bear-tree-park-town-portal-position',JSON.stringify(positions.town));
-    localStorage.setItem('bear-photo-zone-portal-position',JSON.stringify(positions.photo));
     if(this.options.portal){
       Object.assign(this.options.portal,positions.town);
       this.portalPosition={...positions.town};
@@ -972,7 +920,6 @@ export class VillageMapRenderer{
     const nextPosition=portalConfig.fixedPosition?{x:portalConfig.x,z:portalConfig.z}:{x:position.x,z:position.z};
     if(standardPortal)this.portalPosition=nextPosition;
     if(fixedPortal)Object.assign(fixedPortal,nextPosition);
-    localStorage.setItem(portalConfig.positionStorageKey??`${PORTAL_POSITION_KEY_PREFIX}-${position.destination}`,JSON.stringify(nextPosition));
     if(!this.mapReady)return;
     const ground=portalConfig?.appearance==='white-circle'
       ?this.sampleExperienceGround(nextPosition.x,nextPosition.z,true)
@@ -1516,13 +1463,10 @@ export class VillageMapRenderer{
     if(this.wildlifeClueNearby)gameEvents.emit('bear-clue-proximity-changed',null);
     if(this.overviewActive)gameEvents.emit('map-overview-changed',false);
     if(this.options.overview)gameEvents.off('map-overview-toggle',this.onMapOverviewToggle);
-    if(this.options.portal)gameEvents.off('portal-move-to-player',this.onMovePortalToPlayer);
-    if(this.options.interaction)gameEvents.off('interaction-move-to-player',this.onMoveInteractionToPlayer);
     if(this.options.mapName==='베어트리파크')gameEvents.off('nature-chapter-progress-changed',this.onNatureChapterProgressChanged);
     if(this.options.bearPhotoZone)gameEvents.off('bear-photo-enter',this.onBearPhotoEnter);
     if(this.options.bearPhotoZone){gameEvents.off('bear-photo-capture',this.onBearPhotoCapture);gameEvents.off('bear-photo-exit',this.onBearPhotoExit)}
     if(this.options.lakeExperiences){
-      gameEvents.off('lake-experience-move-to-player',this.onMoveLakeExperienceToPlayer);
       gameEvents.off('lake-booth-completion-changed',this.onLakeBoothCompletionChanged);
     }
     if(this.options.greenhouse){
