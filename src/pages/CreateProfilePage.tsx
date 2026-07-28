@@ -15,6 +15,7 @@ import chungnyeongUrl from '../assets/characters/chungnyeong.glb?url'
 import girl1Url from '../assets/characters/girl_metaverse_animated.glb?url'
 import boy1Url from '../assets/characters/boy_metaverse.glb?url'
 import clothsUrl from '../assets/characters/cloths_rig.glb?url'
+import womenUrl from '../assets/characters/women_total.glb?url'
 
 import type {
   CharacterModel,
@@ -43,22 +44,25 @@ const interestPlaceMap:Record<string,string[]>={
 const modelOptions: Array<{id: CharacterModel; label: string; description: string}> = [
   {id: 'girl1', label: 'girl1', description: '3D 여성형 모델'},
   {id: 'boy1', label: 'boy1', description: '3D 남성형 모델'},
-  {id: 'cloths', label: '캐주얼형', description: '3D 리깅 캐릭터'}
+  {id: 'cloths', label: '남성형 2', description: '확장형 3D 남성 모델'},
+  {id: 'women', label: '여성형 2', description: '신규 3D 여성형 모델'}
 ];
 
 const modelUrls: Record<Exclude<CharacterModel, 'custom'>, string> = {
   chungnyeong: chungnyeongUrl,
   girl1: girl1Url,
   boy1: boy1Url,
-  cloths: clothsUrl
+  cloths: clothsUrl,
+  women: womenUrl
 };
 
 function normalizeCharacterForModel(model:CharacterModel,character:UserProfile['character']):UserProfile['character']{
   const safeCharacter={
     hair:character?.hair||'hair-brown',
+    hairStyle:character?.hairStyle??'hair1',
     face:character?.face||'face-smile',
     top:character?.top||'top-green',
-    topLayer:character?.topLayer||'top-layer-original',
+    topLayer:character?.topLayer==='topLayer-original'?'top-layer-original':character?.topLayer||'top-layer-original',
     bottom:character?.bottom||'bottom-navy',
     shoes:character?.shoes||'shoes-black',
     accessory:character?.accessory||'accessory-none',
@@ -71,6 +75,16 @@ function normalizeCharacterForModel(model:CharacterModel,character:UserProfile['
     bottom:safeCharacter.bottom.endsWith('-none')?'bottom-original':safeCharacter.bottom,
     shoes:safeCharacter.shoes.endsWith('-none')?'shoes-original':safeCharacter.shoes,
     accessory:safeCharacter.accessory?.endsWith('-none')?'accessory-original':safeCharacter.accessory,
+  };
+  if(model==='women')return {
+    ...safeCharacter,
+    hair:safeCharacter.hair.endsWith('-none')?'hair-original':safeCharacter.hair,
+    face:safeCharacter.face.endsWith('-none')?'face-original':safeCharacter.face,
+    top:safeCharacter.top.endsWith('-none')?'top-original':safeCharacter.top,
+    topLayer:safeCharacter.topLayer.endsWith('-none')?'top-layer-original':safeCharacter.topLayer,
+    bottom:safeCharacter.bottom.endsWith('-none')?'bottom-original':safeCharacter.bottom,
+    shoes:safeCharacter.shoes.endsWith('-none')?'shoes-original':safeCharacter.shoes,
+    accessory:'accessory-none',
   };
   if(model==='girl1'){
     const legacyDefaults=safeCharacter.hair==='hair-brown'&&safeCharacter.face==='face-smile'&&safeCharacter.top==='top-green'&&safeCharacter.bottom==='bottom-navy'&&safeCharacter.shoes==='shoes-black';
@@ -129,11 +143,14 @@ export function CreateProfilePage({initial,initialStep=1,editMode=false,onCancel
   };
 
   const part = (k: PartKind, id: string) => setP(current=>({...current, character: {...current.character, [k]: id}}));
+  const selectHairStyle = (hairStyle:'hair1'|'hair2'|'both') => setP(current=>({...current,character:{...current.character,hairStyle}}));
   const selectModel = (model: CharacterModel) => setP(current=>({
     ...current,
     model,
     character:model==='cloths'
       ?{...current.character,hair:'hair-original',face:'face-original',top:'top-original',topLayer:'top-layer-original',bottom:'bottom-original',shoes:'shoes-original',accessory:'accessory-original'}
+      :model==='women'
+        ?{...current.character,hair:'hair-original',hairStyle:'hair1',face:'face-original',top:'top-original',topLayer:'top-layer-original',bottom:'bottom-original',shoes:'shoes-original',accessory:'accessory-none'}
       :model==='girl1'&&current.model!=='girl1'
         ?{...current.character,hair:'hair-original',face:'face-original',top:'top-original',bottom:'bottom-original',shoes:'shoes-original',accessory:'accessory-none'}
       :model==='boy1'&&current.model!=='boy1'
@@ -148,6 +165,7 @@ export function CreateProfilePage({initial,initialStep=1,editMode=false,onCancel
         model={p.model}
         character={p.character}
         part={part}
+        selectHairStyle={selectHairStyle}
         selectModel={selectModel}
         onSubmit={() => onComplete(profileForSave(p))}
         editMode={editMode}
@@ -177,7 +195,8 @@ export function CreateProfilePage({initial,initialStep=1,editMode=false,onCancel
                   src={modelUrls[activeModel.id]}
                   model={activeModel.id}
                   parts={p.character}
-                  animationName={null}
+                  animationName={activeModel.id==='women'?'standing':null}
+                  animationTime={activeModel.id==='women'?0:undefined}
                 />}
             </div>
             <div className="profile-design-summary">
