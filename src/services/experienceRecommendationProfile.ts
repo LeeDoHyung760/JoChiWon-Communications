@@ -50,7 +50,6 @@ const lakeActivityRecords:Record<string,string>={
 };
 const lakeThemeRecords:Record<string,string>={'night-media':'야간 미디어아트 축제 선호','local-food':'로컬 푸드 축제 선호','live-stage':'라이브 공연 축제 선호','craft-market':'공방 마켓 축제 선호'};
 const mapRecords:Partial<Record<MapId,{record:string;categories:string[]}>>={
-  town:{record:'세종호수공원 체험',categories:['공원','관광명소']},
   garden:{record:'국립세종수목원 탐험',categories:['공원','관광명소']},
   'bear-tree-park':{record:'베어트리파크 숲 탐험',categories:['공원','관광명소']},
   'bear-play-zone':{record:'베어트리파크 곰 관찰',categories:['공원','관광명소']},
@@ -71,11 +70,45 @@ export function recordMapExperience(nickname:string,mapId:MapId){
   }catch{/* A recommendation can still use profile and other experience records. */}
 }
 
+export function countTasteDiscoveryRecords(profile:UserProfile){
+  const records:string[]=[];
+  try{
+    const lake=JSON.parse(localStorage.getItem(LAKE_INTEREST_KEY)??'null') as {savedContentIds?:unknown;activities?:unknown;foodShopIds?:unknown;foodPlaceInterests?:unknown;foodInterests?:unknown;shopInterests?:unknown;festivalTheme?:unknown;likedCourseTitles?:unknown;tasteInsights?:unknown}|null;
+    const addIds=(prefix:string,value:unknown)=>{
+      if(Array.isArray(value))value.forEach(item=>{
+        if(typeof item==='string')records.push(`${prefix}:${item}`);
+        else if(item&&typeof item==='object'&&'id' in item&&typeof item.id==='string')records.push(`${prefix}:${item.id}`);
+      });
+    };
+    addIds('content',lake?.savedContentIds);
+    addIds('activity',lake?.activities);
+    addIds('food',lake?.foodShopIds);
+    addIds('food',lake?.foodPlaceInterests);
+    addIds('food',lake?.foodInterests);
+    addIds('food',lake?.shopInterests);
+    if(typeof lake?.festivalTheme==='string'&&lake.festivalTheme)records.push(`theme:${lake.festivalTheme}`);
+    addIds('course',lake?.likedCourseTitles);
+    if(lake?.tasteInsights&&typeof lake.tasteInsights==='object')Object.keys(lake.tasteInsights).forEach(domain=>records.push(`analysis:${domain}`));
+  }catch{/* Ignore malformed local experience data. */}
+  try{
+    const greenhouse=parseGreenhouseProgress(localStorage.getItem(`greenhouse-progress-v1:${profile.nickname.trim().toLowerCase()||'guest'}`));
+    greenhouse.collected.forEach(item=>records.push(`plant:${item.plantId}`));
+    greenhouse.memoryLeaves.forEach(item=>records.push(`memory:${item.id}`));
+  }catch{/* Ignore malformed greenhouse progress. */}
+  try{
+    const visited=JSON.parse(localStorage.getItem(mapKey(profile.nickname))??'[]') as unknown;
+    if(Array.isArray(visited))visited.forEach(record=>{
+      if(typeof record==='string'&&Object.values(mapRecords).some(item=>item?.record===record))records.push(`map:${record}`);
+    });
+  }catch{/* Ignore malformed map records. */}
+  return unique(records).length;
+}
+
 export function buildExperienceRecommendationProfile(profile:UserProfile):PublicMatchProfile{
   const experienceRecords:string[]=[];
   const preferredPlaceCategories=[...profile.preferredPlaceCategories];
   try{
-    const lake=JSON.parse(localStorage.getItem(LAKE_INTEREST_KEY)??'null') as {savedContentIds?:unknown;activities?:unknown;foodShopIds?:unknown;foodPlaceInterests?:unknown;foodInterests?:unknown;shopInterests?:unknown;festivalTheme?:unknown;likedCourseTitles?:unknown}|null;
+    const lake=JSON.parse(localStorage.getItem(LAKE_INTEREST_KEY)??'null') as {savedContentIds?:unknown;activities?:unknown;foodShopIds?:unknown;foodPlaceInterests?:unknown;foodInterests?:unknown;shopInterests?:unknown;festivalTheme?:unknown;likedCourseTitles?:unknown;tasteInsights?:unknown}|null;
     const savedIds=Array.isArray(lake?.savedContentIds)?lake.savedContentIds.filter((value):value is string=>typeof value==='string'):[];
     const foodShopIds=Array.isArray(lake?.foodShopIds)?lake.foodShopIds.filter((value):value is string=>typeof value==='string'):[];
     const structuredFoodIds=[...(Array.isArray(lake?.foodPlaceInterests)?lake.foodPlaceInterests:[]),...(Array.isArray(lake?.foodInterests)?lake.foodInterests:[]),...(Array.isArray(lake?.shopInterests)?lake.shopInterests:[])].flatMap(value=>value&&typeof value==='object'&&'id' in value&&typeof value.id==='string'?[value.id]:[]);
@@ -86,6 +119,10 @@ export function buildExperienceRecommendationProfile(profile:UserProfile):Public
     activities.forEach(id=>{const record=lakeActivityRecords[id];if(record)experienceRecords.push(record)});
     if(typeof lake?.festivalTheme==='string'&&lakeThemeRecords[lake.festivalTheme])experienceRecords.push(lakeThemeRecords[lake.festivalTheme]);
     if(Array.isArray(lake?.likedCourseTitles))lake.likedCourseTitles.filter((value):value is string=>typeof value==='string').forEach(title=>experienceRecords.push(`가고 싶은 코스: ${title}`));
+    if(lake?.tasteInsights&&typeof lake.tasteInsights==='object')Object.values(lake.tasteInsights).forEach(value=>{
+      if(value&&typeof value==='object'&&'label' in value&&typeof value.label==='string')experienceRecords.push(`AI 취향 분석: ${value.label}`);
+      if(value&&typeof value==='object'&&'keywords' in value&&Array.isArray(value.keywords))value.keywords.filter((keyword:unknown):keyword is string=>typeof keyword==='string').forEach((keyword:string)=>experienceRecords.push(`선호 키워드: ${keyword}`));
+    });
   }catch{/* Ignore malformed local experience data. */}
   try{
     const greenhouse=parseGreenhouseProgress(localStorage.getItem(`greenhouse-progress-v1:${profile.nickname.trim().toLowerCase()||'guest'}`));
@@ -99,9 +136,8 @@ export function buildExperienceRecommendationProfile(profile:UserProfile):Public
   try{
     const visited=JSON.parse(localStorage.getItem(mapKey(profile.nickname))??'[]') as unknown;
     if(Array.isArray(visited))visited.filter((value):value is string=>typeof value==='string').forEach(record=>{
-      experienceRecords.push(record);
       const definition=Object.values(mapRecords).find(item=>item?.record===record);
-      if(definition)preferredPlaceCategories.push(...definition.categories);
+      if(definition){experienceRecords.push(record);preferredPlaceCategories.push(...definition.categories)}
     });
   }catch{/* Ignore malformed map records. */}
   return {

@@ -31,21 +31,21 @@
 .world-exit:hover{border-color:#afcfc4;background:#fff;color:#2f7b66}
 .quest-hub-button{position:absolute;z-index:36;left:50%;top:20px;min-width:142px;height:50px;padding:7px 12px;display:flex;align-items:center;gap:9px;transform:translateX(-50%);border:1px solid rgba(221,234,228,.94);border-radius:16px;background:rgba(255,255,255,.92);color:#294e47;box-shadow:0 12px 30px rgba(28,67,57,.14);backdrop-filter:blur(15px)}.quest-hub-button>span{font-size:22px}.quest-hub-button>div{display:flex;flex-direction:column;text-align:left}.quest-hub-button small{color:#61a08d;font-size:7px;font-weight:900;letter-spacing:.08em}.quest-hub-button b{margin-top:2px;font-size:10px}
 
-.game-page .online{position:absolute;z-index:30;right:20px;top:76px;width:286px;height:auto;max-height:calc(100vh - 96px);padding:14px;border-radius:22px;overflow:auto}
+.game-page .online{position:absolute;z-index:30;left:20px;right:auto;top:146px;width:245px;height:auto;max-height:calc(100vh - 258px);padding:12px;border-radius:17px;overflow:auto}.game-page .online.is-lake-park{top:292px;max-height:calc(100vh - 404px)}
 .game-page .online.is-collapsed{width:62px;height:62px;padding:9px;overflow:visible}.game-page .online.is-collapsed .online-heading{height:44px;padding:0;border:0}.game-page .online.is-collapsed .online-heading>div,.game-page .online.is-collapsed .online-heading>b,.game-page .online.is-collapsed .online-list,.game-page .online.is-collapsed .group-box,.game-page .online.is-collapsed .controls{display:none}.game-page .online.is-collapsed .online-heading>span{width:44px;height:44px}.game-page .online .online-heading>b{margin-right:59px}.game-page .online .online-collapse{position:absolute;right:11px;top:16px;width:58px;height:29px;min-height:0;padding:0;display:grid;place-items:center;border:1px solid #cfe3dc;border-radius:999px;background:#edf7f3;color:#327c67;font-size:9px;font-weight:900;line-height:1;box-shadow:none}.game-page .online .online-collapse:hover{border-color:#83bba9;background:#dff1ea}.game-page .online.is-collapsed .online-collapse{left:-13px;right:auto;top:18px;width:27px;height:27px;border-radius:50%;background:#fff;font-size:20px;box-shadow:0 5px 14px rgba(28,67,57,.14)}
-.online-heading{display:flex;align-items:center;gap:9px;padding:3px 3px 12px;border-bottom:1px solid #e7eeeb}
-.online-heading>span{width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:#e7f4ef;color:#378970}
+.online-heading{display:flex;align-items:center;gap:8px;padding:1px 1px 10px;border-bottom:1px solid #e7eeeb}
+.online-heading>span{width:31px;height:31px;display:grid;place-items:center;border-radius:10px;background:#e7f4ef;color:#378970}
 .online-heading>div{min-width:0;display:flex;flex:1;flex-direction:column}
 .online-heading small{color:#6aa391;font-size:7px;font-weight:900;letter-spacing:.09em}
-.online-heading h3{margin:1px 0 0;color:#234843;font-size:14px}
-.online-heading>b{min-width:29px;height:24px;display:grid;place-items:center;border-radius:999px;background:#3e927a;color:#fff;font-size:9px}
-.online-list{padding-top:7px}
-.game-page .online button,.game-page .online .me{width:100%;min-height:57px;padding:5px 7px;display:flex;align-items:center;gap:8px;border:0;border-radius:13px;background:transparent;text-align:left;position:relative}
+.online-heading h3{margin:1px 0 0;color:#234843;font-size:12px}
+.online-heading>b{min-width:25px;height:22px;display:grid;place-items:center;border-radius:999px;background:#3e927a;color:#fff;font-size:8px}
+.online-list{padding-top:6px}
+.game-page .online button,.game-page .online .me{width:100%;min-height:49px;padding:4px 6px;display:flex;align-items:center;gap:7px;border:0;border-radius:12px;background:transparent;text-align:left;position:relative}
 .game-page .online button:hover{background:#f0f7f4}
 .game-page .online .me{background:#edf7f3!important}
-.game-page .online .avatar.small{transform:scale(.76);margin:-7px -5px}
-.game-page .online b{font-size:11px}
-.game-page .online small{display:block;margin-top:2px;color:#85938f;font-size:8px}
+.game-page .online .avatar.small{transform:scale(.68);margin:-9px -7px}
+.game-page .online b{font-size:10px}
+.game-page .online small{display:block;margin-top:2px;color:#85938f;font-size:7px}
 .game-page .online .online-list i{position:absolute;left:39px;bottom:10px;width:9px;height:9px;border:2px solid #fff;border-radius:50%;background:#47bb84}
 .game-page .group-box{margin-top:9px;padding-top:10px;border-top:1px solid #e6ece9}
 .game-page .group-box>div{padding:0 5px 6px}
@@ -132,6 +132,7 @@
   .quest-grid{grid-template-columns:1fr}.quest-modal{padding:20px}.quest-overlay{padding:12px}.citizen-profile{grid-template-columns:1fr}.citizen-profile>.avatar{margin:auto}.citizen-stamps{grid-template-columns:1fr 1fr}.citizen-actions{grid-template-columns:1fr}
 }
 .game-page .online .controls{display:none}
+.game-page .online:not(.is-collapsed) .online-heading>b{margin-right:51px}.game-page .online:not(.is-collapsed) .online-collapse{right:10px;width:50px}.game-page .online .online-list i{left:34px}
 .world-location-chip{box-sizing:border-box;width:245px;min-width:245px;border-radius:17px 17px 0 0;box-shadow:0 8px 22px rgba(28,67,57,.12)}
 .game-page .chat-panel:has(.chat-empty){display:none}
 .game-page .online .group-box:has(>div:only-child){display:none}

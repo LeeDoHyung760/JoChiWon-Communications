@@ -6,6 +6,7 @@ import { gameEvents } from '../game/events';
 import { requestMemoryLetter,requestPlantMessage } from '../services/greenhouseAi';
 import { createFallbackPlantMessage,dominantEmotion,GREENHOUSE_EMOTIONS,GreenhouseProgressService,greenhouseCompletion,greenhouseInputLocked,normalizeMemoryText,type GreenhouseEmotion,type GreenhouseProgress,type MemoryLeaf } from '../services/greenhouseProgress';
 import { hasUsablePlantImage,plantGallery } from '../services/plantImages';
+import { greenhouseTasteLens } from '../services/lakeTasteAnalysis';
 import './GreenhouseExperience.css';
 
 type View='intro'|'plant'|'book'|'memory'|'complete'|null;
@@ -26,6 +27,7 @@ export function GreenhouseExperience({userKey}:{userKey:string}){
   const [imageFailed,setImageFailed]=useState(false),[imageLoading,setImageLoading]=useState(false),[lightboxIndex,setLightboxIndex]=useState<number|null>(null);
   const modalRef=useRef<HTMLDivElement>(null),previousFocusRef=useRef<HTMLElement|null>(null);
   const [memoryType,setMemoryType]=useState('오늘 가장 기억에 남은 순간'),[memoryText,setMemoryText]=useState(''),[letter,setLetter]=useState(''),[loadingLetter,setLoadingLetter]=useState(false),[selectedLeaf,setSelectedLeaf]=useState<MemoryLeaf|null>(null);
+  const [tasteLens,setTasteLens]=useState(greenhouseTasteLens);
   const completion=greenhouseCompletion(progress),plant=plantId?greenhousePlantById.get(plantId):undefined;
   const modalOpen=greenhouseInputLocked(view);
 
@@ -56,6 +58,7 @@ export function GreenhouseExperience({userKey}:{userKey:string}){
     const mapChanged=(mapId:MapId)=>{
       const isGarden=mapId==='garden';setActive(isGarden);setNearby(null);
       if(isGarden){
+        setTasteLens(greenhouseTasteLens());
         const current=service.load();publish(current);
         if(!current.introSeen){const next=service.save({...current,introSeen:true});publish(next);setView('intro')}
       }else setView(null);
@@ -113,12 +116,12 @@ export function GreenhouseExperience({userKey}:{userKey:string}){
   const visiblePlants=greenhousePlants.filter(item=>filter==='all'||filter==='flower'&&item.category==='flower'||filter==='tree'&&item.category!=='flower');
 
   return <div className="greenhouse-ui">
-    <button className={`greenhouse-book-button ${completion.unlocked?'is-complete':''}`} type="button" onClick={()=>setView('book')}><BookOpen size={19}/><span><small>AI 식물도감</small><b>{completion.count} / {completion.total}</b></span>{completion.unlocked&&<Check size={16}/>}</button>
-    {nearby&&!modalOpen&&<button className="greenhouse-observe-button" type="button" onClick={observeNearby}><span>{nearby.kind==='plant'?'🔎':'🌳'}</span><div><small>{nearby.kind==='plant'?'가까운 식물을 발견했어요':'중앙 기억나무'}</small><b>{nearby.kind==='plant'?'E · 식물 관찰하기':'E · 기억나무 살펴보기'}</b></div></button>}
+    <button className={`greenhouse-book-button ${completion.unlocked?'is-complete':''}`} type="button" onClick={()=>setView('book')}><BookOpen size={19}/><span><small>인공지능 식물도감</small><b>{completion.count} / {completion.total}</b></span>{completion.unlocked&&<Check size={16}/>}</button>
+    {nearby&&!modalOpen&&<button className="greenhouse-observe-button" type="button" onClick={observeNearby}><span>{nearby.kind==='plant'?'🔎':'🌳'}</span><div><small>{nearby.kind==='plant'?'가까운 식물을 발견했어요':'중앙 기억나무'}</small><b>{nearby.kind==='plant'?'식물 관찰하기':'기억나무 살펴보기'}</b></div></button>}
     {view&&<section className="greenhouse-overlay" role="dialog" aria-modal="true" onMouseDown={event=>{if(event.target===event.currentTarget)close()}}>
       <div ref={modalRef} className={`greenhouse-modal greenhouse-${view}`}>
         <button className="greenhouse-close" type="button" onClick={close} aria-label="닫기"><X size={18}/></button>
-        {view==='intro'&&<><div className="greenhouse-hero-icon">🌿</div><small>SEJONG GREENHOUSE EXPERIENCE</small><h2>수목원의 기억을 모아보세요</h2><p>온실을 걸으며 14개의 식물을 발견하고, 각 식물에서 느낀 마음을 AI 식물도감에 기록해보세요.</p><div className="greenhouse-intro-steps"><span><b>1</b>식물 가까이 이동</span><span><b>2</b>E키 또는 관찰하기</span><span><b>3</b>감정을 골라 기록</span></div><button className="greenhouse-primary" type="button" onClick={close}>수목원 둘러보기</button></>}
+        {view==='intro'&&<><div className="greenhouse-hero-icon">🌿</div><small>세종수목원 취향 체험</small><h2>내 취향으로 수목원을 바라봐요</h2><p>온실을 걸으며 14개의 식물을 발견하고, 각 식물에서 느낀 마음을 인공지능 식물도감에 기록해보세요.</p><div className="greenhouse-taste-lens"><Sparkles size={18}/><div><b>충녕이가 적용한 {tasteLens.label}</b><span>{tasteLens.message}</span></div></div><div className="greenhouse-intro-steps"><span><b>1</b>식물 가까이 이동</span><span><b>2</b>관찰하기 버튼 선택</span><span><b>3</b>감정을 골라 기록</span></div><button className="greenhouse-primary" type="button" onClick={close}>내 취향으로 둘러보기</button></>}
         {view==='plant'&&plant&&<>
           <div className="greenhouse-plant-layout">
             <div className="greenhouse-media">
@@ -131,12 +134,12 @@ export function GreenhouseExperience({userKey}:{userKey:string}){
               {plant.imageSource&&<small className="greenhouse-image-source">출처: {plant.imageSourceUrl?<a href={plant.imageSourceUrl} target="_blank" rel="noreferrer">{plant.imageSource}</a>:plant.imageSource}</small>}
             </div>
             <div className="greenhouse-plant-info">
-              <header className="greenhouse-plant-header"><div style={{background:plant.fallbackColor}}>🌱</div><section><small>{plant.category==='flower'?'FLOWER':plant.category==='peach-tree'?'PEACH TREE':'TREE'}</small><h2>{plant.displayName}</h2>{plant.scientificName&&<i>{plant.scientificName}</i>}</section></header>
+              <header className="greenhouse-plant-header"><div style={{background:plant.fallbackColor}}>🌱</div><section><small>{plant.category==='flower'?'꽃':plant.category==='peach-tree'?'복숭아나무':'나무'}</small><h2>{plant.displayName}</h2>{plant.scientificName&&<i>{plant.scientificName}</i>}</section></header>
               <p className="greenhouse-description">{plant.shortDescription}</p>
               <div className="greenhouse-traits">{plant.characteristics.map(item=><span key={item}>{item}</span>)}</div>
               {plant.season&&<p className="greenhouse-meta"><b>피는 계절</b>{plant.season}</p>}
               <div className="greenhouse-observation"><Search size={18}/><div><b>관찰 포인트</b><ul>{(plant.observationPoints?.length?plant.observationPoints:[plant.observationPoint].filter(Boolean) as string[]).map(item=><li key={item}>{item}</li>)}</ul></div></div>
-              <div className="greenhouse-ai-message"><Sparkles size={17}/><div><small>AI 관찰 가이드</small>{loadingMessage?<p className="greenhouse-skeleton">관찰 가이드를 준비하고 있어요…</p>:<p>{message}</p>}</div></div>
+              <div className="greenhouse-ai-message"><Sparkles size={17}/><div><small>충녕이의 {tasteLens.label}</small>{loadingMessage?<p className="greenhouse-skeleton">취향에 맞는 관찰 가이드를 준비하고 있어요…</p>:<p>{message}</p>}</div></div>
               <h3>이 식물에서 어떤 마음을 느꼈나요?</h3>
               <div className="greenhouse-emotions">{GREENHOUSE_EMOTIONS.map(item=><button type="button" aria-pressed={emotion===item.id} className={emotion===item.id?'active':''} key={item.id} onClick={()=>setEmotion(item.id)}><span>{item.icon}</span>{item.id}{emotion===item.id&&<Check size={13}/>}</button>)}</div>
               {existing&&<p className="greenhouse-saved-note"><Check size={14}/> 도감에 기록됨 · {date(existing.collectedAt)} · 감정은 다시 선택할 수 있어요.</p>}
@@ -149,12 +152,12 @@ export function GreenhouseExperience({userKey}:{userKey:string}){
             {plantGallery(plant).length>1&&<><button type="button" className="greenhouse-lightbox-prev" onClick={()=>setLightboxIndex((lightboxIndex-1+plantGallery(plant).length)%plantGallery(plant).length)} aria-label="이전 사진"><ChevronLeft/></button><button type="button" className="greenhouse-lightbox-next" onClick={()=>setLightboxIndex((lightboxIndex+1)%plantGallery(plant).length)} aria-label="다음 사진"><ChevronRight/></button><span>{lightboxIndex+1} / {plantGallery(plant).length}</span></>}
           </div>}
         </>}
-        {view==='book'&&<><header className="greenhouse-book-head"><div><small>MY AI PLANT BOOK</small><h2>나의 식물도감</h2><p>수목원의 식물을 모두 발견하면 중앙의 기억나무가 깨어납니다.</p></div><strong>{completion.count} / {completion.total}</strong></header><div className="greenhouse-progress"><i style={{width:`${completion.ratio*100}%`}}/></div><div className="greenhouse-filters">{(['all','flower','tree'] as const).map(value=><button type="button" className={filter===value?'active':''} onClick={()=>setFilter(value)} key={value}>{value==='all'?'전체':value==='flower'?'꽃':'나무'}</button>)}</div><div className="greenhouse-grid">{visiblePlants.map(item=>{const saved=progress.collected.find(entry=>entry.plantId===item.id);return <button type="button" key={item.id} className={saved?'collected':'locked'} onClick={()=>saved&&void observePlant(item.id)}><span style={saved?{background:item.fallbackColor}:undefined}>{saved?'🌱':'?'}</span><div><small>{item.category==='flower'?'꽃':'나무'}</small><b>{saved?item.displayName:'아직 발견하지 못했어요'}</b>{saved&&<em>{saved.selectedEmotion} · {date(saved.collectedAt)}</em>}</div>{saved?<Check size={16}/>:<Lock size={14}/>}</button>})}</div><div className={`greenhouse-tree-status ${completion.unlocked?'unlocked':''}`}>{completion.unlocked?<Sparkles size={20}/>:<Lock size={18}/>}<div><b>{completion.unlocked?'기억나무가 깨어났어요!':'기억나무가 기다리고 있어요'}</b><span>{completion.unlocked?'중앙 나무로 이동해 오늘의 기억을 남겨보세요.':`${completion.count} / ${GREENHOUSE_PLANT_TOTAL}개의 기억을 모았어요.`}</span></div></div>{import.meta.env.DEV&&<div className="greenhouse-dev"><b>개발 도구</b><button type="button" onClick={()=>publish(service.reset())}>도감 초기화</button><button type="button" onClick={()=>{let next=progress;greenhousePlants.forEach(item=>{next=service.collect(next,item.id,'평온',createFallbackPlantMessage(item))});publish(next)}}>모두 즉시 수집</button></div>}</>}
-        {view==='memory'&&<><div className={`greenhouse-memory-symbol ${completion.unlocked?'awake':''}`}>🌳</div><small>AI MEMORY TREE</small><h2>{completion.unlocked?'오늘의 기억을 나무에 남겨보세요':'식물의 기억이 아직 부족해요'}</h2>{!completion.unlocked?<><p>도감에 기록한 식물이 더 필요해요.</p><div className="greenhouse-locked-progress"><Lock/><b>{completion.count} / {completion.total}</b><span>개의 기억을 모았어요.</span></div><button className="greenhouse-primary" type="button" onClick={()=>setView('book')}>식물도감 확인하기</button></>:<>
+        {view==='book'&&<><header className="greenhouse-book-head"><div><small>나의 인공지능 식물도감</small><h2>나의 식물도감</h2><p>수목원의 식물을 모두 발견하면 중앙의 기억나무가 깨어납니다.</p></div><strong>{completion.count} / {completion.total}</strong></header><div className="greenhouse-progress"><i style={{width:`${completion.ratio*100}%`}}/></div><div className="greenhouse-filters">{(['all','flower','tree'] as const).map(value=><button type="button" className={filter===value?'active':''} onClick={()=>setFilter(value)} key={value}>{value==='all'?'전체':value==='flower'?'꽃':'나무'}</button>)}</div><div className="greenhouse-grid">{visiblePlants.map(item=>{const saved=progress.collected.find(entry=>entry.plantId===item.id);return <button type="button" key={item.id} className={saved?'collected':'locked'} onClick={()=>saved&&void observePlant(item.id)}><span style={saved?{background:item.fallbackColor}:undefined}>{saved?'🌱':'?'}</span><div><small>{item.category==='flower'?'꽃':'나무'}</small><b>{saved?item.displayName:'아직 발견하지 못했어요'}</b>{saved&&<em>{saved.selectedEmotion} · {date(saved.collectedAt)}</em>}</div>{saved?<Check size={16}/>:<Lock size={14}/>}</button>})}</div><div className={`greenhouse-tree-status ${completion.unlocked?'unlocked':''}`}>{completion.unlocked?<Sparkles size={20}/>:<Lock size={18}/>}<div><b>{completion.unlocked?'기억나무가 깨어났어요!':'기억나무가 기다리고 있어요'}</b><span>{completion.unlocked?'중앙 나무로 이동해 오늘의 기억을 남겨보세요.':`${completion.count} / ${GREENHOUSE_PLANT_TOTAL}개의 기억을 모았어요.`}</span></div></div>{import.meta.env.DEV&&<div className="greenhouse-dev"><b>개발 도구</b><button type="button" onClick={()=>publish(service.reset())}>도감 초기화</button><button type="button" onClick={()=>{let next=progress;greenhousePlants.forEach(item=>{next=service.collect(next,item.id,'평온',createFallbackPlantMessage(item))});publish(next)}}>모두 즉시 수집</button></div>}</>}
+        {view==='memory'&&<><div className={`greenhouse-memory-symbol ${completion.unlocked?'awake':''}`}>🌳</div><small>인공지능 기억나무</small><h2>{completion.unlocked?'오늘의 기억을 나무에 남겨보세요':'식물의 기억이 아직 부족해요'}</h2>{!completion.unlocked?<><p>도감에 기록한 식물이 더 필요해요.</p><div className="greenhouse-locked-progress"><Lock/><b>{completion.count} / {completion.total}</b><span>개의 기억을 모았어요.</span></div><button className="greenhouse-primary" type="button" onClick={()=>setView('book')}>식물도감 확인하기</button></>:<>
           <div className="greenhouse-memory-tabs">{Object.keys(memoryPlaceholders).map(item=><button type="button" className={memoryType===item?'active':''} onClick={()=>setMemoryType(item)} key={item}>{item}</button>)}</div>
           <textarea maxLength={500} value={memoryText} onChange={event=>setMemoryText(event.target.value)} placeholder={memoryPlaceholders[memoryType]}/>
           <button className="greenhouse-primary greenhouse-memory-create" type="button" disabled={memoryText.trim().length<2||loadingLetter} onClick={generateLetter}>{loadingLetter?'기억의 잎을 만들고 있어요…':'오늘의 기억을 편지로 남기기'}</button>
-          <small className="greenhouse-memory-help">AI가 오늘 수집한 식물과 감정을 바탕으로 편지를 만들어 드려요.</small>
+          <small className="greenhouse-memory-help">인공지능이 오늘 수집한 식물과 감정을 바탕으로 편지를 만들어 드려요.</small>
           {letter&&<div className="greenhouse-letter"><Leaf/><p>{letter}</p><button type="button" onClick={saveLeaf}>기억나무에 남기기</button></div>}
           <h3>나의 기억 잎</h3><div className="greenhouse-leaves">{progress.memoryLeaves.length?progress.memoryLeaves.map(item=><button type="button" key={item.id} onClick={()=>setSelectedLeaf(item)}><Leaf size={17}/><span><b>{date(item.createdAt)} · {item.dominantEmotion}</b><small>{item.aiLetter.slice(0,48)}…</small></span></button>):<p>아직 남긴 기억의 잎이 없어요.</p>}</div>
           {selectedLeaf&&(()=>{const foundPlants=selectedLeaf.collectedPlantIds.map(id=>greenhousePlantById.get(id)).filter((item):item is NonNullable<typeof item>=>Boolean(item)).slice(0,3);return <div className="greenhouse-leaf-detail">
@@ -164,7 +167,7 @@ export function GreenhouseExperience({userKey}:{userKey:string}){
             <button className="greenhouse-primary greenhouse-letter-return" type="button" onClick={()=>setSelectedLeaf(null)}>기억나무로 돌아가기</button>
           </div>})()}
         </>}</>}
-        {view==='complete'&&<><div className="greenhouse-unlock">✨🌳✨</div><small>MEMORY TREE UNLOCKED</small><h2>수목원의 모든 기억이 모였습니다</h2><p>중앙의 큰 나무가 AI 기억나무로 깨어났어요. 나무 가까이에서 오늘의 기억을 남겨보세요.</p><button className="greenhouse-primary" type="button" onClick={close}>기억나무로 이동하기</button></>}
+        {view==='complete'&&<><div className="greenhouse-unlock">✨🌳✨</div><small>기억나무가 깨어났어요</small><h2>수목원의 모든 기억이 모였습니다</h2><p>중앙의 큰 나무가 인공지능 기억나무로 깨어났어요. 나무 가까이에서 오늘의 기억을 남겨보세요.</p><button className="greenhouse-primary" type="button" onClick={close}>기억나무로 이동하기</button></>}
       </div>
     </section>}
   </div>

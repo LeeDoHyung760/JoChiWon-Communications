@@ -2,6 +2,16 @@ import type { Direction,MotionState } from '../../../shared/socket-events';
 
 export interface MovementVector{x:number;y:number}
 export interface MovementInput{left:boolean;right:boolean;up:boolean;down:boolean}
+export interface FocusedControl{tagName?:string;isContentEditable?:boolean}
+
+export function movementInputBlocked(inputLocked:boolean,focused?:FocusedControl|null):boolean{
+  if(inputLocked)return true;
+  return ['INPUT','TEXTAREA','SELECT'].includes(focused?.tagName?.toUpperCase()??'')||!!focused?.isContentEditable;
+}
+
+export function jumpInputBlocked(inputLocked:boolean,focused?:FocusedControl|null):boolean{
+  return movementInputBlocked(inputLocked,focused)||(focused?.tagName?.toUpperCase()??'')==='BUTTON';
+}
 
 export function normalizedMovement(input:MovementInput):MovementVector{
   const x=Number(input.right)-Number(input.left),y=Number(input.down)-Number(input.up);

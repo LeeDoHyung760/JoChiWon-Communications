@@ -107,7 +107,6 @@ export const GameCanvas=memo(function GameCanvas({profile}:{profile:UserProfile}
     game.canvas.classList.add('phaser-world-canvas');
     if(game.domContainer)game.domContainer.style.zIndex='3';
     game.scene.add('world',WorldScene,true,{profile,worldRenderers,ensureWorldRenderer,initialSpawn:entrySpawn});
-    gameEvents.emit('game-input-lock',true);
     return()=>{
       cancelled=true;
       preloadIdleHandles.forEach(handle=>window.cancelIdleCallback(handle));
