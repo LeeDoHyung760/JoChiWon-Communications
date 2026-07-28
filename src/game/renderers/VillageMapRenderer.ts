@@ -54,7 +54,7 @@ const LAKE_EXPERIENCE_OPEN_DISTANCE=92;
 const LAKE_EXPERIENCE_EXIT_DISTANCE=118;
 const GREENHOUSE_OPEN_DISTANCE=210;
 const GREENHOUSE_EXIT_DISTANCE=245;
-const DEFAULT_BEAR_PHOTO_PORTAL_POSITION={x:1350,z:1450} as const;
+const DEFAULT_BEAR_PHOTO_PORTAL_POSITION={x:1563,z:1527} as const;
 const BEAR_PHOTO_STAGE_FRONT_INSET=10;
 const BEAR_PHOTO_CAMERA_YAW=0;
 const BEAR_PHOTO_STAGE_NAME='tripo_node_816cfa46-0ef3-4a12-be52-0dae3d331bff';
@@ -138,7 +138,7 @@ export type WorldMapRendererOptions={
   bearPhotoZone?:boolean;
 };
 export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크',theme:'blue'},fixedPortals:[{...CAMPUS_PORTAL_POSITION,destination:'campus',label:'공동캠퍼스',theme:'blue'}],lakeExperiences:[{id:'central-plaza',x:1150,z:950,label:'축제 취향 부스',description:'끌리는 분위기로 축제 취향을 찾아요',color:0xffffff},{id:'activity-zone',x:1450,z:1080,label:'공연 취향 부스',description:'충녕이와 나의 공연 스타일을 알아봐요',color:0xffffff},{id:'food-shop-zone',x:900,z:1250,label:'미식 취향 부스',description:'맛과 공간 선택으로 여행 스타일을 찾아요',color:0xffffff},{id:'wind-hill',x:350,z:400,label:'세종 추천 코스 게시판',description:'발견한 취향으로 코스를 살펴봐요',color:0xffffff}]};
-export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:1200,z:1450,destination:'town',label:'세종호수공원',theme:'blue',fixedPosition:true,chargeSeconds:3,sharedPosition:false},fixedPortals:[{x:682,z:735,destination:'garden',label:'세종수목원',appearance:'white-circle',fixedPosition:true,chargeSeconds:3}],interaction:{x:1616,z:601,destination:'bear-play-zone',label:'곰 놀이 공간',buttonLabel:'곰 만나기',fixedPosition:true,chargeSeconds:3},cameraZoom:.86,characterHeight:140,groundFillColor:0xead9ad,performanceMode:true,simplifiedCollision:true,bearPhotoZone:true};
+export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:1025,z:1543,destination:'town',label:'세종호수공원',theme:'blue',fixedPosition:true,chargeSeconds:3,sharedPosition:false},fixedPortals:[{x:682,z:735,destination:'garden',label:'세종수목원',appearance:'white-circle',fixedPosition:true,chargeSeconds:3}],interaction:{x:1616,z:601,destination:'bear-play-zone',label:'곰 놀이 공간',buttonLabel:'곰 만나기',fixedPosition:true,chargeSeconds:3},cameraZoom:.86,characterHeight:140,groundFillColor:0xead9ad,performanceMode:true,simplifiedCollision:true,bearPhotoZone:true};
 export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearPlayZoneModelUrl,mapName:'곰 놀이 공간',spawn:BEAR_PLAY_ZONE_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'베어트리파크로 돌아가기'},resident:{modelUrl:bearCubModelUrl,x:1200,z:1450,height:105,yaw:Math.PI,stationary:true},wildlifeClues:[{id:'track',x:1110,z:1530,icon:'🐾',label:'발자국 흔적'},{id:'food',x:1290,z:1460,icon:'🌰',label:'먹이 흔적'},{id:'den',x:1200,z:1360,icon:'🌲',label:'겨울 보금자리'}],cameraZoom:.86,characterHeight:140,groundFillColor:0xead9ad};
 export const GARDEN_RENDERER_OPTIONS:WorldMapRendererOptions={
   modelUrl:gardenModelUrl,
