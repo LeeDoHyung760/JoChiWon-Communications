@@ -1,7 +1,8 @@
 import type { MapId,PublicMatchProfile } from '../../shared/socket-events';
 import type { UserProfile } from '../types';
 import { greenhousePlantById } from '../data/greenhouse-plants';
-import { dominantEmotion,parseGreenhouseProgress } from './greenhouseProgress';
+import { analyzeNatureTaste,dominantEmotion,parseGreenhouseProgress } from './greenhouseProgress';
+import { loadBearProgress } from '../data/bear-wildlife';
 
 const LAKE_INTEREST_KEY='sejong-lake-interest-profile-v1';
 const MAP_RECORD_PREFIX='sejong-map-experience-v1:';
@@ -94,7 +95,13 @@ export function countTasteDiscoveryRecords(profile:UserProfile){
     const greenhouse=parseGreenhouseProgress(localStorage.getItem(`greenhouse-progress-v1:${profile.nickname.trim().toLowerCase()||'guest'}`));
     greenhouse.collected.forEach(item=>records.push(`plant:${item.plantId}`));
     greenhouse.memoryLeaves.forEach(item=>records.push(`memory:${item.id}`));
+    if(greenhouse.representativePlant)records.push(`representative:${greenhouse.representativePlant.plantId}`);
   }catch{/* Ignore malformed greenhouse progress. */}
+  try{
+    const bear=loadBearProgress(profile.nickname);
+    bear.completedClues.forEach(id=>records.push(`bear-clue:${id}`));
+    if(bear.questionsAsked)records.push('bear-ai-question');
+  }catch{/* Ignore malformed bear exploration progress. */}
   try{
     const visited=JSON.parse(localStorage.getItem(mapKey(profile.nickname))??'[]') as unknown;
     if(Array.isArray(visited))visited.forEach(record=>{
@@ -127,12 +134,28 @@ export function buildExperienceRecommendationProfile(profile:UserProfile):Public
   try{
     const greenhouse=parseGreenhouseProgress(localStorage.getItem(`greenhouse-progress-v1:${profile.nickname.trim().toLowerCase()||'guest'}`));
     if(greenhouse.collected.length){
-      experienceRecords.push('수목원 식물 관찰',`${dominantEmotion(greenhouse.collected)} 감정 기록`);
-      greenhouse.collected.slice(-3).forEach(item=>{const plant=greenhousePlantById.get(item.plantId);if(plant)experienceRecords.push(`${plant.displayName} 발견`)});
+      experienceRecords.push('수목원 식물 관찰');
       preferredPlaceCategories.push('공원','관광명소');
     }
     if(greenhouse.memoryLeaves.length)experienceRecords.push('수목원 기억 편지 작성');
+    if(greenhouse.recordVisibility==='public'&&greenhouse.collected.length>=3){
+      experienceRecords.push(`자연 유형: ${analyzeNatureTaste(greenhouse.collected).label}`,`대표 감정: ${dominantEmotion(greenhouse.collected)}`);
+      if(greenhouse.representativePlant){
+        const plant=greenhousePlantById.get(greenhouse.representativePlant.plantId);
+        if(plant)experienceRecords.push(`대표 식물: ${plant.displayName}`);
+        if(greenhouse.representativePlant.memo)experienceRecords.push(`자연 탐험 한마디: ${greenhouse.representativePlant.memo.slice(0,80)}`);
+      }
+    }
   }catch{/* Ignore malformed greenhouse progress. */}
+  try{
+    const bear=loadBearProgress(profile.nickname);
+    if(bear.completedClues.length)experienceRecords.push(`반달가슴곰 흔적 조사 ${bear.completedClues.length}/3`);
+    if(bear.completedAt){
+      experienceRecords.push('반달가슴곰 생태 전문가 Lv.1','AI 동물 생태 해설 체험');
+      preferredPlaceCategories.push('공원','관광명소');
+    }
+    if(bear.questionsAsked)experienceRecords.push(`AI 생태 해설 질문 ${bear.questionsAsked}회`);
+  }catch{/* Ignore malformed bear exploration progress. */}
   try{
     const visited=JSON.parse(localStorage.getItem(mapKey(profile.nickname))??'[]') as unknown;
     if(Array.isArray(visited))visited.filter((value):value is string=>typeof value==='string').forEach(record=>{

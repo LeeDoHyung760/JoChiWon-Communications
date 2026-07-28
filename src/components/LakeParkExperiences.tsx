@@ -18,6 +18,7 @@ type LakeInterestProfile={savedContentIds:string[];activities:string[];foodPlace
 const LAKE_INTEREST_KEY='sejong-lake-interest-profile-v1';
 const LAKE_JOURNEY_STEP_KEY='sejong-lake-journey-step-v1';
 const LAKE_BOOTH_COMPLETION_KEY='sejong-lake-booth-completion-v1';
+const LAKE_COMPLETION_DISMISSED_KEY='sejong-lake-taste-completion-dismissed-v1';
 const activities=[
   {id:'lunch-concert',emoji:'🎸',label:'12시 런치 콘서트',mood:'자유로운 라이브',description:'이한결 트리오의 대중음악을 가까이에서 즐기는 로비 콘서트',schedule:'2026. 7. 29. 12:00',venue:'세종예술의전당 로비',image:'/images/performances/lunch-concert-2026.jpg',detailUrl:'https://www.sjac.or.kr/base/nrr/performance/read?menuLevel=2&menuNo=77&performanceNo=667'},
   {id:'seopyeonje-musical',emoji:'🎭',label:'뮤지컬 〈서편제〉',mood:'전통과 감동',description:'우리 소리와 현대적인 음악이 어우러지는 창작 뮤지컬',schedule:'2026. 7. 30. ~ 8. 1.',venue:'세종예술의전당',image:'/images/performances/seopyeonje-2026.jpg',detailUrl:'https://www.sjac.or.kr/base/nrr/performance/read?menuLevel=2&menuNo=77&performanceNo=650'},
@@ -149,6 +150,7 @@ export function LakeParkExperiences(){
   const [festivalLimitNotice,setFestivalLimitNotice]=useState(false);
   const [completedBooths,setCompletedBooths]=useState<BoothCompletion>(()=>readBoothCompletion(profile));
   const [showJourneyComplete,setShowJourneyComplete]=useState(false);
+  const [journeyCompleteDismissed,setJourneyCompleteDismissed]=useState(()=>localStorage.getItem(LAKE_COMPLETION_DISMISSED_KEY)==='true');
   const [journeyNotice,setJourneyNotice]=useState('');
   const [coach,setCoach]=useState<{domain:LakeTasteDomain;step:number}|null>(null);
 
@@ -181,7 +183,7 @@ export function LakeParkExperiences(){
       'central-plaza':completedBooths.festival,
     });
   },[completedBooths]);
-  useEffect(()=>{if(allBoothsCompleted)setShowJourneyComplete(true)},[allBoothsCompleted]);
+  useEffect(()=>{if(allBoothsCompleted&&!journeyCompleteDismissed)setShowJourneyComplete(true)},[allBoothsCompleted,journeyCompleteDismissed]);
   useEffect(()=>{
     const controller=new AbortController();
     fetch(`${API_BASE_URL}/festivals`,{signal:controller.signal}).then(response=>{
@@ -314,7 +316,7 @@ export function LakeParkExperiences(){
         </dl>
         <em>이 취향을 기억하고 수목원의 관찰 안내와 이후 세종 맞춤 코스에 반영할게요.</em>
         <p className="lake-completion-portal-guide">맵으로 돌아가 캐릭터를 직접 움직인 뒤 베어트리파크 포털에 들어가세요.</p>
-        <button type="button" className="lake-completion-travel" onClick={()=>{setShowJourneyComplete(false);setJourneyNotice('빛나는 베어트리파크 포털을 찾아 직접 이동하세요!');window.setTimeout(()=>setJourneyNotice(''),4000)}}>맵으로 돌아가 포털 찾기</button>
+        <div className="lake-completion-actions"><button type="button" className="lake-completion-dismiss" onClick={()=>{localStorage.setItem(LAKE_COMPLETION_DISMISSED_KEY,'true');setJourneyCompleteDismissed(true);setShowJourneyComplete(false)}}>다시 안 보기</button><button type="button" className="lake-completion-travel" onClick={()=>{setShowJourneyComplete(false);setJourneyNotice('빛나는 베어트리파크 포털을 찾아 직접 이동하세요!');window.setTimeout(()=>setJourneyNotice(''),4000)}}>맵으로 돌아가 포털 찾기</button></div>
       </section>
     </div>}
 

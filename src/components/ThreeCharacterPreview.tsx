@@ -24,12 +24,14 @@ export function ThreeCharacterPreview({
   src,
   model,
   parts,
-  animationName
+  animationName,
+  animationTime
 }: {
   src: string;
   model: CharacterModel;
   parts: CharacterParts;
   animationName?: string | null;
+  animationTime?: number;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const loadedSceneRef = useRef<Object3D | null>(null);
@@ -118,6 +120,7 @@ export function ThreeCharacterPreview({
         if (clip) {
           mixer = new AnimationMixer(gltf.scene);
           mixer.clipAction(clip).play();
+          if (animationTime !== undefined) mixer.setTime(animationTime);
         }
       },
       undefined,
@@ -128,7 +131,7 @@ export function ThreeCharacterPreview({
     );
 
     renderer.setAnimationLoop(() => {
-      mixer?.update(clock.getDelta());
+      if (animationTime === undefined) mixer?.update(clock.getDelta());
       controls.update();
       renderer.render(scene, camera);
     });
@@ -149,7 +152,7 @@ export function ThreeCharacterPreview({
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [animationName, model, src]);
+  }, [animationName, animationTime, model, src]);
 
   return <div ref={hostRef} className={`three-character-preview ${previewError?'has-error':''}`} aria-label={`${model} 3D 미리보기`}>{previewError&&<div className="three-character-preview-fallback"><span>🧑🏻</span><b>미리보기를 불러오지 못했어요.</b><small>캐릭터 선택과 저장은 그대로 할 수 있어요.</small></div>}</div>;
 }

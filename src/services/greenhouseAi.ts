@@ -18,14 +18,20 @@ export async function requestPlantMessage(plant:PlantDefinition){
   }catch{return createFallbackPlantMessage(plant)}
 }
 
-export async function requestMemoryLetter(userText:string,collected:CollectedPlant[],plants:{name:string;emotion:string}[],dominantEmotion:string){
+export async function requestMemoryLetter(
+  userText:string,
+  collected:CollectedPlant[],
+  plants:{name:string;emotion:string}[],
+  dominantEmotion:string,
+  context?:{natureType:string;representativePlant?:string;representativeMemo?:string;complete:boolean;previousLetter?:string},
+){
   const normalized=normalizeMemoryText(userText);
   const allowedNames=new Set(plants.map(item=>item.name));
   const otherPlantNames=[...new Set(greenhousePlants.map(item=>item.displayName))].filter(name=>!allowedNames.has(name));
   try{
-    const result=await post<{letter?:unknown}>('/greenhouse/memory-letter',{userText:normalized,plants,dominantEmotion});
+    const result=await post<{letter?:unknown}>('/greenhouse/memory-letter',{userText:normalized,plants,dominantEmotion,...context});
     const letter=typeof result.letter==='string'?result.letter.trim():'';
     const inventsPlant=otherPlantNames.some(name=>letter.includes(name));
-    return letter&&!inventsPlant?letter:createFallbackMemoryLetter(normalized,collected);
-  }catch{return createFallbackMemoryLetter(normalized,collected)}
+    return letter&&!inventsPlant?letter:createFallbackMemoryLetter(normalized,collected,context);
+  }catch{return createFallbackMemoryLetter(normalized,collected,context)}
 }

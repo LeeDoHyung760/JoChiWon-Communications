@@ -1,0 +1,82 @@
+.greenhouse-ui{position:absolute;z-index:80;inset:0;pointer-events:none;color:#244a43}
+.greenhouse-ui button,.greenhouse-ui textarea{font:inherit}
+.greenhouse-book-button{position:absolute;z-index:2;left:20px;top:92px;min-width:150px;height:50px;padding:0 13px;display:flex;align-items:center;gap:9px;border:1px solid rgba(214,232,224,.95);border-radius:16px;background:rgba(255,255,255,.94);color:#306f5e;box-shadow:0 12px 30px rgba(30,73,61,.16);backdrop-filter:blur(14px);pointer-events:auto}
+.greenhouse-book-button span{display:flex;flex:1;flex-direction:column;align-items:flex-start}
+.greenhouse-book-button small{color:#78968d;font-size:8px;font-weight:800}
+.greenhouse-book-button b{font-size:12px}
+.greenhouse-book-button.is-complete{border-color:#e5be61;background:#fffaf0;color:#8b651c}
+.greenhouse-observe-button{position:absolute;left:50%;bottom:86px;min-width:245px;padding:11px 16px;display:flex;align-items:center;gap:12px;transform:translateX(-50%);border:1px solid rgba(255,255,255,.95);border-radius:18px;background:rgba(255,255,255,.95);color:#244a43;box-shadow:0 14px 35px rgba(22,64,52,.24);pointer-events:auto}
+.greenhouse-observe-button>span{font-size:24px}
+.greenhouse-observe-button div{display:flex;flex-direction:column;align-items:flex-start}
+.greenhouse-observe-button small{color:#6d9588;font-size:8px}
+.greenhouse-observe-button b{font-size:11px}
+.greenhouse-overlay{position:fixed;z-index:210;inset:0;padding:22px;display:grid;place-items:center;background:rgba(15,47,40,.52);backdrop-filter:blur(8px);pointer-events:auto}
+.greenhouse-modal{position:relative;width:min(650px,100%);max-height:calc(100vh - 44px);overflow:auto;padding:29px;border:1px solid rgba(255,255,255,.7);border-radius:26px;background:#fbfdfc;color:#244a43;box-shadow:0 30px 90px rgba(10,42,35,.36)}
+.greenhouse-modal>small{display:block;color:#439079;font-size:8px;font-weight:950;letter-spacing:.12em}
+.greenhouse-modal h2{margin:5px 0 8px;font-size:25px;letter-spacing:-.045em}
+.greenhouse-modal>p{color:#71867f;font-size:11px;line-height:1.65}
+.greenhouse-close{position:absolute;z-index:2;right:15px;top:15px;width:36px;height:36px;display:grid;place-items:center;border:0;border-radius:50%;background:#eaf3ef;color:#527169}
+.greenhouse-hero-icon,.greenhouse-memory-symbol{width:76px;height:76px;margin:3px auto 15px;display:grid;place-items:center;border-radius:25px;background:#e6f4ee;font-size:39px}
+.greenhouse-intro,.greenhouse-complete{text-align:center}
+.greenhouse-intro-steps{margin:20px 0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.greenhouse-intro-steps span{padding:13px 8px;display:flex;align-items:center;gap:6px;border-radius:13px;background:#edf6f2;font-size:9px;font-weight:800}
+.greenhouse-intro-steps b{width:22px;height:22px;display:grid;place-items:center;border-radius:8px;background:#3f937a;color:#fff}
+.greenhouse-primary{min-height:45px;padding:0 20px;border:0;border-radius:13px;background:linear-gradient(110deg,#388f77,#55a18a);color:#fff;font-size:11px;font-weight:900;box-shadow:0 9px 20px rgba(46,132,108,.18)}
+.greenhouse-primary:disabled{opacity:.45;box-shadow:none}
+.greenhouse-plant-header{display:flex;align-items:center;gap:14px;padding-right:40px}
+.greenhouse-plant-header>div{width:72px;height:72px;display:grid;place-items:center;border-radius:22px;font-size:34px}
+.greenhouse-plant-header section{display:flex;flex-direction:column}
+.greenhouse-plant-header small{color:#4b9a83;font-size:8px;font-weight:950}
+.greenhouse-plant-header h2{margin:3px 0}
+.greenhouse-plant-header i{color:#899892;font-size:9px}
+.greenhouse-description{margin:17px 0 10px!important;padding:12px 14px;border-radius:13px;background:#f0f6f3}
+.greenhouse-traits{display:flex;flex-wrap:wrap;gap:6px}
+.greenhouse-traits span{padding:6px 9px;border-radius:99px;background:#e8f3ee;color:#49786a;font-size:8px;font-weight:800}
+.greenhouse-meta{display:flex;gap:10px;margin:10px 0!important}
+.greenhouse-ai-message{margin:15px 0;padding:14px;display:flex;gap:10px;border-radius:15px;background:#fff4df;color:#745c31}
+.greenhouse-ai-message small{font-size:8px;font-weight:950}
+.greenhouse-ai-message p{margin:4px 0 0;font-size:10px;line-height:1.55}
+.greenhouse-modal h3{margin:17px 0 9px;font-size:12px}
+.greenhouse-emotions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.greenhouse-emotions button{padding:9px 5px;border:1px solid #dfe9e5;border-radius:12px;background:#fff;color:#536f67;font-size:9px;font-weight:800}
+.greenhouse-emotions span{margin-right:4px}
+.greenhouse-emotions button.active{border-color:#3c947b;background:#eaf6f1;color:#286b59;box-shadow:inset 0 0 0 1px #3c947b}
+.greenhouse-saved-note{display:flex;align-items:center;gap:6px;color:#44816f!important}
+.greenhouse-actions{margin-top:16px;display:grid;grid-template-columns:1fr 2fr;gap:8px}
+.greenhouse-actions>button:not(.greenhouse-primary){border:1px solid #dae6e1;border-radius:13px;background:#fff;color:#657d76;font-size:10px;font-weight:850}
+.greenhouse-book-head{padding-right:45px;display:flex;justify-content:space-between;gap:20px}
+.greenhouse-book-head small{color:#4a957f;font-size:8px;font-weight:950}
+.greenhouse-book-head h2{margin:3px 0}
+.greenhouse-book-head p{margin:0;color:#768b84;font-size:9px}
+.greenhouse-book-head strong{align-self:center;color:#3c8c75;font-size:20px;white-space:nowrap}
+.greenhouse-progress{height:8px;margin:14px 0;overflow:hidden;border-radius:99px;background:#e1ebe7}
+.greenhouse-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#4ca186,#e4bf62);transition:width .35s}
+.greenhouse-filters{display:flex;gap:6px;margin-bottom:11px}
+.greenhouse-filters button{padding:6px 12px;border:0;border-radius:99px;background:#eaf2ef;color:#6f837d;font-size:8px;font-weight:850}
+.greenhouse-filters button.active{background:#347d69;color:#fff}
+.greenhouse-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.greenhouse-grid>button{min-width:0;padding:10px;display:flex;align-items:center;gap:9px;border:1px solid #e0e9e5;border-radius:13px;background:#fff;color:#244a43;text-align:left}
+.greenhouse-grid>button>span{width:36px;height:36px;display:grid;flex:0 0 auto;place-items:center;border-radius:11px;background:#edf1ef;font-weight:900}
+.greenhouse-grid>button>div{min-width:0;display:flex;flex:1;flex-direction:column}
+.greenhouse-grid small{color:#79a092;font-size:7px;font-weight:900}
+.greenhouse-grid b{overflow:hidden;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.greenhouse-grid em{margin-top:2px;color:#688078;font-size:7px;font-style:normal}
+.greenhouse-grid .locked{color:#9ba9a5}
+.greenhouse-tree-status{margin-top:12px;padding:13px;display:flex;align-items:center;gap:10px;border-radius:14px;background:#eef2f0;color:#6f817c}
+.greenhouse-tree-status.unlocked{background:#fff5d9;color:#8b6926}
+.greenhouse-tree-status div{display:flex;flex-direction:column}
+.greenhouse-tree-status b{font-size:10px}
+.greenhouse-tree-status span{font-size:8px}
+.greenhouse-memory{text-align:center}
+.greenhouse-memory-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:15px 0}
+.greenhouse-memory textarea{width:100%;min-height:100px;padding:13px;resize:vertical;border:1px solid #dce7e2;border-radius:14px;outline:none;color:#294d46;font-size:10px;line-height:1.6}
+.greenhouse-skeleton{animation:greenhousePulse 1.2s infinite}
+@keyframes greenhousePulse{50%{opacity:.45}}
+@media(max-width:700px){
+  .greenhouse-observe-button{bottom:76px;width:calc(100% - 24px)}
+  .greenhouse-overlay{padding:9px}
+  .greenhouse-modal{max-height:calc(100vh - 18px);padding:22px 17px;border-radius:21px}
+  .greenhouse-grid{grid-template-columns:1fr}
+  .greenhouse-intro-steps,.greenhouse-memory-tabs{grid-template-columns:1fr}
+  .greenhouse-emotions{grid-template-columns:repeat(2,1fr)}
+}
