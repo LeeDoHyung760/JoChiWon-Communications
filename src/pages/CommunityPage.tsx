@@ -833,10 +833,10 @@ export function CommunityPage({
             type="button"
             className="community-back-button"
             onClick={onBack}
-            aria-label="게임으로 돌아가기"
+            aria-label="공동캠퍼스로 돌아가기"
           >
             <span aria-hidden="true">←</span>
-            돌아가기
+            공동캠퍼스로 돌아가기
           </button>
 
           <div className="community-title-group">

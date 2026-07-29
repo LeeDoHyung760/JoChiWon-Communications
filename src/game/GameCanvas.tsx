@@ -10,7 +10,7 @@ import { ChungnyeongNotebook } from '../components/ChungnyeongNotebook';
 import { NatureDiscoveryGuide } from '../components/NatureDiscoveryGuide';
 import { BearHabitatDesignExperience } from '../components/BearHabitatDesignExperience';
 import { BEAR_PLAY_ZONE_RENDERER_OPTIONS,BEAR_TREE_PARK_RENDERER_OPTIONS,CAMPUS_RENDERER_OPTIONS,GARDEN_RENDERER_OPTIONS,GOVERNMENT_RENDERER_OPTIONS,LAKE_PARK_RENDERER_OPTIONS,LAKE_PARK_SPAWN,preloadBearTreeParkDownload,VillageMapRenderer,WORLD_RENDERER_LAYOUT_TOKEN } from './renderers/VillageMapRenderer';
-import type { BearTreePortalPositions,CampusFeaturePortalPosition,LakeExperiencePosition,MapId,PortalPosition,RespawnPosition,WorldInteractionPosition } from '../../shared/socket-events';
+import type { MapId,RespawnPosition } from '../../shared/socket-events';
 import { buildExperienceRecommendationProfile,recordMapExperience } from '../services/experienceRecommendationProfile';
 import type { GameReturnState } from './gameReturnState';
 
@@ -47,9 +47,6 @@ export const GameCanvas=memo(function GameCanvas({profile,returnState}:{profile:
   useEffect(()=>{
     if(!ref.current||!entrySpawn)return;
     let cancelled=false,mapTravelActive=false,gardenReleaseTimer=0;
-    let sharedPortalPositions:PortalPosition[]=[];
-    let sharedCampusFeaturePortalPositions:CampusFeaturePortalPosition[]=[];
-    let sharedBearTreePortalPositions:BearTreePortalPositions|undefined;
     const preloadIdleHandles:number[]=[];
     const initialMapId=returnState?.mapId??'town',initialOptions=rendererOptionsFor(initialMapId);
     const initialRenderer=initialOptions?new VillageMapRenderer(ref.current,profile,{...initialOptions,spawn:entrySpawn}):undefined;
@@ -59,16 +56,8 @@ export const GameCanvas=memo(function GameCanvas({profile,returnState}:{profile:
       const options=rendererOptionsFor(mapId);
       if(!options)return;
       const renderer=new VillageMapRenderer(ref.current!,profile,options);renderer.setVisible(false);worldRenderers[mapId]=renderer;
-      sharedPortalPositions.forEach(position=>renderer.setPortalPosition(position));
-      sharedCampusFeaturePortalPositions.forEach(position=>renderer.setCampusFeaturePortalPosition(position));
-      if(mapId==='bear-tree-park'&&sharedBearTreePortalPositions)renderer.setBearTreePortalPositions(sharedBearTreePortalPositions);
       return renderer;
     };
-    const applySharedPortalPositions=(positions:PortalPosition[])=>{sharedPortalPositions=positions;positions.forEach(position=>Object.values(worldRenderers).forEach(renderer=>renderer?.setPortalPosition(position)))};
-    const applySharedCampusFeaturePortalPositions=(positions:CampusFeaturePortalPosition[])=>{sharedCampusFeaturePortalPositions=positions;positions.forEach(position=>Object.values(worldRenderers).forEach(renderer=>renderer?.setCampusFeaturePortalPosition(position)))};
-    const applyBearTreePortalPositions=(positions:BearTreePortalPositions)=>{sharedBearTreePortalPositions=positions;worldRenderers['bear-tree-park']?.setBearTreePortalPositions(positions)};
-    const applySharedInteractionPositions=(positions:WorldInteractionPosition[])=>positions.forEach(position=>Object.values(worldRenderers).forEach(renderer=>renderer?.setInteractionPosition(position)));
-    const applySharedLakeExperiencePositions=(positions:LakeExperiencePosition[])=>positions.forEach(position=>worldRenderers.town?.setLakeExperiencePosition(position));
     const showMapTravelLoading=(mapId:MapId)=>{
       mapTravelActive=true;setLoadingMapId(mapId);setLoadError('');setLoading(true);
       window.clearTimeout(gardenReleaseTimer);
@@ -84,16 +73,9 @@ export const GameCanvas=memo(function GameCanvas({profile,returnState}:{profile:
     };
     const hideMapTravelLoading=()=>{if(!mapTravelActive)return;mapTravelActive=false;setLoading(false)};
     const showMapTravelError=({message}:{message:string})=>{if(!mapTravelActive)return;mapTravelActive=false;setLoadError(message);setLoading(false)};
-    socket.on('portalPositionsUpdated',applySharedPortalPositions);
-    socket.on('campusFeaturePortalPositionsUpdated',applySharedCampusFeaturePortalPositions);
-    socket.on('bearTreePortalPositionsUpdated',applyBearTreePortalPositions);
-    socket.on('interactionPositionsUpdated',applySharedInteractionPositions);
-    socket.on('lakeExperiencePositionsUpdated',applySharedLakeExperiencePositions);
     gameEvents.on('map-travel-started',showMapTravelLoading);
     gameEvents.on('map-travel-complete',hideMapTravelLoading);
     gameEvents.on('map-travel-failed',showMapTravelError);
-    const saveCampusFeaturePortalPosition=(position:CampusFeaturePortalPosition)=>socket.emit('saveCampusFeaturePortalPosition',position);
-    gameEvents.on('campus-feature-portal-position-saved',saveCampusFeaturePortalPosition);
     void (initialRenderer?.ready??Promise.resolve()).then(()=>{
       if(cancelled)return;
       setLoading(false);
@@ -144,15 +126,9 @@ export const GameCanvas=memo(function GameCanvas({profile,returnState}:{profile:
       gameEvents.off('bear-travel-style-changed',experienceChanged);
       gameEvents.off('bear-habitat-decision-changed',experienceChanged);
       gameEvents.off('map-travel-complete',mapExperienceChanged);
-      socket.off('portalPositionsUpdated',applySharedPortalPositions);
-      socket.off('campusFeaturePortalPositionsUpdated',applySharedCampusFeaturePortalPositions);
-      socket.off('bearTreePortalPositionsUpdated',applyBearTreePortalPositions);
-      socket.off('interactionPositionsUpdated',applySharedInteractionPositions);
-      socket.off('lakeExperiencePositionsUpdated',applySharedLakeExperiencePositions);
       gameEvents.off('map-travel-started',showMapTravelLoading);
       gameEvents.off('map-travel-complete',hideMapTravelLoading);
       gameEvents.off('map-travel-failed',showMapTravelError);
-      gameEvents.off('campus-feature-portal-position-saved',saveCampusFeaturePortalPosition);
       gameEvents.removeAllListeners('show-bubble');
       game.destroy(true);
       Object.values(worldRenderers).forEach(renderer=>renderer?.destroy());

@@ -35,6 +35,8 @@
 .world-community{position:absolute;z-index:35;right:98px;top:20px;height:40px;padding:0 13px;display:flex;align-items:center;gap:6px;border-radius:13px;color:#2f7b66;font-size:10px;font-weight:900}
 .world-community:hover{border-color:#76bda8;background:#fff;color:#1e6957}
 .game-page.is-map-overview .world-community{opacity:0;pointer-events:none}
+.campus-feature-enter{position:absolute;z-index:47;left:50%;bottom:96px;min-width:285px;padding:10px 11px;display:flex;align-items:center;gap:10px;transform:translateX(-50%);border:1px solid rgba(187,224,211,.96);border-radius:16px;background:rgba(251,255,253,.96);color:#214f45;box-shadow:0 16px 42px rgba(24,87,70,.24),0 0 24px rgba(92,205,170,.15);backdrop-filter:blur(16px)}
+.campus-feature-enter:hover{border-color:#66b398;background:#fff}.campus-feature-enter>span{width:40px;height:40px;display:grid;place-items:center;flex:none;border-radius:12px;background:#e2f3ec;font-size:20px}.campus-feature-enter>div{min-width:0;display:flex;flex:1;flex-direction:column;text-align:left}.campus-feature-enter small{color:#609687;font-size:7px;font-weight:850}.campus-feature-enter b{margin-top:2px;font-size:10px}.campus-feature-enter kbd{width:34px;height:34px;display:grid;place-items:center;border:1px solid #b9d5cb;border-bottom-width:3px;border-radius:9px;background:#fff;color:#2d7561;font:900 12px inherit}.game-page.is-map-overview .campus-feature-enter{opacity:0;pointer-events:none}
 .quest-hub-button{position:absolute;z-index:36;left:50%;top:20px;min-width:142px;height:50px;padding:7px 12px;display:flex;align-items:center;gap:9px;transform:translateX(-50%);border:1px solid rgba(221,234,228,.94);border-radius:16px;background:rgba(255,255,255,.92);color:#294e47;box-shadow:0 12px 30px rgba(28,67,57,.14);backdrop-filter:blur(15px)}.quest-hub-button>span{font-size:22px}.quest-hub-button>div{display:flex;flex-direction:column;text-align:left}.quest-hub-button small{color:#61a08d;font-size:7px;font-weight:900;letter-spacing:.08em}.quest-hub-button b{margin-top:2px;font-size:10px}
 
 .game-page .online{position:absolute;z-index:48;left:20px;right:auto;top:146px;width:245px;height:auto;max-height:calc(100vh - 258px);padding:12px;border-radius:17px;overflow:auto}.game-page .online.is-lake-park{top:194px;max-height:calc(100dvh - 294px);border-top:0;border-radius:0 0 17px 17px;box-shadow:0 14px 38px rgba(28,67,57,.16)}.game-page:has(.lake-journey-guide.step-3) .online.is-lake-park{top:206px;max-height:calc(100dvh - 306px)}.game-page .online.is-nature-chapter{top:232px;max-height:calc(100dvh - 332px);border-top:0;border-radius:0 0 17px 17px;box-shadow:0 14px 38px rgba(28,67,57,.16)}
@@ -55,6 +57,10 @@
 .game-page .online .my-profile-card:hover{border-color:#9bcbbd;background:#e5f4ee!important}
 .game-page .online .my-profile-card>div{min-width:0;flex:1}
 .game-page .online .my-profile-kicker{margin:0 0 2px;color:#3b8d74;font-size:7px;font-weight:950;letter-spacing:.08em}
+.game-page .online .campus-npc-card{margin-top:5px;border:1px solid #dbe6f2;background:linear-gradient(135deg,#f4f8fc,#fff)!important}
+.game-page .online .campus-npc-card:hover{border-color:#a9c2dc;background:#edf5fb!important}
+.game-page .online .campus-npc-card>div{min-width:0;flex:1}
+.game-page .online .campus-npc-kicker{margin:0 0 2px;color:#4f7ea8;font-size:7px;font-weight:950;letter-spacing:.06em}
 .game-page .online .my-profile-action{padding:4px 7px;border-radius:999px;background:#fff;color:#43836f;font-size:7px;font-weight:900;box-shadow:0 2px 7px rgba(35,88,72,.1)}
 .game-page .online .avatar.small{transform:scale(.68);margin:-9px -7px}
 .game-page .online b{font-size:10px}
