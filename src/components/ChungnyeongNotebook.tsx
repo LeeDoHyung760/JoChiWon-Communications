@@ -22,13 +22,13 @@ function natureChapterSnapshot(userKey:string,location:string){
   const bear=Boolean(loadBearProgress(userKey).completedAt);
   const completed=[forest,bear,completion.analysisUnlocked,Boolean(greenhouse.representativePlant)].filter(Boolean).length;
   const next=completed===4
-    ?'자연 감성 여정 완료! 나의 대표 식물과 감정 기록이 저장됐어요.'
+    ?'자연 감성 여정 완료! 나의 대표 식물과 AI 마음 기록이 저장됐어요.'
     :!forest
       ?'다음 체험: 베어트리파크를 걸으며 숲 산책 시작하기'
       :!bear
          ?visits.includes('bear')||location==='AI 생태 탐험 연구소'?'다음 체험: 역할을 나눠 AI 생태 보고서 완성하기':'다음 체험: AI 생태 탐험 연구소 들어가기'
         :!completion.analysisUnlocked
-          ?`다음 체험: 수목원에서 식물 감정 기록하기 (${completion.count}/3종)`
+          ?`다음 체험: 수목원에서 AI 마음 기록하기 (${completion.count}/3종)`
           :'다음 체험: 세 식물 중 가장 기억에 남는 대표 식물과 이유 선택하기';
   return {completed,next};
 }
@@ -73,7 +73,7 @@ export function ChungnyeongNotebook({profile}:{profile:UserProfile}){
     <div>
       <small>{isNatureChapter?'인공지능 동행자 충녕이 · 자연 감성 발견':'인공지능 동행자 충녕이 · 누적 탐험 기록'}</small>
       <b>{isNatureChapter?natureProgress.next:pages===TOTAL_PAGES?'첫 기록 묶음이 완성됐어! 다음 공간에서도 계속 발견해보자.':'선택하고 탐험할 때마다 새로운 기록이 쌓여요'}</b>
-      <p>{isNatureChapter?'숲 산책 → AI 곰 생태 탐험 → 식물 감정 3종 → 대표 식물 선택':pages===TOTAL_PAGES?'지금까지 모은 기록에 자연 감성·협력 방식·가치관을 계속 더할 수 있어요.':'첫 취향 발견 · 자연 감성 발견 · 협력 방식 발견'}</p>
+      <p>{isNatureChapter?'숲 산책 → AI 곰 생태 탐험 → 식물 AI 마음 기록 3종 → 대표 식물 선택':pages===TOTAL_PAGES?'지금까지 모은 기록에 자연 감성·협력 방식·가치관을 계속 더할 수 있어요.':'첫 취향 발견 · 자연 감성 발견 · 협력 방식 발견'}</p>
       <div className="chungnyeong-notebook-pages" style={{gridTemplateColumns:`repeat(${displayTotal},1fr)`}}>{Array.from({length:displayTotal},(_,index)=><i className={index<displayPages?'filled':''} key={index}>{index<displayPages&&<Check size={8}/>}</i>)}</div>
     </div>
     <em><strong>{isNatureChapter?`${displayPages}/${displayTotal}`:recordCount}</strong><span>{isNatureChapter?'단계':'누적'}</span></em>

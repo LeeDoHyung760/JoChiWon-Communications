@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n WEB,SERVER -c green,cyan \"npm run dev:client\" \"npm run dev:server\"",
-    "dev:client": "vite --host 127.0.0.1",
-    "dev:web": "vite --host 127.0.0.1",
+    "dev:client": "vite --host 127.0.0.1 --force",
+    "dev:web": "vite --host 127.0.0.1 --force",
     "dev:server": "npm --prefix server run dev",
     "verify:providers": "npm --prefix server run verify:providers",
     "verify:direct-recommendation": "npm --prefix server run verify:direct-recommendation",
@@ -15,6 +15,7 @@
     "inspect:character": "node scripts/inspectCharacter.mjs",
     "test:character": "node scripts/testCharacterMotion.mjs",
     "test:greenhouse": "node scripts/runGreenhouseTests.mjs",
+    "test:greenhouse-ai": "tsx scripts/testGreenhouseAi.ts",
     "build": "tsc -b && vite build && tsc -p server/tsconfig.json",
     "start:server": "node server/dist/server/src/index.js",
     "preview": "vite preview"
@@ -26,6 +27,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.1.0",
     "lucide-react": "latest",
+    "meshoptimizer": "^1.2.0",
     "openai": "^6.48.0",
     "phaser": "^3.90.0",
     "react": "latest",

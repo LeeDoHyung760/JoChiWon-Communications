@@ -15,8 +15,11 @@ import { clubsRouter } from './routes/clubs.js';
 import { loadedEnvPath } from './loadEnv.js';
 import path from 'node:path';
 import { festivalsRouter } from './routes/festivals.js';
-import { connectDatabase } from './config/database.js';
+import { connectDatabase, disconnectDatabase } from './config/database.js';
 import { authRouter } from './routes/auth.js';
+import { loadCampusFeaturePortalPositions, seedCampusFeaturePortalPositions } from './models/CampusFeaturePortal.js';
+import { loadOrSeedWorldRespawnPosition } from './models/WorldRespawnPosition.js';
+import { roomStore } from './rooms/roomStore.js';
 
 const app = express();
 app.use(cors({ origin: env.CLIENT_ORIGIN }));
@@ -38,8 +41,39 @@ const httpServer = createServer(app);
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, { cors: { origin: env.CLIENT_ORIGIN } });
 setSocketServer(io);
 io.on('connection', (socket) => registerSocketHandlers(io, socket));
+
+let shuttingDown = false;
+let campusPortalSyncTimer:NodeJS.Timeout|undefined;
+const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  if(campusPortalSyncTimer)clearInterval(campusPortalSyncTimer);
+  console.log(`[Server] ${signal} received; shutting down`);
+
+  if (httpServer.listening) {
+    await new Promise<void>((resolve) => io.close(() => resolve()));
+  }
+
+  await disconnectDatabase();
+  process.exit(0);
+};
+
+process.once('SIGINT', () => void shutdown('SIGINT'));
+process.once('SIGTERM', () => void shutdown('SIGTERM'));
+
 const startServer = async (): Promise<void> => {
   await connectDatabase();
+  roomStore.setRespawnPosition(await loadOrSeedWorldRespawnPosition(roomStore.respawnPosition));
+  roomStore.replaceCampusFeaturePortalPositions(await seedCampusFeaturePortalPositions(roomStore.allCampusFeaturePortalPositions()));
+  let campusPortalSignature=JSON.stringify(roomStore.allCampusFeaturePortalPositions().sort((a,b)=>a.portal.localeCompare(b.portal)));
+  campusPortalSyncTimer=setInterval(()=>{void loadCampusFeaturePortalPositions().then(positions=>{
+    if(!positions.length)return;
+    const merged=new Map(roomStore.allCampusFeaturePortalPositions().map(position=>[position.portal,position]));
+    positions.forEach(position=>merged.set(position.portal,position));
+    const next=[...merged.values()].sort((a,b)=>a.portal.localeCompare(b.portal)),signature=JSON.stringify(next);
+    if(signature===campusPortalSignature)return;
+    campusPortalSignature=signature;roomStore.replaceCampusFeaturePortalPositions(next);io.emit('campusFeaturePortalPositionsUpdated',next);
+  }).catch(error=>console.error('[campus portal sync failed]',error))},1500);
 
   httpServer.listen(env.PORT, () => {
     console.log(`[Config] Environment: ${env.NODE_ENV}`);

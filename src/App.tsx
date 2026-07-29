@@ -1,19 +1,19 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useState,
 } from 'react';
 
-import { CharacterTestPage } from './pages/CharacterTestPage';
-import { CommunityPage } from './pages/CommunityPage';
-import { CreateProfilePage } from './pages/CreateProfilePage';
-import { GamePage } from './pages/GamePage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupCompletePage } from './pages/SignupCompletePage';
 import { TermsPage } from './pages/TermsPage';
 
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { API_BASE_URL } from './config/api';
+import { clearAllAccountData } from './services/accountData';
 
 import {
   defaultProfile,
@@ -25,6 +25,32 @@ import {
 } from './stores/profileStore';
 
 import type { UserProfile } from './types';
+import type { GameReturnState } from './game/gameReturnState';
+
+const CharacterTestPage=lazy(()=>import('./pages/CharacterTestPage').then(module=>({default:module.CharacterTestPage})));
+const CommunityPage=lazy(()=>import('./pages/CommunityPage').then(module=>({default:module.CommunityPage})));
+const CreateProfilePage=lazy(()=>import('./pages/CreateProfilePage').then(module=>({default:module.CreateProfilePage})));
+const loadGamePage=()=>import('./pages/GamePage').then(module=>({default:module.GamePage}));
+const GamePage=lazy(loadGamePage);
+
+function DeferredPage({children}:{children:React.ReactNode}){
+  return <Suspense fallback={<main className="deferred-page-loading" role="status"><span>🌿</span><b>페이지를 준비하고 있어요</b></main>}>{children}</Suspense>;
+}
+
+function ExperienceLoading(){
+  const tasks=['입장 위치 확인','호수공원 산책로 불러오기','캐릭터 배치','축제·공연 체험 연결','주변 사용자 연결'];
+  return <main className="experience-entry-loading" role="status" aria-live="polite">
+    <div className="experience-entry-brand"><span>🧑🏻‍🌾</span><div><b>세종한바퀴</b><small>세종 소통형 체험 공간</small></div></div>
+    <div className="experience-entry-center">
+      <i/>
+      <span>세종호수공원</span>
+      <h1>세종호수공원으로 이동중...</h1>
+      <p>호수 산책로와 다양한 취향 체험을 준비하고 있어요.</p>
+      <div className="experience-entry-tasks">{tasks.map((task,index)=><span key={task}>{index===0?'✓':'●'} {task}</span>)}</div>
+      <div className="experience-entry-progress"><em/></div>
+    </div>
+  </main>;
+}
 
 type Page =
   | 'landing'
@@ -36,8 +62,8 @@ type Page =
   | 'game'
   | 'community';
 
-const KAKAO_LOGIN_URL =
-  'http://localhost:3001/api/auth/kakao';
+const KAKAO_LOGIN_URL = `${API_BASE_URL}/auth/kakao`;
+const DEMO_LOGIN_URL = `${API_BASE_URL}/auth/demo`;
 
 const KAKAO_USER_ID_KEY =
   'jochiwon-kakao-user-id';
@@ -48,6 +74,7 @@ const KAKAO_PROFILE_IMAGE_KEY =
 export default function App() {
   const [page, setPage] =
     useState<Page>('landing');
+  const [gameReturnState,setGameReturnState]=useState<GameReturnState>();
 
   const [
     storedProfile,
@@ -86,13 +113,47 @@ export default function App() {
       storedProfile.chatEnabled ?? true,
   };
 
-  const legacyMember =
-    profile.nickname.trim().length >= 2 &&
-    profile.interests.length > 0;
-
+  // A nickname and interests are only an onboarding draft. Login becomes
+  // complete exclusively after the character save action finishes signup.
   const membershipComplete =
-    journey.membershipComplete ||
-    legacyMember;
+    journey.membershipComplete;
+  const hasLoginIdentity =
+    Boolean(
+      localStorage
+        .getItem(KAKAO_USER_ID_KEY)
+        ?.trim(),
+    );
+  const canExperience =
+    journey.authenticated &&
+    membershipComplete &&
+    hasLoginIdentity;
+
+  useEffect(()=>{
+    if(page!=='landing')return;
+    const timer=window.setTimeout(()=>{
+      void loadGamePage().catch(()=>undefined);
+    },600);
+    return()=>window.clearTimeout(timer);
+  },[page]);
+
+  useEffect(() => {
+    if (
+      journey.authenticated &&
+      (
+        !journey.membershipComplete ||
+        !hasLoginIdentity
+      )
+    ) {
+      setJourney({
+        ...journey,
+        authenticated: false,
+      });
+    }
+  }, [
+    journey,
+    hasLoginIdentity,
+    setJourney,
+  ]);
 
   useEffect(() => {
     const searchParams =
@@ -147,17 +208,14 @@ export default function App() {
     };
 
     const completedMembership =
-      journey.membershipComplete ||
-      (
-        nextProfile.nickname.trim().length >= 2 &&
-        nextProfile.interests.length > 0
-      );
+      journey.membershipComplete;
 
     setProfile(nextProfile);
 
     setJourney({
       ...journey,
-      authenticated: true,
+      authenticated:
+        completedMembership,
       membershipComplete:
         completedMembership,
     });
@@ -179,15 +237,15 @@ export default function App() {
     );
   }, []);
 
-  const startFromLanding = () => {
-    if (
-      journey.authenticated &&
-      membershipComplete
-    ) {
-      setPage('game');
-      return;
-    }
+  const startExperience = () => {
+    setPage(
+      canExperience
+        ? 'game'
+        : 'login',
+    );
+  };
 
+  const openLogin = () => {
     setPage('login');
   };
 
@@ -196,12 +254,18 @@ export default function App() {
       KAKAO_LOGIN_URL;
   };
 
+  const demoLogin = () => {
+    window.location.href =
+      DEMO_LOGIN_URL;
+  };
+
   const moveToStep = (
     onboardingStep: OnboardingStep,
   ) => {
     setJourney({
       ...journey,
-      authenticated: true,
+      authenticated: false,
+      membershipComplete: false,
       onboardingStep,
     });
 
@@ -221,7 +285,8 @@ export default function App() {
 
       setJourney({
         ...journey,
-        authenticated: true,
+        authenticated: false,
+        membershipComplete: false,
         onboardingStep:
           step === 1
             ? 'profile'
@@ -254,20 +319,24 @@ export default function App() {
     location.pathname ===
       '/dev/character-test'
   ) {
-    return <CharacterTestPage />;
+    return <DeferredPage><CharacterTestPage /></DeferredPage>;
   }
 
   if (page === 'landing') {
     return (
       <LandingPage
-        onStart={startFromLanding}
+        onStart={startExperience}
+        onLogin={openLogin}
         onUserClick={() =>
           setPage('account')
         }
-        actionLabel="체험 시작하기"
+        actionLabel={
+          canExperience
+            ? '체험 시작하기'
+            : '로그인 후 체험하기'
+        }
         userName={
-          journey.authenticated &&
-          membershipComplete
+          canExperience
             ? profile.nickname
             : undefined
         }
@@ -282,6 +351,26 @@ export default function App() {
           setPage('landing')
         }
         onLogin={kakaoLogin}
+        onDemoLogin={demoLogin}
+      />
+    );
+  }
+
+  if (
+    (
+      page === 'game' ||
+      page === 'community' ||
+      page === 'account'
+    ) &&
+    !canExperience
+  ) {
+    return (
+      <LoginPage
+        onBack={() =>
+          setPage('landing')
+        }
+        onLogin={kakaoLogin}
+        onDemoLogin={demoLogin}
       />
     );
   }
@@ -301,7 +390,7 @@ export default function App() {
 
   if (page === 'create') {
     return (
-      <CreateProfilePage
+      <DeferredPage><CreateProfilePage
         initial={profile}
         initialStep={
           journey.onboardingStep ===
@@ -311,7 +400,7 @@ export default function App() {
         }
         onProgress={saveProgress}
         onComplete={finishSignup}
-      />
+      /></DeferredPage>
     );
   }
 
@@ -328,34 +417,22 @@ export default function App() {
 
   if (page === 'account') {
     return (
-      <CreateProfilePage
+      <DeferredPage><CreateProfilePage
         initial={profile}
         editMode
+        cancelLabel={gameReturnState?'맵으로 이동':'메인 이동'}
         onCancel={() =>
-          setPage('landing')
+          setPage(gameReturnState?'game':'landing')
         }
         onWithdraw={() => {
-          localStorage.removeItem(
-            'sejong-lake-interest-profile-v1',
-          );
-
-          localStorage.removeItem(
-            'sejong-lake-tutorial-hidden-v1',
-          );
-
-          localStorage.removeItem(
-            KAKAO_USER_ID_KEY,
-          );
-
-          localStorage.removeItem(
-            KAKAO_PROFILE_IMAGE_KEY,
-          );
-
+          clearAllAccountData(localStorage);
+          setGameReturnState(undefined);
           setProfile(defaultProfile);
           setJourney(defaultUserJourney);
           setPage('landing');
         }}
         onLogout={() => {
+          setGameReturnState(undefined);
           localStorage.removeItem(
             KAKAO_USER_ID_KEY,
           );
@@ -375,35 +452,47 @@ export default function App() {
           updatedProfile,
         ) => {
           setProfile(updatedProfile);
-          setPage('landing');
+          setPage(gameReturnState?'game':'landing');
         }}
-      />
+      /></DeferredPage>
     );
   }
 
   if (page === 'community') {
     return (
-      <CommunityPage
+      <DeferredPage><CommunityPage
         profile={profile}
         onBack={() =>
           setPage('game')
         }
-      />
+      /></DeferredPage>
     );
   }
 
   return (
-    <GamePage
-      profile={profile}
-      onExit={() =>
-        setPage('landing')
-      }
-      onEditProfile={() =>
-        setPage('account')
-      }
-      onOpenCommunity={() =>
-        setPage('community')
-      }
-    />
+    <Suspense fallback={<ExperienceLoading/>}>
+      <GamePage
+        profile={
+          profile.nickname.trim()
+            ? profile
+            : {
+                ...profile,
+                nickname: '체험 사용자',
+              }
+        }
+        returnState={gameReturnState}
+        onExit={() => {
+          setGameReturnState(undefined);
+          setPage('landing');
+        }}
+        onEditProfile={state => {
+          setGameReturnState(state);
+          setPage('account');
+        }}
+        onOpenCommunity={() =>
+          setPage('community')
+        }
+      />
+    </Suspense>
   );
 }

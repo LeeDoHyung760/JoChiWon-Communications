@@ -7,7 +7,7 @@ import marketMapImage from '../assets/maps/hotspots/traditional-market-map.jpg';
 import parkMapImage from '../assets/maps/hotspots/jochwon-park-map.jpg';
 import './LandingPage.css';
 
-type LandingPageProps={onStart:()=>void;onUserClick?:()=>void;actionLabel?:string;userName?:string};
+type LandingPageProps={onStart:()=>void;onLogin:()=>void;onUserClick?:()=>void;actionLabel?:string;userName?:string};
 
 const places=[
   {name:'세종호수공원',description:'축제와 지역 볼거리에서 취향 발견',people:'시작',image:parkMapImage},
@@ -31,7 +31,7 @@ const experienceRooms=[
   {name:'세종 카페 산책부',emoji:'☕',stage:'공동캠퍼스',status:'주말 방문 장소 투표 중',members:'5명',interests:['카페','지역상점']}
 ];
 
-export function LandingPage({onStart,onUserClick,actionLabel='멀티버스 입장하기',userName}:LandingPageProps){
+export function LandingPage({onStart,onLogin,onUserClick,actionLabel='멀티버스 입장하기',userName}:LandingPageProps){
   const [view,setView]=useState<'home'|'neighborhoods'|'neighbors'>('home');
   const [selectedChapter,setSelectedChapter]=useState<(typeof livingAreas)[number]|null>(null);
   const showHome=()=>{setSelectedChapter(null);setView('home')};
@@ -48,7 +48,7 @@ export function LandingPage({onStart,onUserClick,actionLabel='멀티버스 입�
           <button type="button" className={view==='neighborhoods'?'is-active':''} onClick={showNeighborhoods}>공간 안내</button>
           <button type="button" className={view==='neighbors'?'is-active':''} onClick={()=>setView('neighbors')}>함께하기</button>
         </nav>
-        <button type="button" className={`welcome-login ${userName?'is-user':''}`} title={userName?'캐릭터 설정 변경':'로그인'} aria-label={userName?`${userName}님의 캐릭터 설정 변경`:'로그인'} onClick={userName?(onUserClick??onStart):onStart}>{userName?<><span aria-hidden="true">🧑🏻‍🌾</span>{userName}님</>:actionLabel==='가입 이어서 하기'?actionLabel:'로그인'}</button>
+        <button type="button" className={`welcome-login ${userName?'is-user':''}`} title={userName?'캐릭터 설정 변경':'로그인'} aria-label={userName?`${userName}님의 캐릭터 설정 변경`:'로그인'} onClick={userName?(onUserClick??onStart):onLogin}>{userName?<><span aria-hidden="true">🧑🏻‍🌾</span>{userName}님</>:actionLabel==='가입 이어서 하기'?actionLabel:'로그인'}</button>
       </header>
 
       {view==='home'?<>

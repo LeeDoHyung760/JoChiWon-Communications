@@ -3,7 +3,8 @@ import type { UserProfile } from '../types';
 import { greenhousePlantById } from '../data/greenhouse-plants';
 import { analyzeNatureTaste,dominantEmotion,parseGreenhouseProgress } from './greenhouseProgress';
 import { loadBearProgress } from '../data/bear-wildlife';
-import { loadBearTravelProgress } from './bearTravelStyle';
+import { loadBearHabitatProgress } from './bearHabitatDecision';
+import { buildAiSejongProfile } from './aiSejongProfile';
 
 const LAKE_INTEREST_KEY='sejong-lake-interest-profile-v1';
 const MAP_RECORD_PREFIX='sejong-map-experience-v1:';
@@ -56,6 +57,7 @@ const mapRecords:Partial<Record<MapId,{record:string;categories:string[]}>>={
   'bear-tree-park':{record:'베어트리파크 숲 탐험',categories:['공원','관광명소']},
   'bear-play-zone':{record:'베어트리파크 곰 관찰',categories:['공원','관광명소']},
   campus:{record:'공동캠퍼스 이웃 만남',categories:['문화시설']},
+  government:{record:'정부청사 공동 계획',categories:['문화시설','관광명소']},
 };
 
 const unique=(values:string[])=>[...new Set(values.filter(Boolean))];
@@ -104,9 +106,9 @@ export function countTasteDiscoveryRecords(profile:UserProfile){
     if(bear.questionsAsked)records.push('bear-ai-question');
   }catch{/* Ignore malformed bear exploration progress. */}
   try{
-    const style=loadBearTravelProgress(profile.nickname).result;
-    if(style)records.push('bear-travel-style');
-  }catch{/* Ignore malformed travel style progress. */}
+    const decision=loadBearHabitatProgress(profile.nickname).result;
+    if(decision)records.push('bear-habitat-decision');
+  }catch{/* Ignore malformed habitat decision progress. */}
   try{
     const visited=JSON.parse(localStorage.getItem(mapKey(profile.nickname))??'[]') as unknown;
     if(Array.isArray(visited))visited.forEach(record=>{
@@ -119,6 +121,7 @@ export function countTasteDiscoveryRecords(profile:UserProfile){
 export function buildExperienceRecommendationProfile(profile:UserProfile):PublicMatchProfile{
   const experienceRecords:string[]=[];
   const preferredPlaceCategories=[...profile.preferredPlaceCategories];
+  const aiSejongProfile=buildAiSejongProfile(profile);
   try{
     const lake=JSON.parse(localStorage.getItem(LAKE_INTEREST_KEY)??'null') as {savedContentIds?:unknown;activities?:unknown;foodShopIds?:unknown;foodPlaceInterests?:unknown;foodInterests?:unknown;shopInterests?:unknown;festivalTheme?:unknown;likedCourseTitles?:unknown;tasteInsights?:unknown}|null;
     const savedIds=Array.isArray(lake?.savedContentIds)?lake.savedContentIds.filter((value):value is string=>typeof value==='string'):[];
@@ -162,12 +165,18 @@ export function buildExperienceRecommendationProfile(profile:UserProfile):Public
     if(bear.questionsAsked)experienceRecords.push(`AI 생태 해설 질문 ${bear.questionsAsked}회`);
   }catch{/* Ignore malformed bear exploration progress. */}
   try{
-    const style=loadBearTravelProgress(profile.nickname).result;
-    if(style){
-      experienceRecords.push(`여행 이동 방식: ${style.movement}`,`관람 속도: ${style.pace}`,`활동 선호: ${style.activity}`,`동행 방식: ${style.companion}`,`정보 선호: ${style.information}`);
+    const decision=loadBearHabitatProgress(profile.nickname).result;
+    if(decision){
+      experienceRecords.push(
+        `의사결정 유형: ${decision.title}`,
+        `주요 판단 기준: ${decision.criteria.map(item=>`${item.label} ${item.score}%`).join(' · ')}`,
+        `설계 과정: ${decision.response}`,
+        `맵 배치 방식: ${decision.mapAnalysis}`,
+        `코스 구성 방식: ${decision.courseStrategy}`,
+      );
       preferredPlaceCategories.push('공원','관광명소');
     }
-  }catch{/* Ignore malformed travel style progress. */}
+  }catch{/* Ignore malformed habitat decision progress. */}
   try{
     const visited=JSON.parse(localStorage.getItem(mapKey(profile.nickname))??'[]') as unknown;
     if(Array.isArray(visited))visited.filter((value):value is string=>typeof value==='string').forEach(record=>{
@@ -177,7 +186,7 @@ export function buildExperienceRecommendationProfile(profile:UserProfile):Public
   }catch{/* Ignore malformed map records. */}
   return {
     mbti:profile.mbti,
-    interests:unique(profile.interests).slice(0,10),
+    interests:unique([...profile.interests,...aiSejongProfile.interests.map(item=>item.label)]).slice(0,10),
     usagePurposes:unique(profile.usagePurposes).slice(0,10),
     preferredPlaceCategories:unique(preferredPlaceCategories).slice(0,10),
     experienceRecords:unique(experienceRecords).slice(-10),

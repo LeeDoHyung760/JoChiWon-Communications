@@ -1,7 +1,8 @@
 import { useEffect,useState,type MouseEvent } from 'react';
-import { MapPin,Sparkles,X } from 'lucide-react';
-import type { DirectMessage,DirectRecommendationPlace,DirectRoom,DirectRoomMeetingPlace } from '../../shared/socket-events';
+import { ArrowRight,MapPin,Sparkles,X } from 'lucide-react';
+import type { DirectMessage,DirectRecommendationPlace,DirectRoom,DirectRoomMeetingPlace,GovernmentSessionProposal } from '../../shared/socket-events';
 import { API_BASE_URL } from '../config/api';
+import { gameEvents } from '../game/events';
 import { socket } from '../game/systems/socketClient';
 
 const allowedHosts=['place.map.kakao.com','map.kakao.com','kko.to'];
@@ -25,3 +26,14 @@ export function DirectRecommendationMessage({message,room,showToast}:{message:Di
 export function MeetingPlaceBanner({room,showToast}:{room:DirectRoom;showToast:(message:string)=>void}){const place=room.meetingPlace;const remove=async()=>{try{const response=await fetch(`${API_BASE_URL}/direct-rooms/${encodeURIComponent(room.id)}/meeting-place`,{method:'DELETE',headers:{'X-Socket-Id':socket.id??''}});const body=await response.json() as {error?:string};if(!response.ok)throw new Error(body.error??'모임 장소 등록을 해제하지 못했습니다.');showToast('모임 장소 등록이 해제되었습니다.')}catch(error){showToast(error instanceof Error?error.message:'모임 장소 등록을 해제하지 못했습니다.')}};return <aside className="meeting-place-banner">{place?<><b>모임 장소 · {place.placeName}</b><small>{place.roadAddress||place.address}</small><small>{place.selectedByNickname} · {new Date(place.selectedAt).toLocaleString('ko-KR')}</small><div><button type="button" onClick={event=>openKakaoMap(event,{name:place.placeName,address:place.address,externalUrl:place.externalUrl},showToast)}>카카오맵 보기</button><button type="button" onClick={()=>void remove()}>등록 해제</button></div></>:<small>아직 등록된 모임 장소가 없습니다.</small>}</aside>}
 
 export function MeetingPlaceSystemMessage({message,showToast}:{message:DirectMessage;showToast:(message:string)=>void}){const place=message.meetingPlace;return <article className="meeting-place-system"><b>[공지]</b><p>{message.message}</p>{place&&<><strong>{place.placeName}</strong><small>{place.roadAddress||place.address}</small><button type="button" onClick={event=>openKakaoMap(event,{name:place.placeName,address:place.address,externalUrl:place.externalUrl},showToast)}>카카오맵에서 보기</button></>}</article>}
+
+export function GovernmentSessionPanel({room,showToast}:{room:DirectRoom;showToast:(message:string)=>void}){
+ const [proposal,setProposal]=useState<GovernmentSessionProposal|null>(null);
+ const nickname=room.participants.find(participant=>participant.id===socket.id)?.nickname??'';
+ const topic=localStorage.getItem(`campus-activity-vote:${nickname}`)?.replaceAll('-',' ');
+ useEffect(()=>{const updated=(next:GovernmentSessionProposal)=>{if(next.directRoomId!==room.id)return;setProposal(next);if(next.status==='accepted')showToast('두 사람의 정부청사 계획 세션이 만들어졌어요.');if(next.status==='rejected')showToast('상대방이 이번 이동 제안을 정중히 거절했어요.')};socket.on('governmentSessionProposalUpdated',updated);return()=>{socket.off('governmentSessionProposalUpdated',updated)}},[room.id,showToast]);
+ const mine=proposal?.fromId===socket.id;
+ if(proposal?.status==='accepted')return <section className="government-session-panel accepted"><span>🏛️</span><div><small>공유 계획 세션 생성 완료</small><b>정부청사에서 함께 장소를 정해요</b><p>세션 코드 {proposal.sessionId?.slice(-8).toUpperCase()}</p></div><button type="button" onClick={()=>gameEvents.emit('travel-to-map','government')}>정부청사 이동</button></section>;
+ if(proposal?.status==='pending')return <section className="government-session-panel"><span>🏛️</span><div><small>{mine?'응답 대기 중':'정부청사 이동 제안'}</small><b>{mine?'상대방의 선택을 기다리고 있어요':`${proposal.fromNickname}님이 함께 장소를 정하고 싶어 해요`}</b>{proposal.activityTopic&&<p>모임 주제 · {proposal.activityTopic}</p>}</div>{!mine&&<aside><button type="button" onClick={()=>socket.emit('respondGovernmentSession',{proposalId:proposal.id,accept:false})}>다음에</button><button type="button" onClick={()=>socket.emit('respondGovernmentSession',{proposalId:proposal.id,accept:true})}>수락</button></aside>}</section>;
+ return <button type="button" className="government-proposal-button" onClick={()=>socket.emit('proposeGovernmentSession',{directRoomId:room.id,activityTopic:topic})}><span>🏛️</span><div><small>AI와 같은 세종 여행 코스를 편집해요</small><b>같이 코스 만들기</b></div><ArrowRight size={16}/></button>;
+}

@@ -94,6 +94,11 @@ export function ThreeCharacterPreview({
     const observer = new ResizeObserver(resize);
     observer.observe(host);
     resize();
+    let inViewport=true;
+    const visibilityObserver=new IntersectionObserver(entries=>{
+      inViewport=entries[0]?.isIntersecting??true;
+    },{rootMargin:'80px'});
+    visibilityObserver.observe(host);
 
     new GLTFLoader().load(
       src,
@@ -130,8 +135,12 @@ export function ThreeCharacterPreview({
       }
     );
 
-    renderer.setAnimationLoop(() => {
-      if (animationTime === undefined) mixer?.update(clock.getDelta());
+    let lastRender=0;
+    renderer.setAnimationLoop(time => {
+      if(document.hidden||!inViewport||time-lastRender<1000/30)return;
+      const delta=Math.min((time-lastRender)/1000,.05);
+      lastRender=time;
+      if (animationTime === undefined) mixer?.update(delta||clock.getDelta());
       controls.update();
       renderer.render(scene, camera);
     });
@@ -140,6 +149,7 @@ export function ThreeCharacterPreview({
       disposed = true;
       loadedSceneRef.current = null;
       observer.disconnect();
+      visibilityObserver.disconnect();
       renderer.setAnimationLoop(null);
       controls.dispose();
       scene.traverse(object => {

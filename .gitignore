@@ -11,6 +11,8 @@ server/.env
 server/.env.local
 server/.env.production
 !server/.env.example
+server/.data/
+server/greenhouse-public-memories.json
 client/.env
 client/.env.local
 *.log

@@ -1,6 +1,17 @@
 import tulipImage from '../assets/plants/tulip.jpg';
 import camelliaImage from '../assets/plants/camellia.jpg';
 import sunflowerImage from '../assets/plants/sunflower.jpg';
+import magnoliaImage from '../assets/plants/magnolia.jpg';
+import adonisImage from '../assets/plants/adonis.jpg';
+import azaleaImage from '../assets/plants/azalea.jpg';
+import hydrangeaImage from '../assets/plants/hydrangea.jpg';
+import irisImage from '../assets/plants/iris.jpg';
+import lilyImage from '../assets/plants/lily.jpg';
+import gujeolchoImage from '../assets/plants/gujeolcho.jpg';
+import hibiscusImage from '../assets/plants/hibiscus.jpg';
+import birdOfParadiseImage from '../assets/plants/bird-of-paradise.jpg';
+import peachBlossomImage from '../assets/plants/peach-blossom.jpg';
+import mapleImage from '../assets/plants/maple.jpg';
 
 export type PlantCategory='flower'|'peach-tree'|'red-tree';
 
@@ -17,6 +28,11 @@ export interface PlantDefinition{
   observationPoints?:string[];
   aiMessage?:string;
   observationGuide?:string;
+  nameStory?:string;
+  everydayStory?:string;
+  habitat?:string;
+  comparisonTip?:string;
+  emotionBridge?:string;
   imageUrl?:string;
   thumbnailUrl?:string;
   imageAlt?:string;
@@ -97,23 +113,154 @@ export const greenhousePlants:PlantDefinition[]=[
   },
 ];
 
-const commonsFile=(fileName:string)=>`https://commons.wikimedia.org/wiki/Special:Redirect/file/${encodeURIComponent(fileName)}?width=900`;
+type PlantKnowledge=Pick<PlantDefinition,'scientificName'|'season'|'observationPoints'|'nameStory'|'everydayStory'|'habitat'|'comparisonTip'|'emotionBridge'>;
+const plantKnowledge:Record<string,PlantKnowledge>={
+  'flower-01':{
+    scientificName:'Magnolia spp.',season:'3~4월',
+    nameStory:'연꽃처럼 크고 밝은 꽃이 나무에서 핀다고 하여 ‘나무의 연꽃’이라는 이름 이야기가 전해져요.',
+    everydayStory:'도시의 봄을 가장 먼저 보여주는 정원수예요. 꽃눈은 부드러운 털에 싸여 겨울 추위를 견딥니다.',
+    habitat:'햇빛이 잘 들고 물 빠짐이 좋은 정원과 숲 가장자리에서 잘 자라요.',
+    comparisonTip:'백목련은 흰 꽃이 위를 향해 피는 경우가 많고, 자목련류는 꽃 바깥쪽에 자주색이 뚜렷해요.',
+    observationPoints:['잎보다 먼저 나오는 큰 꽃','겨울눈을 감싼 부드러운 털','두툼한 꽃덮이 조각의 색 변화'],
+    emotionBridge:'긴 겨울을 지나 가장 먼저 열린 큰 꽃을 천천히 본 뒤, 지금 당신에게 먼저 다가온 느낌을 남겨보세요.',
+  },
+  'flower-02':{
+    scientificName:'Adonis multiflora',season:'1~3월',
+    nameStory:'‘세복수초’는 잎이 가늘게 갈라지는 복수초라는 뜻을 담고 있으며, 제주에서는 이른 봄을 알리는 꽃으로 알려져 있어요.',
+    everydayStory:'제주 자생지의 계절 변화를 알려주는 관찰 식물이에요. 식물 전체에 독성 성분이 있어 먹거나 함부로 채취하면 안 됩니다.',
+    habitat:'제주의 낙엽수림 아래처럼 겨울에는 볕이 들고 봄 이후에는 그늘지는 숲 바닥에서 자라요.',
+    comparisonTip:'복수초류 가운데 세복수초는 가늘게 갈라진 잎과 한 줄기에서 여러 꽃이 피는 모습을 함께 살펴보면 좋아요.',
+    observationPoints:['햇빛을 받으면 넓게 열리는 노란 꽃','가늘게 여러 번 갈라진 잎','낙엽 사이 지면 가까이 올라오는 줄기'],
+    emotionBridge:'추위가 남은 숲 바닥에서 먼저 열린 노란 꽃을 보며, 당신에게는 어떤 장면이 떠오르는지 적어보세요.',
+  },
+  'flower-03':{
+    scientificName:'Rhododendron schlippenbachii',season:'4~5월',
+    nameStory:'꽃이 아름다워 걸음을 머뭇거리게 했다는 ‘척촉’의 이름 이야기가 철쭉으로 이어졌다고 전해져요.',
+    everydayStory:'봄 산의 대표적인 경관 식물이지만 진달래와 달리 독성이 있어 꽃이나 잎을 먹으면 안 돼요.',
+    habitat:'햇빛이 드는 산지의 능선과 숲 가장자리, 배수가 좋은 약산성 토양에서 자라요.',
+    comparisonTip:'진달래는 대체로 잎보다 꽃이 먼저 피고, 철쭉은 꽃과 잎을 함께 볼 수 있으며 잎이 더 넓고 주름져요.',
+    observationPoints:['꽃과 함께 나온 넓은 잎','깔때기 모양 꽃 안쪽의 반점','가지 끝에 모여 피는 꽃송이'],
+    emotionBridge:'서로 모여 핀 꽃과 잎의 모습을 살펴본 뒤, 가장 먼저 생각난 사람이나 장면을 기록해보세요.',
+  },
+  'flower-04':{
+    scientificName:'Hydrangea macrophylla',season:'6~7월',
+    nameStory:'수국은 한자 ‘물 수(水)’와 ‘국화 국(菊)’을 쓰는 이름으로, 둥글고 풍성한 꽃차례의 인상을 담고 있어요.',
+    everydayStory:'일부 수국은 토양의 산도와 알루미늄 이용 가능성에 따라 꽃받침처럼 보이는 부분의 색이 달라져 정원 관찰 소재로 사랑받아요.',
+    habitat:'반그늘의 촉촉하고 유기물이 많은 토양을 좋아하지만 물이 오래 고이는 곳은 피하는 편이 좋아요.',
+    comparisonTip:'일반 수국은 큰 장식꽃이 공처럼 모이고, 산수국은 가운데 작은 꽃 둘레를 큰 장식꽃이 둘러싸는 경우가 많아요.',
+    observationPoints:['공처럼 모인 꽃차례','가운데 작은 진짜 꽃','꽃송이마다 다른 색과 밝기'],
+    emotionBridge:'작은 꽃들이 모여 하나의 풍경을 만든 모습을 보며, 당신에게 떠오른 관계나 장면을 남겨보세요.',
+  },
+  'flower-05':{
+    scientificName:'Tulipa spp.',season:'3~5월',
+    nameStory:'튤립이라는 이름은 꽃 모양이 터번을 닮았다고 본 옛 표현에서 유래한 것으로 알려져 있어요.',
+    everydayStory:'알뿌리에 다음 계절을 위한 양분을 저장하는 대표적인 봄 화단 식물로, 색과 품종이 매우 다양해요.',
+    habitat:'햇빛이 충분하고 물 빠짐이 좋은 곳을 좋아하며, 알뿌리는 여름의 과습에 약해요.',
+    comparisonTip:'백합도 꽃덮이 조각이 여섯 장이지만, 튤립은 넓은 잎 사이에서 잔 모양 꽃이 단정하게 서는 모습이 뚜렷해요.',
+    observationPoints:['잔처럼 모인 여섯 꽃덮이 조각','줄기를 감싸는 넓고 매끈한 잎','꽃 중심과 가장자리의 색 차이'],
+    emotionBridge:'가장 눈길이 머무는 색과 꽃의 선을 찾은 뒤, 그 장면이 만든 느낌을 한 문장으로 적어보세요.',
+  },
+  'flower-06':{
+    scientificName:'Iris sanguinea',season:'5~6월',
+    nameStory:'붓을 세워 둔 듯 뾰족한 꽃봉오리의 모습에서 ‘붓꽃’이라는 이름이 붙었어요.',
+    everydayStory:'곧은 잎과 복잡한 꽃 구조가 대비되어 정원과 생태 학습원에서 형태 관찰 식물로 자주 활용돼요.',
+    habitat:'햇빛이 드는 들과 습기가 적당한 풀밭에서 자라며, 뿌리 주변의 지나친 물 고임은 피하는 편이에요.',
+    comparisonTip:'붓꽃은 검 모양 잎이 부채처럼 서고 꽃잎이 위·아래로 나뉘지만, 원추리는 긴 꽃잎이 나팔처럼 퍼져요.',
+    observationPoints:['부채처럼 겹쳐 자라는 검 모양 잎','아래로 늘어진 꽃잎의 무늬','안쪽과 바깥쪽 꽃잎의 방향 차이'],
+    emotionBridge:'꽃잎 안쪽의 선과 색을 그림처럼 살펴보고, 지금 마음과 닮은 부분을 찾아보세요.',
+  },
+  'flower-07':{
+    scientificName:'Lilium spp.',season:'6~8월',
+    nameStory:'백합(百合)은 알뿌리의 여러 비늘조각이 겹겹이 모인 모습을 담은 이름이에요.',
+    everydayStory:'향기와 큰 꽃 때문에 절화와 정원 식물로 널리 쓰여요. 백합류는 고양이에게 매우 위험할 수 있어 반려동물 주변에서는 주의해야 해요.',
+    habitat:'종에 따라 숲 가장자리와 풀밭에서 자라며, 햇빛과 배수가 좋고 뿌리 쪽이 서늘한 환경을 좋아해요.',
+    comparisonTip:'백합은 잎이 달린 줄기 끝에 꽃이 피고 큰 꽃밥이 뚜렷하지만, 원추리는 잎 없는 꽃대가 잎 사이에서 따로 올라와요.',
+    observationPoints:['여섯 장처럼 보이는 꽃덮이 조각','꽃 밖으로 길게 나온 수술과 꽃밥','줄기를 따라 달린 좁은 잎'],
+    emotionBridge:'크게 열린 꽃과 향기를 상상하며, 말하지 않아도 전하고 싶은 마음이 있는지 떠올려보세요.',
+  },
+  'flower-08':{
+    scientificName:'Camellia japonica',season:'1~4월',
+    nameStory:'동백은 겨울에도 푸른 잎 사이에서 꽃을 피우는 ‘겨울의 나무꽃’이라는 인상을 이름에 담고 있어요.',
+    everydayStory:'씨에서 얻은 동백기름은 남부 지역에서 머릿기름과 생활 재료로 이용되어 온 문화가 있어요.',
+    habitat:'남해안과 섬의 따뜻하고 바람이 덜한 숲에서 자라며, 반그늘과 촉촉한 산성 토양을 좋아해요.',
+    comparisonTip:'동백꽃은 질 때 꽃송이가 통째로 떨어지는 경우가 많고, 애기동백은 꽃잎이 한 장씩 흩어지는 편이에요.',
+    observationPoints:['두껍고 윤기 나는 상록 잎','겹겹이 포개진 붉은 꽃잎','꽃 중심에 모여 선 노란 수술'],
+    emotionBridge:'차가운 계절에도 선명한 꽃과 푸른 잎을 보며, 당신에게 남아 있는 온기를 떠올려보세요.',
+  },
+  'flower-09':{
+    scientificName:'Helianthus annuus',season:'7~9월',
+    nameStory:'해를 닮은 큰 꽃이 빛을 향하는 모습에서 ‘해바라기’라는 이름이 붙었어요.',
+    everydayStory:'한 송이처럼 보이지만 가운데와 가장자리의 수많은 작은 꽃이 모인 꽃차례이며, 씨는 식품과 기름의 재료가 돼요.',
+    habitat:'햇빛이 풍부하고 물 빠짐이 좋은 곳에서 잘 자라며, 키가 커지면 바람에 쓰러지지 않도록 지지가 필요해요.',
+    comparisonTip:'루드베키아도 노란 꽃잎과 짙은 중심을 가지지만, 해바라기는 보통 줄기와 잎이 더 크고 거친 털이 뚜렷해요.',
+    observationPoints:['가운데 작은 꽃들의 나선 배열','혀꽃처럼 보이는 노란 가장자리 꽃','거칠고 넓은 잎과 굵은 줄기'],
+    emotionBridge:'수많은 작은 꽃이 모여 만든 큰 원을 바라보며, 지금 마음이 향하고 싶은 곳을 생각해보세요.',
+  },
+  'flower-10':{
+    scientificName:'Chrysanthemum zawadskii',season:'9~11월',
+    nameStory:'음력 9월 9일 무렵 줄기의 마디가 아홉이 된다는 옛 이름 이야기가 ‘구절초’에 담겨 있다고 전해져요.',
+    everydayStory:'향기로운 꽃과 줄기를 말려 차나 전통 생활 소재로 이용한 기록이 있지만, 야생 식물은 임의로 채취하거나 약처럼 먹지 않는 것이 안전해요.',
+    habitat:'햇빛이 드는 산기슭과 들, 배수가 좋은 풀밭과 바위 주변에서 무리 지어 자라요.',
+    comparisonTip:'쑥부쟁이는 잎이 길고 좁은 편인 반면, 구절초는 잎이 국화잎처럼 깊게 갈라지는 모습이 뚜렷해요.',
+    observationPoints:['흰색에서 연분홍빛을 띠는 꽃잎','노란색 작은 꽃이 모인 중심부','깊게 갈라진 잎의 윤곽'],
+    emotionBridge:'가을 들판에서 오래 남는 흰 꽃과 향기를 떠올리며, 지금 조용히 간직하고 싶은 순간을 적어보세요.',
+  },
+  'flower-11':{
+    scientificName:'Hibiscus syriacus',season:'7~10월',
+    nameStory:'무궁화의 ‘무궁(無窮)’은 끝이 없다는 뜻으로, 꽃이 계속 이어 피는 모습과 연결돼요.',
+    everydayStory:'우리나라의 나라꽃으로 학교와 공원, 생활 공간에서 널리 심으며 다양한 색과 무늬의 품종이 있어요.',
+    habitat:'햇빛이 잘 들고 배수가 좋은 곳에서 튼튼하게 자라며, 가지치기로 나무 모양을 관리하기 쉬워요.',
+    comparisonTip:'접시꽃과 비슷해 보이지만 무궁화는 목질의 가지를 가진 나무이고, 꽃 중심의 긴 수술기둥과 붉은 무늬가 뚜렷해요.',
+    observationPoints:['꽃 중심에서 길게 나온 수술기둥','안쪽의 붉은 단심 무늬','날마다 이어서 열리는 꽃봉오리'],
+    emotionBridge:'한 송이가 지고 또 다른 꽃이 이어지는 모습을 보며, 다시 시작하고 싶은 일을 떠올려보세요.',
+  },
+  'flower-12':{
+    scientificName:'Strelitzia reginae',season:'따뜻한 온실에서 연중 관찰',
+    nameStory:'주황색 꽃과 푸른 꽃잎이 새의 머리와 볏처럼 보여 ‘극락조화’, 영어로는 bird-of-paradise flower라 불려요.',
+    everydayStory:'남아프리카 원산의 온실 관엽·절화 식물이며, 넓은 잎의 생김새에서 바나나와 가까운 친척임을 볼 수 있어요.',
+    habitat:'따뜻하고 밝은 곳을 좋아하며 추위와 과습에 약해 국내에서는 주로 온실이나 실내에서 길러요.',
+    comparisonTip:'헬리코니아도 새처럼 화려하지만, 극락조화는 배 모양의 가로 포엽 위로 주황색과 푸른색 꽃잎이 펼쳐져요.',
+    observationPoints:['배처럼 가로로 놓인 녹색 포엽','위로 선 주황색 꽃덮이 조각','새의 부리처럼 뻗은 푸른 꽃잎'],
+    emotionBridge:'낯선 새를 닮은 꽃의 방향과 색을 따라가며, 새롭게 경험해보고 싶은 일을 떠올려보세요.',
+  },
+  'peach-tree':{
+    scientificName:'Prunus persica',season:'꽃 3~4월 · 열매 6~8월',
+    nameStory:'복숭아나무는 꽃과 열매를 함께 즐기는 과수로, 분홍 꽃은 오래전부터 봄 풍경과 길한 이미지에 등장해왔어요.',
+    everydayStory:'세종 지역의 봄 축제와 과수원 풍경에 연결하기 좋은 나무이며, 여름에는 향기로운 핵과가 익어요.',
+    habitat:'햇빛과 통풍이 좋고 물 빠짐이 좋은 곳에서 잘 자라며, 늦서리는 꽃과 어린 열매에 영향을 줄 수 있어요.',
+    comparisonTip:'벚꽃은 긴 꽃자루에 여러 송이가 모이는 경우가 많고, 복숭아꽃은 짧은 꽃자루로 가지 가까이에 붙어 피는 모습이 보여요.',
+    observationPoints:['가지 가까이에 붙어 피는 분홍 꽃','꽃 중심에서 바깥으로 달라지는 색','길고 좁으며 톱니가 있는 잎'],
+    emotionBridge:'꽃뿐 아니라 여름에 맺힐 열매까지 상상해보고, 가장 먼저 든 생각이나 궁금증을 그대로 적어보세요.',
+  },
+  'red-tree':{
+    scientificName:'Acer palmatum',season:'꽃 4~5월 · 단풍 10~11월',
+    nameStory:'학명 palmatum은 손바닥 모양이라는 뜻으로, 여러 갈래로 깊게 나뉜 잎의 모습을 가리켜요.',
+    everydayStory:'계절 변화가 선명해 정원과 산책길의 대표적인 관찰 나무이며, 날개 달린 열매는 바람을 타고 회전해요.',
+    habitat:'산지의 숲 가장자리와 계곡 주변에서 자라며, 강한 건조보다 적당히 촉촉하고 배수가 좋은 토양을 좋아해요.',
+    comparisonTip:'단풍나무 잎은 가지에서 마주나지만, 단풍잎처럼 보이는 미국풍나무 잎은 어긋나고 별 모양에 가까워요.',
+    observationPoints:['손바닥처럼 깊게 갈라진 잎','가지에서 서로 마주난 잎','프로펠러처럼 생긴 두 장의 날개열매'],
+    emotionBridge:'잎마다 조금씩 다른 색과 갈래를 비교하며, 변해가는 계절이 불러온 기억을 적어보세요.',
+  },
+};
+
+greenhousePlants.forEach(plant=>Object.assign(plant,plantKnowledge[plant.id]));
+
 const commonsPage=(fileName:string)=>`https://commons.wikimedia.org/wiki/File:${encodeURIComponent(fileName.replaceAll(' ','_'))}`;
 const plantPhotos:Record<string,{url:string;file:string}>={
-  'flower-01':{url:commonsFile('Magnolia × soulangeana blossom.jpg'),file:'Magnolia × soulangeana blossom.jpg'},
-  'flower-02':{url:commonsFile('側金盞花 Adonis amurensis -南韓南怡島 South Korea- (33141010383).jpg'),file:'側金盞花 Adonis amurensis -南韓南怡島 South Korea- (33141010383).jpg'},
-  'flower-03':{url:commonsFile('Rhododendron-schlippenbachii-1.jpg'),file:'Rhododendron-schlippenbachii-1.jpg'},
-  'flower-04':{url:commonsFile("Bigleaf Hydrangea Hydrangea macrophylla 'Tokyo Delight' Flowers 3008px.jpg"),file:"Bigleaf Hydrangea Hydrangea macrophylla 'Tokyo Delight' Flowers 3008px.jpg"},
+  'flower-01':{url:magnoliaImage,file:'Magnolia × soulangeana blossom.jpg'},
+  'flower-02':{url:adonisImage,file:'側金盞花 Adonis amurensis -南韓南怡島 South Korea- (33141010383).jpg'},
+  'flower-03':{url:azaleaImage,file:'Rhododendron-schlippenbachii-1.jpg'},
+  'flower-04':{url:hydrangeaImage,file:"Bigleaf Hydrangea Hydrangea macrophylla 'Tokyo Delight' Flowers 3008px.jpg"},
   'flower-05':{url:tulipImage,file:"Tulip Tulipa clusiana 'Lady Jane' Rock Ledge Flower Edit 2000px.jpg"},
-  'flower-06':{url:commonsFile('Verschiedenfarbige Schwertlilie (Iris versicolor)-20200603-RM-100257.jpg'),file:'Verschiedenfarbige Schwertlilie (Iris versicolor)-20200603-RM-100257.jpg'},
-  'flower-07':{url:commonsFile("Lily Lilium 'Citronella' Flower.jpg"),file:"Lily Lilium 'Citronella' Flower.jpg"},
+  'flower-06':{url:irisImage,file:'Verschiedenfarbige Schwertlilie (Iris versicolor)-20200603-RM-100257.jpg'},
+  'flower-07':{url:lilyImage,file:"Lily Lilium 'Citronella' Flower.jpg"},
   'flower-08':{url:camelliaImage,file:'Camellia japonica NBG.jpg'},
   'flower-09':{url:sunflowerImage,file:'Sunflower macro wide.jpg'},
-  'flower-10':{url:commonsFile('Dendranthema zawadskii var. latilobum.jpg'),file:'Dendranthema zawadskii var. latilobum.jpg'},
-  'flower-11':{url:commonsFile('Hibiscus syriacus - flor.jpg'),file:'Hibiscus syriacus - flor.jpg'},
-  'flower-12':{url:commonsFile('Strelitzia reginae flower.jpg'),file:'Strelitzia reginae flower.jpg'},
-  'peach-tree':{url:commonsFile('Peach blossom.jpg'),file:'Peach blossom.jpg'},
-  'red-tree':{url:commonsFile('Acer palmatum atropurpureum.jpg'),file:'Acer palmatum atropurpureum.jpg'},
+  'flower-10':{url:gujeolchoImage,file:'구절초.jpg'},
+  'flower-11':{url:hibiscusImage,file:'Hibiscus syriacus - flor.jpg'},
+  'flower-12':{url:birdOfParadiseImage,file:'Strelitzia reginae flower.jpg'},
+  'peach-tree':{url:peachBlossomImage,file:'Peach blossom.jpg'},
+  'red-tree':{url:mapleImage,file:'Acer Palmatum Japanese Maple tree Autumn Newton Massachusetts.jpg'},
 };
 
 greenhousePlants.forEach(plant=>{

@@ -29,6 +29,267 @@
         sans-serif;
 }
 
+/* 공동캠퍼스 월드와 같은 아이보리·민트 톤 */
+.community-page {
+    color: #234b43;
+    background:
+        radial-gradient(circle at 8% 4%, rgba(255, 222, 166, 0.58), transparent 32%),
+        radial-gradient(circle at 92% 88%, rgba(111, 190, 164, 0.28), transparent 34%),
+        linear-gradient(145deg, #f8edda 0%, #edf5e9 48%, #dcece3 100%);
+}
+
+.community-background-one {
+    background: #f2bb67;
+    opacity: 0.2;
+}
+
+.community-background-two {
+    background: #55ad91;
+    opacity: 0.22;
+}
+
+.community-header,
+.community-toolbar,
+.community-content {
+    border-color: rgba(85, 139, 121, 0.2);
+    background: rgba(255, 253, 247, 0.9);
+    box-shadow: 0 22px 65px rgba(45, 87, 73, 0.13);
+}
+
+.community-header {
+    position: relative;
+    overflow: hidden;
+}
+
+.community-header::before {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 5px;
+    content: "";
+    background: linear-gradient(90deg, #e7a84f, #64b99d, #2f7b68);
+}
+
+.community-back-button {
+    border-color: #cfe1da;
+    color: #315f53;
+    background: #eef6f2;
+}
+
+.community-back-button:hover {
+    border-color: #83bda9;
+    background: #e2f1eb;
+}
+
+.community-eyebrow {
+    border-color: #b9d9ce;
+    color: #367d68;
+    background: #e7f3ee;
+}
+
+.community-title-group h1,
+.community-profile-card strong,
+.community-section-heading h2,
+.community-post-body h3,
+.community-author strong,
+.community-comment-content strong,
+.community-empty-state strong,
+.community-club-title h3,
+.community-club-summary strong,
+.community-club-members strong {
+    color: #173f37;
+}
+
+.community-title-group p,
+.community-profile-card span,
+.community-section-heading p,
+.community-author span,
+.community-post-body p,
+.community-comment-content p,
+.community-comment-content span,
+.community-empty-state p,
+.community-club-description,
+.community-club-title span,
+.community-club-summary span,
+.community-club-summary p {
+    color: #70877f;
+}
+
+.community-profile-card {
+    border-color: #d7e6e0;
+    background: #f1f7f4;
+}
+
+.community-profile-avatar,
+.community-author-avatar,
+.community-comment-avatar {
+    color: #fff;
+    background: linear-gradient(135deg, #65b89c, #347f6b);
+}
+
+.community-tabs button {
+    color: #71867f;
+}
+
+.community-tabs button:hover {
+    color: #2f6658;
+    background: #edf5f1;
+}
+
+.community-tabs button.active {
+    color: #fff;
+    background: linear-gradient(135deg, #59ac90, #347d69);
+    box-shadow: 0 10px 25px rgba(52, 125, 105, 0.2);
+}
+
+.community-search {
+    border-color: #d4e2dd;
+    color: #709086;
+    background: #f5f8f6;
+}
+
+.community-search:focus-within {
+    border-color: #75b6a1;
+    background: #fff;
+}
+
+.community-search input,
+.community-composer select,
+.community-composer input,
+.community-composer textarea,
+.community-comment-form input {
+    color: #244d43;
+}
+
+.community-search input::placeholder,
+.community-composer input::placeholder,
+.community-composer textarea::placeholder,
+.community-comment-form input::placeholder {
+    color: #96aaa3;
+}
+
+.community-primary-button {
+    color: #fff;
+    background: linear-gradient(135deg, #58ad90, #337c68);
+    box-shadow: 0 12px 28px rgba(51, 124, 104, 0.22);
+}
+
+.community-composer {
+    border-color: #c8dfd6;
+    background: linear-gradient(145deg, #edf7f2, #fffdf8);
+}
+
+.community-composer-top label,
+.community-composer-top span,
+.community-composer-bottom span,
+.community-color-picker > span {
+    color: #66877c;
+}
+
+.community-composer select,
+.community-composer input,
+.community-composer textarea,
+.community-comment-form input {
+    border-color: #d4e3dd;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.community-composer input:focus,
+.community-composer textarea:focus,
+.community-composer select:focus,
+.community-comment-form input:focus {
+    border-color: #68ad96;
+    background: #fff;
+}
+
+.community-filter-row button {
+    border-color: #d6e3de;
+    color: #71877f;
+    background: #f6f8f6;
+}
+
+.community-filter-row button:hover,
+.community-filter-row button.active {
+    color: #2f715f;
+    border-color: #8fc2b1;
+    background: #e8f3ee;
+}
+
+.community-post-card,
+.community-club-card {
+    border-color: #d9e5e0;
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: 0 12px 30px rgba(48, 91, 76, 0.07);
+}
+
+.community-post-card:hover,
+.community-club-card:hover {
+    border-color: #9bc8b8;
+    box-shadow: 0 16px 38px rgba(48, 91, 76, 0.13);
+}
+
+.community-category-badge {
+    color: #347a67;
+    background: #e4f2ec;
+}
+
+.community-icon-button {
+    color: #789088;
+    background: #eef4f1;
+}
+
+.community-post-actions {
+    border-color: #e0e9e5;
+    background: #f5f8f6;
+}
+
+.community-post-actions button {
+    color: #6d867d;
+}
+
+.community-post-actions button:hover {
+    color: #2e6e5c;
+    background: #e5f1ec;
+}
+
+.community-post-actions button.liked {
+    color: #d96672;
+    background: #fff0ef;
+}
+
+.community-comments {
+    border-color: #dde8e3;
+    background: #f1f6f3;
+}
+
+.community-comment {
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.community-comment-form button,
+.community-club-action {
+    color: #fff;
+    background: #397f6c;
+}
+
+.community-empty-state {
+    border-color: #cddfd8;
+    background: rgba(244, 249, 246, 0.84);
+}
+
+.community-club-summary > div {
+    border-color: #d6e5df;
+    background: #f0f6f3;
+}
+
+.community-club-action.joined {
+    color: #347b68;
+    border-color: #9bc7b7;
+    background: #e6f2ed;
+}
+
+@layer community-structure {
 .community-page *,
 .community-page *::before,
 .community-page *::after {
@@ -1249,4 +1510,5 @@
         align-items: flex-start;
         flex-direction: column;
     }
+}
 }

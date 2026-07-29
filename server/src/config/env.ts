@@ -50,10 +50,7 @@ const schema = z.object({
     .url()
     .default('http://localhost:5173'),
 
-  MONGODB_URI: z
-    .string()
-    .trim()
-    .min(1, 'MONGODB_URI is required'),
+  MONGODB_URI: optionalSecret,
 
   AI_PROVIDER: z
     .enum(['auto', 'mock', 'openai'])
@@ -75,6 +72,20 @@ const schema = z.object({
       .trim()
       .min(1)
       .default('gpt-5-mini'),
+  ),
+
+  GEMINI_API_KEY: optionalSecret,
+
+  GEMINI_MODEL: z.preprocess(
+    (value) =>
+      typeof value === 'string' && value.trim() === ''
+        ? undefined
+        : value,
+    z
+      .string()
+      .trim()
+      .min(1)
+      .default('gemini-2.5-flash'),
   ),
 
   OPENAI_TIMEOUT_MS: numberFromEnv(

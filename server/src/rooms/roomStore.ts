@@ -1,19 +1,30 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { BearExplorationAnalysis,BearExplorationCardId,BearExplorationMember,BearExplorationPointId,BearExplorationReport,BearExplorationRole,BearExplorationState,BearTreePortalPositions,DirectMessage,DirectRecommendationPlace,DirectRoom,GroupRoom,LakeDailyStats,LakeExperienceId,LakeExperiencePosition,LakeWish,PlayerState,PortalPosition,RespawnPosition,WorldInteractionPosition } from '../../../shared/socket-events.js';
+import type { BearExplorationAnalysis,BearExplorationCardId,BearExplorationMember,BearExplorationPointId,BearExplorationReport,BearExplorationRole,BearExplorationState,BearTreePortalPositions,CampusFeaturePortalId,CampusFeaturePortalPosition,ChatMessage,DirectMessage,DirectRecommendationPlace,DirectRoom,GovernmentSessionProposal,GroupRoom,LakeDailyStats,LakeExperienceId,LakeExperiencePosition,LakeWish,MapId,PlayerState,PortalPosition,RespawnPosition,WorldInteractionPosition } from '../../../shared/socket-events.js';
 export class RoomStore {
- players=new Map<string,PlayerState>(); groups=new Map<string,GroupRoom>(); pendingDirect=new Map<string,{fromId:string;toId:string}>(); directRooms=new Map<string,DirectRoom>(); directMessages=new Map<string,DirectMessage[]>(); recommendationCache=new Map<string,{roomId:string;places:DirectRecommendationPlace[];expiresAt:number}>(); blockedPairs=new Set<string>();
+ players=new Map<string,PlayerState>(); groups=new Map<string,GroupRoom>(); pendingDirect=new Map<string,{fromId:string;toId:string}>(); directRooms=new Map<string,DirectRoom>(); directMessages=new Map<string,DirectMessage[]>(); governmentProposals=new Map<string,GovernmentSessionProposal>(); recommendationCache=new Map<string,{roomId:string;places:DirectRecommendationPlace[];expiresAt:number}>(); blockedPairs=new Set<string>();
  bearExplorationCards=new Map<BearExplorationCardId,string>();bearExplorationAnalyzed=new Set<BearExplorationCardId>();bearExplorationAnalyses=new Map<BearExplorationCardId,BearExplorationAnalysis>();bearExplorationJoinedAt=new Map<string,number>();bearExplorationStory='';bearExplorationReport?:BearExplorationReport;completedBearRoutes:string[][]=[];
  portalPositions=new Map<PortalPosition['destination'],PortalPosition>([['bear-tree-park',{destination:'bear-tree-park',x:2122,z:944}],['town',{destination:'town',x:1120,z:1731}],['garden',{destination:'garden',x:682,z:735}],['campus',{destination:'campus',x:1178,z:122}]]);
- bearTreePortalPositions:BearTreePortalPositions={town:{x:1230,z:1553},photo:{x:1569,z:1525}};
+ bearTreePortalPositions:BearTreePortalPositions={town:{x:980,z:1580},photo:{x:1569,z:1525}};
  interactionPositions=new Map<WorldInteractionPosition['destination'],WorldInteractionPosition>([['bear-play-zone',{destination:'bear-play-zone',x:1616,z:601}],['bear-tree-park',{destination:'bear-tree-park',x:1200,z:1650}]]);
  lakeExperiencePositions=new Map<LakeExperienceId,LakeExperiencePosition>([['central-plaza',{experience:'central-plaza',x:1219,z:1462}],['activity-zone',{experience:'activity-zone',x:603,z:452}],['food-shop-zone',{experience:'food-shop-zone',x:491,z:1556}],['wind-hill',{experience:'wind-hill',x:1908,z:549}]]);
- respawnPosition:RespawnPosition={x:1146,z:567,yaw:0};
+ campusFeaturePortalPositions=new Map<CampusFeaturePortalId,CampusFeaturePortalPosition>([['people',{portal:'people',x:600,z:650}],['clubs',{portal:'clubs',x:1150,z:550}],['recruit',{portal:'recruit',x:1800,z:700}],['government',{portal:'government',x:1680,z:1350}]]);
+ respawnPosition:RespawnPosition={x:1870,z:1180,yaw:2.1};
  lakeWishes:LakeWish[]=[];
+ nearbyChatMessages=new Map<MapId,ChatMessage[]>();
  private dailyDate='';private dailyVisitors=new Set<string>();private dailyExperienceVisits:Record<LakeExperienceId,Set<string>>={'central-plaza':new Set(),'activity-zone':new Set(),'food-shop-zone':new Set(),'wind-hill':new Set()};
  private dataDirectory=path.basename(process.cwd()).toLowerCase()==='server'?process.cwd():path.resolve(process.cwd(),'server');
  private lakeWishFile=path.resolve(this.dataDirectory,'lake-wishes.json');
- constructor(){try{const saved=JSON.parse(fs.readFileSync(this.lakeWishFile,'utf8')) as LakeWish[];this.lakeWishes=saved.filter(wish=>wish&&typeof wish.message==='string'&&typeof wish.nickname==='string').slice(-80)}catch{/* Wishes begin empty on a new server. */}}
+ private nearbyChatFile=path.resolve(this.dataDirectory,'nearby-chat.json');
+ constructor(){
+  try{const saved=JSON.parse(fs.readFileSync(this.lakeWishFile,'utf8')) as LakeWish[];this.lakeWishes=saved.filter(wish=>wish&&typeof wish.message==='string'&&typeof wish.nickname==='string').slice(-80)}catch{/* Wishes begin empty on a new server. */}
+  try{
+   const saved=JSON.parse(fs.readFileSync(this.nearbyChatFile,'utf8')) as Partial<Record<MapId,ChatMessage[]>>;
+   Object.entries(saved).forEach(([mapId,messages])=>{
+    if(Array.isArray(messages))this.nearbyChatMessages.set(mapId as MapId,messages.filter(message=>message&&typeof message.message==='string'&&typeof message.nickname==='string').slice(-80));
+   });
+  }catch{/* Nearby chat begins empty on a new server. */}
+ }
  private validBearTreePortalPositions(value:BearTreePortalPositions){return [value?.town,value?.photo].every(position=>Number.isFinite(position?.x)&&Number.isFinite(position?.z)&&position.x>=0&&position.x<=2400&&position.z>=0&&position.z<=1900)}
  private roundBearTreePortalPositions(value:BearTreePortalPositions):BearTreePortalPositions{return {town:{x:Math.round(value.town.x),z:Math.round(value.town.z)},photo:{x:Math.round(value.photo.x),z:Math.round(value.photo.z)}}}
  migrateBearTreePortalPositions(_value:BearTreePortalPositions){return false}
@@ -23,7 +34,22 @@ export class RoomStore {
  setInteractionPosition(position:WorldInteractionPosition,persist=true){if(persist||!['bear-tree-park','bear-play-zone'].includes(position.destination)||!Number.isFinite(position.x)||!Number.isFinite(position.z)||position.x<0||position.x>2400||position.z<0||position.z>1900)return false;const saved={destination:position.destination,x:Math.round(position.x),z:Math.round(position.z)};this.interactionPositions.set(saved.destination,saved);return true}
  allLakeExperiencePositions(){return [...this.lakeExperiencePositions.values()]}
  setLakeExperiencePosition(position:LakeExperiencePosition,persist=true){if(persist||!['central-plaza','activity-zone','food-shop-zone','wind-hill'].includes(position.experience)||!Number.isFinite(position.x)||!Number.isFinite(position.z)||position.x<0||position.x>2400||position.z<0||position.z>1900)return false;const saved:LakeExperiencePosition={experience:position.experience,x:Math.round(position.x),z:Math.round(position.z)};this.lakeExperiencePositions.set(saved.experience,saved);return true}
+ allCampusFeaturePortalPositions(){return [...this.campusFeaturePortalPositions.values()]}
+ setCampusFeaturePortalPosition(position:CampusFeaturePortalPosition){if(!['people','clubs','recruit','government'].includes(position.portal)||!Number.isFinite(position.x)||!Number.isFinite(position.z)||position.x<0||position.x>2400||position.z<0||position.z>1900)return false;const saved:CampusFeaturePortalPosition={portal:position.portal,x:Math.round(position.x),z:Math.round(position.z)};this.campusFeaturePortalPositions.set(saved.portal,saved);return true}
+ replaceCampusFeaturePortalPositions(positions:CampusFeaturePortalPosition[]){positions.forEach(position=>this.setCampusFeaturePortalPosition(position))}
+ setRespawnPosition(position:RespawnPosition){
+  if(!Number.isFinite(position.x)||!Number.isFinite(position.z)||!Number.isFinite(position.yaw)||position.x<0||position.x>2400||position.z<0||position.z>1900)return false;
+  this.respawnPosition={x:Math.round(position.x),z:Math.round(position.z),yaw:position.yaw};
+  return true;
+ }
  addLakeWish(nickname:string,message:string){const wish:LakeWish={id:crypto.randomUUID(),nickname,message,createdAt:Date.now()};this.lakeWishes=[...this.lakeWishes.slice(-79),wish];try{fs.writeFileSync(this.lakeWishFile,JSON.stringify(this.lakeWishes,null,2))}catch(error){console.error('[lake wish persistence failed]',error)}return wish}
+ addNearbyChat(message:ChatMessage){
+  const messages=[...(this.nearbyChatMessages.get(message.mapId)??[]),message].slice(-80);
+  this.nearbyChatMessages.set(message.mapId,messages);
+  try{fs.writeFileSync(this.nearbyChatFile,JSON.stringify(Object.fromEntries(this.nearbyChatMessages),null,2))}catch(error){console.error('[nearby chat persistence failed]',error)}
+  return message;
+ }
+ recentNearbyChat(mapId:MapId){return (this.nearbyChatMessages.get(mapId)??[]).slice(-80)}
  private today(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
  private resetDailyIfNeeded(){const today=this.today();if(today===this.dailyDate)return;this.dailyDate=today;this.dailyVisitors.clear();this.dailyExperienceVisits['central-plaza'].clear();this.dailyExperienceVisits['activity-zone'].clear();this.dailyExperienceVisits['food-shop-zone'].clear();this.dailyExperienceVisits['wind-hill'].clear()}
  recordDailyVisitor(id:string){this.resetDailyIfNeeded();this.dailyVisitors.add(id)}

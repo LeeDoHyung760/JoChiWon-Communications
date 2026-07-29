@@ -128,7 +128,7 @@ function profileForSave(profile:UserProfile):UserProfile{
   };
 }
 
-export function CreateProfilePage({initial,initialStep=1,editMode=false,onCancel,onLogout,onWithdraw,onProgress,onComplete}: {initial:UserProfile;initialStep?:1|2;editMode?:boolean;onCancel?:()=>void;onLogout?:()=>void;onWithdraw?:()=>void;onProgress?:(step:1|2,p:UserProfile)=>void;onComplete:(p:UserProfile)=>void}) {
+export function CreateProfilePage({initial,initialStep=1,editMode=false,cancelLabel='메인 이동',onCancel,onLogout,onWithdraw,onProgress,onComplete}: {initial:UserProfile;initialStep?:1|2;editMode?:boolean;cancelLabel?:string;onCancel?:()=>void;onLogout?:()=>void;onWithdraw?:()=>void;onProgress?:(step:1|2,p:UserProfile)=>void;onComplete:(p:UserProfile)=>void}) {
   const [p, setP] = useState<UserProfile>(() => {
     const model=initial.model === 'chungnyeong'||initial.model === 'custom'?'girl1':initial.model;
     return {...initial,model,character:normalizeCharacterForModel(model,initial.character)};
@@ -177,12 +177,12 @@ export function CreateProfilePage({initial,initialStep=1,editMode=false,onCancel
   const canContinue=p.nickname.trim().length>=2&&p.interests.length>0;
   const experienceRecordCount=buildExperienceRecommendationProfile(p).experienceRecords.length;
   return (
-    <main className="profile-design-page">
+    <main className={`profile-design-page ${editMode?'is-edit-mode':''}`}>
       <section className="profile-design-card">
         <header className="profile-design-heading">
           <span className="profile-design-sparkle" aria-hidden="true">✧</span>
           <div><h1>{editMode?'회원 정보 변경':'세종에서 만날 나를 소개해 주세요'}</h1><p>{editMode?'프로필과 관심 정보를 확인하고 변경해보세요':'관심 주제는 첫 대화와 체험을 열고, 이후의 탐험 기록은 이웃과 장소 추천으로 이어져요.'}</p></div>
-          {editMode?<div className="profile-design-header-actions"><button type="button" className="profile-design-withdraw" onClick={()=>{if(window.confirm('세종한바퀴에서 탈퇴할까요? 저장된 프로필과 체험 기록이 삭제됩니다.'))onWithdraw?.()}}>탈퇴</button><button type="button" className="profile-design-logout" onClick={onLogout}>로그아웃</button><button type="button" className="profile-design-close" onClick={onCancel}>메인 이동</button></div>:<span className="profile-design-step">캐릭터 설정 · 1/2</span>}
+          {editMode?<div className="profile-design-header-actions"><button type="button" className="profile-design-withdraw" onClick={()=>{if(window.confirm('세종한바퀴에서 탈퇴할까요? 저장된 프로필과 체험 기록이 삭제됩니다.'))onWithdraw?.()}}>탈퇴</button><button type="button" className="profile-design-logout" onClick={onLogout}>로그아웃</button><button type="button" className="profile-design-close" onClick={onCancel}>{cancelLabel}</button></div>:<span className="profile-design-step">캐릭터 설정 · 1/2</span>}
         </header>
 
         <div className="profile-design-content">
@@ -218,10 +218,21 @@ export function CreateProfilePage({initial,initialStep=1,editMode=false,onCancel
               <div className="profile-core-journey-grid">{journeySteps.map(step=><article key={step.number}><span>{step.emoji}</span><div><small>{step.number}</small><strong>{step.title}</strong><p>{step.copy}</p></div></article>)}</div>
             </section>
 
-            {editMode&&<fieldset className="profile-choice-fieldset"><legend>공개 및 대화 설정 <small>언제든 변경 가능</small></legend><div className="profile-privacy-grid">
-              <div><small>탐험 기록</small><button type="button" className={(p.recordVisibility??'public')==='public'?'selected':''} onClick={()=>setP({...p,recordVisibility:'public'})}><Eye size={15}/> 공개</button><button type="button" className={p.recordVisibility==='private'?'selected':''} onClick={()=>setP({...p,recordVisibility:'private'})}><EyeOff size={15}/> 나만 보기</button></div>
-              <div><small>채팅 상태</small><button type="button" className={(p.chatEnabled??true)?'selected':''} onClick={()=>setP({...p,chatEnabled:true})}><MessageCircle size={15}/> 대화 가능</button><button type="button" className={p.chatEnabled===false?'selected':''} onClick={()=>setP({...p,chatEnabled:false})}><MessageCircleOff size={15}/> 잠시 쉬기</button></div>
-            </div></fieldset>}
+            <fieldset className="profile-choice-fieldset profile-privacy-fieldset">
+              <legend>공개 및 대화 설정 <small>언제든 변경 가능</small></legend>
+              <div className="profile-privacy-grid">
+                <div>
+                  <small>탐험 기록</small>
+                  <button type="button" aria-pressed={(p.recordVisibility??'public')==='public'} className={(p.recordVisibility??'public')==='public'?'selected':''} onClick={()=>setP({...p,recordVisibility:'public'})}><Eye size={16}/> 공개</button>
+                  <button type="button" aria-pressed={p.recordVisibility==='private'} className={p.recordVisibility==='private'?'selected':''} onClick={()=>setP({...p,recordVisibility:'private'})}><EyeOff size={16}/> 나만 보기</button>
+                </div>
+                <div>
+                  <small>채팅 상태</small>
+                  <button type="button" aria-pressed={p.chatEnabled??true} className={(p.chatEnabled??true)?'selected':''} onClick={()=>setP({...p,chatEnabled:true})}><MessageCircle size={16}/> 대화 가능</button>
+                  <button type="button" aria-pressed={p.chatEnabled===false} className={p.chatEnabled===false?'selected':''} onClick={()=>setP({...p,chatEnabled:false})}><MessageCircleOff size={16}/> 잠시 쉬기</button>
+                </div>
+              </div>
+            </fieldset>
           </div>
         </div>
 
