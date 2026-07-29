@@ -37,7 +37,7 @@ export async function bearWildlifeAnswer(input:{mode:'clue'|'question'|'report';
   if(!client)return defaultAnswer;
   try{
     const completion=await client.chat.completions.create({
-      model:env.OPENAI_MODEL,
+      model:env.OPENAI_MODEL ?? '',
       max_completion_tokens:500,
       response_format:{type:'json_object'},
       messages:[

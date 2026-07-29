@@ -42,10 +42,12 @@ export const connectDatabase = async (): Promise<void> => {
       uri = embeddedMongo.getUri('jochwon');
     }
 
-    await mongoose.connect(uri);
+    await mongoose.connect(uri, {
+      dbName: env.MONGODB_DB_NAME,
+    });
 
     console.log(
-      `[Database] MongoDB connected (${embeddedMongo ? 'embedded local' : 'external'})`,
+      `[Database] MongoDB connected (${embeddedMongo ? 'embedded local' : 'external'}, database: ${mongoose.connection.name})`,
     );
   } catch (error) {
     if (embeddedMongo) {

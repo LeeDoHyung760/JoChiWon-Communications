@@ -52,6 +52,13 @@ const schema = z.object({
 
   MONGODB_URI: optionalSecret,
 
+  MONGODB_DB_NAME: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .default('jochwon'),
+
   AI_PROVIDER: z
     .enum(['auto', 'mock', 'openai'])
     .default('auto'),
@@ -62,17 +69,17 @@ const schema = z.object({
 
   OPENAI_API_KEY: optionalSecret,
 
+  AUTH_SESSION_SECRET: optionalSecret,
+
   OPENAI_MODEL: z.preprocess(
     (value) =>
       typeof value === 'string' && value.trim() === ''
         ? undefined
         : value,
-    z
-      .string()
-      .trim()
-      .min(1)
-      .default('gpt-5-mini'),
+    z.string().trim().min(1).optional(),
   ),
+
+  OPENAI_PROMPT_VERSION: z.string().trim().min(1).default('1.0.0'),
 
   GEMINI_API_KEY: optionalSecret,
 
@@ -103,6 +110,21 @@ const schema = z.object({
   ),
 
   KAKAO_REST_API_KEY: optionalSecret,
+
+  KAKAO_REDIRECT_URI: z.string().url().optional(),
+
+  KAKAO_CLIENT_SECRET: optionalSecret,
+
+  KAKAO_LOGIN_SCOPES: z
+    .string()
+    .trim()
+    .min(1)
+    .default('account_email,birthyear,birthday'),
+
+  KAKAO_SERVICE_TERMS: z
+    .string()
+    .trim()
+    .default('user_age_check'),
 
   KAKAO_LOCAL_BASE_URL: z
     .string()
@@ -174,6 +196,23 @@ const schema = z.object({
     20,
     1,
     100,
+  ),
+
+  CONVERSATION_INTEREST_CACHE_TTL_MS: numberFromEnv(
+    'CONVERSATION_INTEREST_CACHE_TTL_MS', 1_800_000, 1_000, 86_400_000,
+  ),
+
+  CONVERSATION_INTEREST_CACHE_MAX_ITEMS: numberFromEnv(
+    'CONVERSATION_INTEREST_CACHE_MAX_ITEMS', 1_000, 1, 100_000,
+  ),
+
+  OPENAI_REQUEST_TIMEOUT_MS: numberFromEnv(
+    'OPENAI_REQUEST_TIMEOUT_MS', 20_000, 1_000, 120_000,
+  ),
+
+  OPENAI_MOCK_ENABLED: z.preprocess(
+    value => value === undefined || value === '' ? 'false' : value,
+    z.enum(['true', 'false']).transform(value => value === 'true'),
   ),
 
   ALLOW_MOCK_FALLBACK: booleanFromEnv,

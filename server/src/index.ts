@@ -20,9 +20,15 @@ import { authRouter } from './routes/auth.js';
 import { loadCampusFeaturePortalPositions, seedCampusFeaturePortalPositions } from './models/CampusFeaturePortal.js';
 import { loadOrSeedWorldRespawnPosition } from './models/WorldRespawnPosition.js';
 import { roomStore } from './rooms/roomStore.js';
+import { placeRecommendationsRouter } from './routes/placeRecommendations.js';
+import { accountRouter } from './routes/account.js';
+import { authenticatedUserIdFromCookie } from './middleware/authenticatedUser.js';
+import { UserModel } from './models/User.js';
+import { profileRouter } from './routes/profile.js';
+import { jointCampusRecommendationsRouter } from './routes/jointCampusRecommendations.js';
 
 const app = express();
-app.use(cors({ origin: env.CLIENT_ORIGIN }));
+app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
 app.get('/health', (_req, res) => res.json({ ok: true, service: '여기 사람 있음' }));
 app.use('/api', apiRouter);
@@ -32,14 +38,32 @@ app.use('/api/direct-rooms',directRecommendationsRouter);
 app.use('/api/direct-rooms',directMeetingPlacesRouter);
 app.use('/api/community', communityRouter);
 app.use('/api/clubs', clubsRouter);
+app.use('/api/ai', placeRecommendationsRouter);
+app.use('/api/ai', jointCampusRecommendationsRouter);
+app.use('/api/account', accountRouter);
+app.use('/api/profile', profileRouter);
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (typeof error === 'object' && error !== null && 'type' in error && error.type === 'entity.too.large') {
+    return res.status(413).json({ success: false, error: { code: 'REQUEST_TOO_LARGE', message: '요청 본문이 너무 큽니다.' } });
+  }
   console.error('Request failed:', error instanceof Error ? error.name : 'unknown error');
-  res.status(500).json({ error: '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.' });
+  return res.status(500).json({ error: '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.' });
 });
 
 const httpServer = createServer(app);
-const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, { cors: { origin: env.CLIENT_ORIGIN } });
+const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, { cors: { origin: env.CLIENT_ORIGIN, credentials: true } });
 setSocketServer(io);
+io.use(async (socket, next) => {
+  const userId = authenticatedUserIdFromCookie(socket.request.headers.cookie);
+  if (!userId) return next();
+  const user = await UserModel.findById(userId).select('ageGroup profile.chatEnabled').lean().catch(() => null);
+  if (user) {
+    socket.data.userId = String(user._id);
+    socket.data.ageGroup = user.ageGroup;
+    socket.data.chatEnabled = user.profile?.chatEnabled !== false;
+  }
+  return next();
+});
 io.on('connection', (socket) => registerSocketHandlers(io, socket));
 
 let shuttingDown = false;

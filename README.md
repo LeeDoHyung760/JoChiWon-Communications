@@ -1,496 +1,734 @@
-# AI · 서버 · 프론트엔드 역할 분리 및 동작 구조
+# JoChiWon Communications
 
-## API 키 없이 로컬 체험하기
+세종의 가상 공간 체험, 사용자 간 커뮤니케이션, 실제 세종 방문 추천을 연결하는 TypeScript 프로젝트입니다.
 
-저장소를 내려받은 뒤 아래 명령만 실행하면 프론트엔드, 백엔드, 개발용 MongoDB가 함께 시작됩니다.
+현재 구성은 React, Phaser, Express, Socket.IO, MongoDB, Mongoose이며, 실제 장소 검색에는 Kakao Local API, 공동 방문 코스 구성에는 OpenAI Responses API를 사용합니다.
 
-```sh
+## 실행 방법
+
+```bash
 npm install
 npm --prefix server install
 npm run dev
 ```
 
-브라우저에서 `http://127.0.0.1:5173`을 열고 **체험용으로 시작하기**를 선택합니다.
+기본 주소:
 
-- MongoDB 주소가 없으면 `server/.data/mongodb`의 내장 개발 DB를 자동으로 사용합니다.
-- OpenAI·Kakao Local API 키가 없으면 기존 Mock 응답을 사용합니다.
-- 카카오 로그인 키가 없어도 개발 환경 전용 체험 로그인을 통해 전체 온보딩과 맵을 확인할 수 있습니다.
-- 실제 카카오 로그인과 외부 API 연동이 필요할 때만 `server/.env`를 설정합니다.
+- 프론트엔드: `http://127.0.0.1:5173`
+- 백엔드: `http://localhost:3001`
+- 서버 상태: `GET http://localhost:3001/health`
+- Provider 상태: `GET http://localhost:3001/api/health/providers`
+- Kakao 로그인 진단: `GET http://localhost:3001/api/auth/kakao/diagnostics`
 
-## 외부 API 설정
+환경변수를 변경하면 실행 중인 서버를 다시 시작해야 합니다.
 
-비밀키는 브라우저가 아니라 백엔드의 `server/.env`에서만 관리합니다. 먼저 예제 파일을 복사합니다.
-
-Windows CMD:
-
-```bat
-copy server\.env.example server\.env
-```
-
-PowerShell:
-
-```powershell
-Copy-Item server/.env.example server/.env
-```
-
-`server/.env`에서 아래 두 값만 로컬에서 입력하고 자동 선택 설정을 유지합니다.
-
-```env
-OPENAI_API_KEY=
-KAKAO_REST_API_KEY=
-AI_PROVIDER=auto
-PLACE_PROVIDER=auto
-```
-
-카카오 로그인까지 실제로 연결할 때만 `KAKAO_REDIRECT_URI`와 `KAKAO_CLIENT_SECRET`이 추가로 필요합니다. 카카오 Local 장소 검색에는 REST API 키만 필요합니다.
-
-```sh
-npm run dev
-npm run verify:providers
-```
-
-환경변수를 변경한 뒤에는 실행 중인 Node 서버를 재시작해야 합니다. 개발 환경에서는 `GET http://localhost:3001/api/health/providers`로도 선택 상태를 확인할 수 있습니다.
-
-- 두 키 모두 있음: OpenAI + 카카오
-- OpenAI 키만 있음: OpenAI + Mock 장소
-- 카카오 키만 있음: Mock 분석 + 카카오 장소
-- 두 키 모두 없음: 전체 Mock 모드
-
-`ALLOW_MOCK_FALLBACK=true`이면 외부 API 오류 시 해당 기능만 안전한 Mock으로 전환됩니다. 실제 키를 GitHub, README, 채팅, 프론트엔드 `.env`, `VITE_` 변수 또는 `.env.example`에 넣지 마세요. 로그와 API 응답에도 키를 노출하지 않습니다.
-
-실제 `.env`를 이미 추적 중이라면 파일은 삭제하지 않고 Git 추적만 해제합니다.
-
-```sh
-git rm --cached server/.env
-```
-
-실제 API 키가 Git 기록에 들어갔다면 즉시 해당 키를 폐기하고 새 키를 발급해야 합니다.
-
-이 문서는 이 저장소를 처음 보는 사람도 **프론트엔드, 서버, AI 기능이 어디까지 담당하고 서로 어떤 데이터를 주고받는지** 이해할 수 있도록 현재 구현을 기준으로 정리한 문서입니다.
-
-## 1. 한눈에 보는 전체 구조
+## 현재 데이터 흐름
 
 ```text
-[사용자 브라우저]
-React UI + Phaser 맵
-        │
-        ├─ Socket.IO ────────────────┐
-        │  접속/이동/채팅/1:1 요청     │
-        │                            ▼
-        └─ HTTP REST API ──────> [Node.js + Express 서버]
-           매칭률/장소 추천           │
-                                      ├─ 서버 계산 로직
-                                      │  매칭률, 장소 점수, 입력 검증
-                                      │
-                                      ├─ OpenAI API (선택)
-                                      │  대화 분석, 추천 설명 작성
-                                      │
-                                      └─ Kakao Local API (선택)
-                                         실제 장소 검색
+카카오 로그인
+  ↓
+카카오 사용자 정보 조회
+  ↓
+User MongoDB 저장 또는 갱신
+  ↓
+백엔드에서 ageGroup 계산
+  ↓
+최초 온보딩
+  ├─ 표시 이름
+  ├─ 캐릭터와 아바타 옵션
+  └─ 명시적 관심사
+  ↓
+같은 연령 그룹끼리 1대1 채팅
+  ↓
+메시지 MongoDB 저장
+  ↓
+대화 원문이 아닌 임시 관심 키워드만 서버 캐시에 저장
+  ↓
+Kakao Local API에서 실제 세종 장소 후보 검색
+  ↓
+OpenAI가 후보 안에서만 공동 코스 구성
+  ↓
+서버 검증 후 추천 결과 MongoDB 저장
 ```
 
-핵심 원칙은 다음과 같습니다.
-
-- **프론트엔드**는 화면, 사용자 입력, 게임 맵, 결과 표시를 담당합니다.
-- **서버**는 실시간 통신, 입력 정제, 매칭률 계산, 추천 파이프라인 실행을 담당합니다.
-- **OpenAI**는 대화의 의미를 분석하고 자연스러운 추천 문장을 작성합니다.
-- **Kakao Local API**는 실제 장소명, 주소, 전화번호, 상세 페이지 등 장소 원본 데이터를 제공합니다.
-- **매칭률과 장소 순위는 AI에게 맡기지 않고 서버의 고정된 계산식으로 결정**합니다. 따라서 같은 입력에는 같은 점수가 나오며 계산 근거를 설명할 수 있습니다.
-- 외부 API 키가 없거나 호출이 실패하면 서버의 규칙 기반 분석과 Mock 장소 데이터로 자동 대체됩니다.
-
-## 2. 폴더별 담당 영역
+## 주요 디렉터리
 
 ```text
-src/                         프론트엔드
-├─ pages/                    로그인, 프로필 생성, 게임 화면
-├─ components/               매칭률 배지, 추천 모달 등 UI
-├─ game/                     Phaser 맵/캐릭터/이동/Socket 클라이언트
-├─ stores/                   브라우저에 저장하는 사용자 프로필 기본값
-├─ data/                     프론트용 장소·에셋 데이터
-└─ types/                    프론트 타입
+src/
+├─ pages/                         React 화면
+├─ components/                    UI 컴포넌트
+├─ game/                          Phaser 게임과 Socket.IO 클라이언트
+└─ services/
+   └─ jointCampusRecommendations.ts
 
-server/src/                  백엔드
-├─ routes/api.ts             HTTP API 진입점과 입력값 정제
-├─ socket/                   접속, 이동, 채팅, 1:1/그룹 이벤트 처리
-├─ rooms/                    현재 접속자와 채팅방의 메모리 상태
-├─ services/matching/        사용자 매칭률 계산
-├─ services/ai/              대화 분석과 추천 문구 생성
-├─ services/places/          장소 검색과 후보 점수 계산
-├─ data/mockPlaces.json      외부 장소 API 미사용 시 후보 데이터
-└─ types/                    추천 관련 서버 타입
-
-shared/socket-events.ts      프론트와 서버가 함께 쓰는 Socket.IO 타입
+server/src/
+├─ index.ts                       Express와 Socket.IO 진입점
+├─ middleware/                    인증 처리
+├─ models/                        Mongoose 모델
+├─ routes/                        REST API
+├─ services/
+│  ├─ age/                        연령 분류
+│  ├─ chat/                       1대1 채팅 정책
+│  ├─ interests/                  관심사 추출과 캐시
+│  ├─ profile/                    온보딩 검증
+│  ├─ places/                     실제 장소 검색
+│  └─ ai/                         OpenAI 추천
+└─ socket/
+   └─ registerSocketHandlers.ts   실시간 채팅 처리
 ```
 
-## 3. 프론트엔드가 담당하는 것
+## 카카오 로그인과 사용자 저장
 
-프론트엔드는 React, Phaser, Socket.IO Client로 구성됩니다.
+카카오 로그인 콜백 구현 파일:
 
-### 3.1 프로필 입력과 저장
+- `server/src/routes/auth.ts`
 
-`src/pages/CreateProfilePage.tsx`에서 사용자가 다음 정보를 입력합니다.
+가능한 경우 다음 정보를 읽습니다.
 
-- 닉네임
-- MBTI
-- 관심사: 최대 3개
-- 이용 목적: 최대 2개
-- 선호 장소: 최대 2개
-- 캐릭터 외형
+- Kakao user ID
+- 이메일
+- 프로필 닉네임
+- 프로필 이미지
+- 출생 연도
+- 생일
+- 생일 유형
 
-완성한 프로필은 `src/stores/profileStore.ts`와 `useLocalStorage`를 통해 브라우저 로컬 스토리지에 저장됩니다. 별도의 회원 DB에 영구 저장하는 구조는 현재 구현되어 있지 않습니다.
+사용자가 동의하지 않았거나 카카오 계정에 정보가 없을 수 있으므로 출생 정보가 항상 존재한다고 가정하지 않습니다.
 
-### 3.2 게임 맵과 실시간 기능
-
-`src/game/scenes/WorldScene.ts`가 Phaser 기반 맵, 캐릭터 이동, 장소 입장, 다른 사용자 렌더링을 담당합니다. 이동 상태는 Socket.IO로 서버에 보내고, 서버에서 받은 다른 사용자의 위치를 화면에 반영합니다.
-
-`src/pages/GamePage.tsx`는 다음 기능을 화면에 연결합니다.
-
-- 같은 맵의 접속자 목록
-- 주변 채팅과 그룹 채팅
-- 상대 프로필 선택
-- 1:1 채팅 요청, 수락, 거절
-- 매칭 유사도 표시
-- 1:1 채팅방 내부 AI 장소 추천
-
-### 3.3 매칭률 요청
-
-사용자가 다른 접속자를 선택하면 `src/components/MatchScoreBadge.tsx`가 서버의 `POST /api/matching/score`를 호출합니다. 프론트는 계산하지 않고 서버가 돌려준 `totalScore`만 표시합니다.
-
-현재 UI 기준으로 60점 이상이면 `N% 비슷한 사람이에요`, 60점 미만이면 `매칭 유사도 N%`로 표시합니다. 이 60점은 화면 문구를 구분하기 위한 기준이며, 채팅 요청을 막는 합격/불합격 기준은 아닙니다.
-
-### 3.4 장소 추천 요청과 사용자 동의
-
-`src/components/DirectRecommendation.tsx`는 수락된 1:1 채팅방 안에서 사용자가 **동의하고 추천받기** 버튼을 누른 뒤에만 추천 요청을 보냅니다.
-
-전송되는 정보는 다음과 같습니다.
-
-- 실제 `directRoomId`
-- 선택적인 추가 요청 문장
-
-프론트는 메시지 배열을 전송하지 않습니다. 서버가 해당 방의 참여자·활성 상태를 확인하고 서버 메모리 저장소에서 실제 일반 메시지 최대 20개를 조회합니다. 이메일, 카카오 ID, GPS 좌표, Socket ID는 OpenAI에 전달하지 않습니다.
-
-## 4. 서버가 담당하는 것
-
-서버는 Node.js, Express, Socket.IO로 구성되며 `server/src/index.ts`에서 시작합니다.
-
-### 4.1 HTTP API
-
-| API | 역할 |
-|---|---|
-| `POST /api/matching/score` | 두 사용자 프로필의 매칭률 계산 |
-| `POST /api/places/search` | 검색어로 장소를 찾고 필요하면 점수 계산 |
-| `POST /api/direct-rooms/:directRoomId/recommendations` | 서버가 1:1 대화를 조회해 분석·검색하고 두 참여자에게 추천 전송 |
-| `GET /api/health/providers` | 개발 환경에서 Provider 설정과 최근 안전 진단 확인 |
-
-프론트의 장소 추천 버튼은 1:1 채팅방 전용 API만 사용합니다.
-
-### 4.2 입력값 정제
-
-`server/src/routes/api.ts`에서 외부 API로 보내기 전에 입력을 제한합니다.
-
-- 사용자: 최대 10명
-- 사용자 배열형 프로필 값: 항목별 최대 10개
-- 닉네임: 최대 30자
-- 대화: 최근 최대 20개
-- 대화 한 건: 최대 500자
-- 지역명: 최대 60자
-- 장소 검색어: 최대 5개
-
-따라서 프론트가 실수하거나 변조된 요청이 들어와도 그대로 큰 데이터가 외부 AI에 전달되지 않습니다.
-
-### 4.3 실시간 통신
-
-`server/src/socket/registerSocketHandlers.ts`는 다음 이벤트를 처리합니다.
-
-- 맵 입장과 맵 변경
-- 사용자 이동 상태 공유
-- 같은 맵의 주변 채팅
-- 1:1 채팅 요청/수락/거절/메시지
-- 그룹 생성/참여/채팅
-- 접속 종료 시 사용자 상태 정리
-
-현재 접속자, 그룹, 1:1 방은 `server/src/rooms/roomStore.ts`의 메모리에 저장됩니다. 서버가 재시작되면 이 상태는 사라지며, 장기 보관용 데이터베이스는 아직 연결되어 있지 않습니다.
-
-## 5. 매칭률은 어떻게 계산하는가
-
-매칭률은 OpenAI 응답이 아니라 `server/src/services/matching/`의 순수 계산 함수가 만듭니다.
-
-### 5.1 최종 계산식
-
-```text
-최종 매칭률 = 관심사 유사도 × 0.60
-             + 이용 목적 유사도 × 0.25
-             + MBTI 참고 점수 × 0.15
-```
-
-가중치 합은 100%입니다.
-
-| 요소 | 가중치 | 의미 |
-|---|---:|---|
-| 관심사 유사도 | 60% | 실제 대화를 시작할 공통 주제가 있는지 가장 크게 반영 |
-| 이용 목적 유사도 | 25% | 친구 만들기, 취미 공유, 동네 탐방 등 서비스 사용 목적이 맞는지 반영 |
-| MBTI 참고 점수 | 15% | 성격을 단정하지 않고 낮은 비중의 참고값으로만 반영 |
-
-### 5.2 관심사와 이용 목적: Jaccard 유사도
-
-관심사와 이용 목적은 Jaccard 유사도를 사용합니다.
-
-```text
-Jaccard 유사도 = 두 사람에게 공통으로 있는 항목 수
-                 ÷ 두 사람의 전체 고유 항목 수
-                 × 100
-```
-
-계산 전에 앞뒤 공백과 중복값을 제거하고, 한글 로케일 기준으로 대소문자 차이를 무시합니다. 두 목록이 모두 비어 있으면 0점입니다.
-
-예를 들어 A의 관심사가 `[카페, 사진, 산책]`, B의 관심사가 `[카페, 사진, 공연]`이라면 다음과 같습니다.
-
-```text
-공통 항목 = 카페, 사진 → 2개
-전체 고유 항목 = 카페, 사진, 산책, 공연 → 4개
-관심사 유사도 = 2 / 4 × 100 = 50점
-```
-
-### 5.3 MBTI 참고 점수
-
-MBTI 네 글자에서 같은 차원의 개수를 세어 아래 점수를 사용합니다.
-
-| 같은 글자 수 | MBTI 점수 |
-|---:|---:|
-| 0개 | 35점 |
-| 1개 | 50점 |
-| 2개 | 70점 |
-| 3개 | 85점 |
-| 4개 | 100점 |
-
-올바른 4자리 MBTI 형식이 아니거나 값이 없으면 중립값인 50점을 적용합니다. 이 값은 궁합의 과학적 판정이 아니라 전체 점수 중 15%만 차지하는 보조 지표입니다.
-
-### 5.4 전체 계산 예시
-
-두 사용자의 점수가 아래와 같다고 가정합니다.
-
-```text
-관심사 유사도: 50점
-이용 목적 유사도: 100점
-MBTI 점수: 70점
-
-최종 점수 = 50 × 0.60 + 100 × 0.25 + 70 × 0.15
-          = 30 + 25 + 10.5
-          = 65.5
-          = 반올림하여 66점
-```
-
-서버 응답에는 최종 점수뿐 아니라 관심사 점수, 목적 점수, MBTI 점수, 공통 관심사, 공통 목적, 간단한 이유도 포함됩니다. 현재 프론트 화면은 이 중 최종 점수를 중심으로 표시합니다.
-
-## 6. AI에서는 무엇을 가져오고 무엇을 맡기는가
-
-AI 관련 기능은 `server/src/services/ai/`에 있으며 OpenAI Chat Completions API를 선택적으로 사용합니다. 기본 모델은 `gpt-4o-mini`이고 `OPENAI_MODEL` 환경 변수로 바꿀 수 있습니다.
-
-OpenAI에는 서로 다른 두 가지 일을 맡깁니다.
-
-### 6.1 대화 분석
-
-`conversationAnalysis.ts`가 참여자 프로필과 최근 대화를 분석해 아래 JSON 형태의 **검색 조건**을 받습니다.
+정보가 부족하거나 생일 유형이 음력인 경우:
 
 ```json
 {
-  "sharedInterests": ["카페", "사진"],
-  "preferredMood": ["대화하기 좋음", "조용함"],
-  "placeCategories": ["카페", "문화시설"],
-  "meetingIntent": "친구 만들기",
-  "searchKeywords": ["조치원 대화하기 좋은 카페"]
+  "ageGroup": "unknown",
+  "requiresBirthConfirmation": true
 }
 ```
 
-각 값의 의미는 다음과 같습니다.
+카카오 액세스 토큰과 Client Secret은 MongoDB에 저장하지 않습니다. 출생 연도와 생일 원본도 공개 프로필 응답에 포함하지 않습니다.
 
-- `sharedInterests`: 참여자들의 공통 관심사
-- `preferredMood`: 대화에서 드러난 선호 분위기
-- `placeCategories`: 찾을 장소 종류
-- `meetingIntent`: 만남 또는 서비스 이용 목적
-- `searchKeywords`: Kakao Local API에 전달할 실제 검색어
+로그인 설정 문제는 다음 API로 확인할 수 있습니다.
 
-AI가 장소명 자체를 만들어 내도록 하지 않고, 장소 검색에 필요한 카테고리와 키워드까지만 생성하게 제한했습니다.
+```http
+GET /api/auth/kakao/diagnostics
+```
 
-### 6.2 추천 문구 생성
+진단 항목:
 
-`recommendationCopy.ts`는 서버가 이미 검색하고 점수까지 계산한 상위 장소를 OpenAI에 전달합니다. OpenAI는 다음만 작성합니다.
+- REST API Key 설정 여부
+- Redirect URI 설정 여부
+- Client Secret 설정 여부
+- 현재 서버 주소와 Redirect URI 일치 여부
+- 인증 쿠키 서명 키 설정 여부
+- MongoDB 연결 여부
+- Kakao 사용자 저장 문서 수
 
-- 충녕이 캐릭터가 말하는 전체 추천 메시지
-- 각 장소가 대화 분위기와 목적에 맞는 이유
+## User MongoDB 모델
 
-OpenAI가 반환한 `placeId`가 실제 후보 목록에 존재하는지 서버가 검증합니다. 제공하지 않은 장소를 새로 만들거나, 확인할 수 없는 영업시간·가격·메뉴를 추측하지 않도록 시스템 지시에도 명시되어 있습니다.
+파일:
 
-### 6.3 AI가 하지 않는 것
+- `server/src/models/User.ts`
 
-- 사용자 간 매칭률 계산
-- 실제 장소 데이터 생성
-- 최종 장소 순위 결정
-- 사용자의 이동과 채팅 중계
-- 사용자 동의 없이 대화 분석 시작
+주요 필드:
 
-이 구분 덕분에 AI 응답이 달라져도 핵심 점수와 실제 장소 목록은 서버 규칙 안에서 통제됩니다.
+```ts
+{
+  kakaoId: string;
+  email?: string;
+  displayName?: string;
+  profileImageUrl?: string;
+  avatar: {
+    characterId: string;
+    skinId?: string;
+    hairId?: string;
+    outfitId?: string;
+    accessoryIds?: string[];
+    colorOptions?: Record<string, string>;
+  };
+  birthInfo: {
+    birthyear?: string;
+    birthday?: string;
+    birthdayType?: "SOLAR" | "LUNAR" | "UNKNOWN";
+  };
+  ageGroup: "adult" | "minor" | "unknown";
+  adultAt?: Date;
+  ageCheckedAt?: Date;
+  ageSource: "kakao_account" | "user_input" | "unknown";
+  explicitInterests: string[];
+  onboardingCompleted: boolean;
+}
+```
 
-## 7. 실제 장소 정보는 어디서 가져오는가
+`kakaoId`에는 unique index가 적용됩니다. 생년월일과 이메일은 기본 조회에서 제외되는 비공개 필드입니다.
 
-`server/src/services/places/placeSearch.ts`가 Kakao Local REST API의 키워드 검색을 호출합니다.
+## MongoDB에 저장되는 데이터
 
-Kakao에서 받아 사용하는 항목은 다음과 같습니다.
+현재 `server/src/models`의 Mongoose 모델을 기준으로 다음 데이터가 MongoDB에 저장됩니다. 아래 컬렉션 이름은 Mongoose가 실제 DB에서 복수형·소문자로 변환할 수 있으므로 논리적인 모델 이름을 기준으로 적었습니다.
 
-- 장소 ID
-- 장소명
-- 카테고리명
-- 지번 주소와 도로명 주소
-- 전화번호
-- 카카오 장소 상세 URL
-- 좌표와 거리
+### 1. User
 
-AI 분석으로 만든 검색어를 최대 5개까지 사용하고, 검색어마다 최대 15개 결과를 요청합니다. 이후 장소 ID를 기준으로 중복을 제거하고 조치원/세종 조치원 지역 결과를 우선 필터링합니다.
+모델:
 
-중요한 점은 **OpenAI는 검색 조건과 설명을 만들고, Kakao는 실제 장소 원본 정보를 제공한다**는 것입니다.
+- `server/src/models/User.ts`
 
-## 8. 추천 장소 순위는 어떻게 계산하는가
+저장 내용:
 
-Kakao 또는 Mock에서 가져온 후보는 `server/src/services/places/placeScoring.ts`의 고정식으로 점수를 계산한 뒤 상위 3개만 반환합니다.
+- Kakao 사용자 고유 ID
+- 이메일
+- 카카오 닉네임과 프로필 이미지
+- 온보딩 표시 이름
+- 선택한 캐릭터와 아바타 옵션
+- 출생 연도, 생일, 생일 유형
+- 계산된 `ageGroup`
+- 성인이 되는 날짜 `adultAt`
+- 마지막 연령 확인 시각과 연령 정보 출처
+- 사용자가 직접 선택한 명시적 관심사
+- 온보딩 완료 여부
+- 기존 프로필 정보
+  - 닉네임
+  - MBTI
+  - 관심사와 이용 목적
+  - 선호 장소 카테고리
+  - 기록 공개 여부
+  - 채팅 허용 여부
+  - 기존 캐릭터 꾸미기 데이터
+- 마지막으로 저장된 게임 위치
+  - 맵 ID
+  - X/Z 좌표
+  - 방향
+  - 저장 시각
+- 인증 Provider와 마지막 로그인 시각
+- `createdAt`, `updatedAt`
+
+주의:
+
+- 이메일과 생년월일은 비공개 필드이며 기본 User 조회에서 제외됩니다.
+- 다른 사용자의 공개 프로필에서는 출생 연도와 생일을 반환하지 않습니다.
+- Kakao 액세스 토큰과 Client Secret은 저장하지 않습니다.
+
+### 2. DirectRoom
+
+모델:
+
+- `server/src/models/DirectRoom.ts`
+
+저장 내용:
+
+- 1대1 채팅방 UUID 문자열 `roomId`
+- 참여 사용자 ObjectId 2개
+- 방 활성 상태
+- `createdAt`, `updatedAt`
+
+참여자 두 명이 서로 다른 User인지 Mongoose 검증을 수행합니다. 방을 만들기 전에도 두 사용자의 최신 연령 그룹을 조회하여 정책을 통과한 경우에만 저장합니다.
+
+### 3. DirectMessage
+
+모델:
+
+- `server/src/models/DirectMessage.ts`
+
+저장 내용:
+
+- 메시지 UUID `messageId`
+- 채팅방 ID
+- 보낸 사용자 ObjectId
+- 메시지 내용
+- 메시지 유형
+- 실제 전송 시각
+- `createdAt`, `updatedAt`
+
+메시지는 최대 500자로 제한됩니다. DB 저장이 성공한 뒤에만 Socket.IO로 상대방에게 전송됩니다.
+
+### 4. JointCampusRecommendation
+
+모델:
+
+- `server/src/models/JointCampusRecommendation.ts`
+
+저장 내용:
+
+- 추천을 요청한 1대1 채팅방 ID
+- 요청자와 동행자 User ObjectId
+- 사용한 프롬프트 버전
+- 사용한 OpenAI 모델명
+- 추천 입력 요약
+  - 요청자와 동행자의 명시적 관심사
+  - 요청자와 동행자의 임시 추론 관심사 ID
+  - Kakao가 반환한 실제 후보 장소 ID 목록
+- 검증이 끝난 추천 결과
+  - 추천 제목
+  - 공동 관심사 요약
+  - 실제 사용한 명시·추론 관심사
+  - 방문 순서와 장소별 추천 이유
+  - 각 사용자에게 맞는 이유
+  - 가상 체험 연결 설명
+  - 지역경제 연결 설명
+  - 대화 주제
+  - 전체 예상 시간
+  - 코스 콘셉트
+  - 주의사항
+- 처리 상태
+- `createdAt`, `updatedAt`
+
+여기에는 채팅 원문, 이메일, 생년월일, Kakao ID, 액세스 토큰, OpenAI API 키를 저장하지 않습니다.
+
+### 5. AiPlaceRecommendation
+
+모델:
+
+- `server/src/models/AiPlaceRecommendation.ts`
+
+단일 사용자 또는 선택적 동행자용 기존 세종 장소 추천 결과를 저장합니다.
+
+저장 내용:
+
+- 요청자와 선택적 동행자 User ObjectId
+- 프롬프트 버전과 모델명
+- 사용자 관심사·희망 활동·후보 장소 ID 요약
+- 추천 제목과 사용자 요약
+- 공동 관심사와 대화 주제
+- 장소별 순서, 체류 시간, 추천 이유
+- 가상 체험과 지역경제 연결 설명
+- 전체 예상 시간과 코스 콘셉트
+- 주의사항
+- `createdAt`, `updatedAt`
+
+### 6. CommunityPost
+
+모델:
+
+- `server/src/models/CommunityPost.ts`
+
+기존 커뮤니티 기능에서 다음 항목을 저장합니다.
+
+- 게시물 ID
+- 작성자 표시값
+- 제목과 본문
+- 카테고리
+- 좋아요 수와 좋아요 사용자 목록
+- 댓글 작성자, 내용, 작성 시각
+- 게시물 작성 시각
+
+### 7. CampusFeaturePortal
+
+모델:
+
+- `server/src/models/CampusFeaturePortal.ts`
+
+공동캠퍼스 기능 포털의 위치를 저장합니다.
+
+- 포털 종류
+- X/Z 좌표
+- `createdAt`, `updatedAt`
+
+### 8. WorldRespawnPosition
+
+모델:
+
+- `server/src/models/WorldRespawnPosition.ts`
+
+월드 기본 재시작 위치를 저장합니다.
+
+- 맵 ID
+- X/Z 좌표
+- 바라보는 방향
+- `createdAt`, `updatedAt`
+
+## 아직 DB에 저장되지 않는 기능
+
+- 식물도감 진행 데이터
+- 발견한 식물 목록
+- 대표 식물
+- 식물 성장 기록
+- 프런트의 공동캠퍼스 추천 결과 표시 상태
+- 메모리에서만 유지되는 일부 기존 게임 방 상태
+
+식물도감은 현재 프런트 서비스 중심 구조이므로, 완전한 서버 동기화를 위해서는 별도의 식물도감 Mongoose 모델과 인증 기반 저장·조회 API가 추가로 필요합니다.
+
+## 연령 계산
+
+구현 파일:
+
+- `server/src/services/age/ageClassificationService.ts`
+- 이전 호출부 호환용: `server/src/services/users/agePolicy.ts`
+
+기준 상수:
+
+```ts
+export const ADULT_AGE_THRESHOLD = 19;
+```
+
+정책:
+
+- 정확히 만 19세가 된 시점부터 `adult`
+- 만 19세 생일 전이면 `minor`
+- 출생 연도 또는 생일 누락은 `unknown`
+- 잘못된 형식, 존재하지 않는 날짜, 미래 출생일은 `unknown`
+- 120년보다 오래된 비정상 출생 연도는 `unknown`
+- 음력은 양력으로 임의 계산하지 않고 `unknown`
+- `birthdayType`이 명확한 `SOLAR`인 경우에만 계산
+
+카카오 로그인 시 매번 다시 계산하므로 기존 미성년자가 만 19세가 된 이후 로그인하면 `adult`로 갱신됩니다.
+
+## 성인과 미성년자의 1대1 채팅 차단
+
+공통 판정 함수:
+
+- `server/src/services/age/ageClassificationService.ts`
+
+```ts
+canStartDirectChat(
+  userA: { ageGroup: AgeGroup },
+  userB: { ageGroup: AgeGroup }
+): boolean
+```
+
+허용:
+
+| 사용자 A | 사용자 B | 결과 |
+|---|---|---|
+| adult | adult | 허용 |
+| minor | minor | 허용 |
+
+차단:
+
+| 사용자 A | 사용자 B | 결과 |
+|---|---|---|
+| adult | minor | 차단 |
+| adult | unknown | 차단 |
+| minor | unknown | 차단 |
+| unknown | unknown | 차단 |
+
+DB 조회와 정책 적용 파일:
+
+- `server/src/services/chat/directChatPolicyService.ts`
+- `server/src/socket/registerSocketHandlers.ts`
+
+### 차단 시점
+
+연령 검사는 프런트 버튼에만 의존하지 않습니다.
+
+1. 1대1 채팅 요청 생성
+2. 상대방의 요청 수락
+3. 1대1 채팅방 생성 직전
+4. Socket.IO 메시지 전송 직전
+5. 공동캠퍼스 장소 추천 요청 직전
+
+각 단계에서 클라이언트가 보낸 `ageGroup`을 사용하지 않고 MongoDB의 최신 User 문서를 다시 조회합니다. 기존 방이라도 사용자의 연령 그룹이 변경되거나 `unknown`이 되면 메시지 전송이 차단됩니다.
+
+Socket 연결의 사용자 ID는 인증 미들웨어가 서명된 쿠키에서 설정한 `socket.data.userId`만 사용합니다.
+
+차단 응답은 상대방의 구체적인 연령을 공개하지 않습니다.
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "AGE_GROUP_CHAT_RESTRICTED",
+    "message": "연령 그룹 정책에 따라 1대1 채팅을 이용할 수 없습니다."
+  }
+}
+```
+
+## 온보딩 API
+
+### 온보딩 저장
+
+```http
+PUT /api/profile/onboarding
+Content-Type: application/json
+Cookie: auth_session=...
+```
+
+```json
+{
+  "displayName": "도형",
+  "avatar": {
+    "characterId": "character_01",
+    "skinId": "skin_02",
+    "hairId": "hair_03",
+    "outfitId": "outfit_01",
+    "accessoryIds": ["acc_glasses"]
+  },
+  "explicitInterests": ["plant", "festival", "photo", "cafe"]
+}
+```
+
+검증 파일:
+
+- `server/src/services/profile/profileSchemas.ts`
+
+이 API는 body의 `userId`나 `kakaoId`를 받지 않습니다. 인증 쿠키에서 현재 User ID를 가져옵니다.
+
+### 생년월일 별도 확인
+
+```http
+PUT /api/profile/birth-confirmation
+```
+
+```json
+{
+  "birthyear": "2005",
+  "birthday": "0721",
+  "birthdayType": "SOLAR",
+  "consent": true
+}
+```
+
+원본 생년월일은 응답하지 않고 다음 상태만 반환합니다.
+
+```json
+{
+  "success": true,
+  "data": {
+    "ageGroup": "adult",
+    "adultAt": "2024-07-21T00:00:00.000Z",
+    "ageSource": "user_input"
+  }
+}
+```
+
+## 관심사 저장 정책
+
+관심사 목록:
+
+- `server/src/services/interests/interestCatalog.ts`
+
+### 명시적 관심사
+
+사용자가 온보딩에서 직접 선택한 관심사입니다.
+
+- MongoDB User 문서에 저장
+- 허용된 ID만 저장
+- 중복 제거
+- AI 추천에서 최우선 사용
+
+### 대화 추론 관심사
+
+대화에서 규칙 기반으로 추출한 임시 관심사입니다.
+
+관련 파일:
+
+- `server/src/services/interests/interestKeywordExtractor.ts`
+- `server/src/services/interests/conversationInterestCache.ts`
+- `server/src/services/interests/interestMergeService.ts`
+
+정책:
+
+- MongoDB User 프로필에 저장하지 않음
+- localStorage에 저장하지 않음
+- 채팅 원문을 캐시에 저장하지 않음
+- `roomId + userId`를 캐시 키로 사용
+- 기본 TTL 30분
+- 최대 캐시 항목 수 제한
+- 반복 언급 시 confidence 증가
+- 명시적 관심사보다 낮은 우선순위로 사용
+- 서버 재시작 시 삭제되어도 되는 임시 데이터
+
+## 채팅방과 메시지 저장
+
+Mongoose 모델:
+
+- `server/src/models/DirectRoom.ts`
+- `server/src/models/DirectMessage.ts`
+
+Socket.IO 처리:
+
+- `server/src/socket/registerSocketHandlers.ts`
+
+
+## 공동캠퍼스 OpenAI 추천
+
+API:
+
+```http
+POST /api/ai/joint-campus/recommendations
+```
+
+라우트:
+
+- `server/src/routes/jointCampusRecommendations.ts`
+
+서비스:
+
+- `server/src/services/ai/jointCampusPlaceRecommendationService.ts`
+
+저장 모델:
+
+- `server/src/models/JointCampusRecommendation.ts`
+
+OpenAI 클라이언트:
+
+- `server/src/services/ai/openaiClient.ts`
+
+Structured Output 스키마와 후처리 검증:
+
+- `server/src/services/ai/schemas/jointCampusPlaceRecommendationSchema.ts`
+
+## OpenAI 프롬프트를 작성한 파일
+
+공동캠퍼스 두 사용자용 시스템 프롬프트는 다음 파일에 있습니다.
 
 ```text
-장소 점수 = 카테고리 일치 35점
-          + 공통 관심사 반영 25점
-          + 검색어 관련성 20점
-          + 거리 10점
-          + 그룹 적합성 10점
+server/src/services/ai/prompts/jointCampusPlaceRecommendationPrompt.ts
 ```
 
-| 항목 | 최대 점수 | 계산 방식 |
-|---|---:|---|
-| 카테고리 일치 | 35 | 장소명·카테고리·주소·태그에 원하는 장소 카테고리가 있으면 부여 |
-| 공통 관심사 | 25 | 공통 관심사 중 장소 텍스트에 포함된 비율만큼 부여. 공통 관심사가 없으면 기본 10점 |
-| 검색어 관련성 | 20 | 검색 키워드를 단어로 나눈 뒤 장소 텍스트와 일치하는 비율만큼 부여 |
-| 거리 | 10 | 거리 정보가 있으면 멀수록 감점. 거리값이 없으면 기본 5점 |
-| 그룹 적합성 | 10 | `groupFriendly`가 명시적으로 `false`가 아니면 부여 |
+이 파일에는 다음 항목이 들어 있습니다.
 
-거리 점수는 현재 `max(0, round(10 - 거리/500))` 식을 사용합니다. 최종 합계로 내림차순 정렬하고 상위 3개를 추천합니다.
+- `JOINT_CAMPUS_PLACE_PROMPT_VERSION`
+- `JOINT_CAMPUS_PLACE_RECOMMENDATION_SYSTEM_PROMPT`
+- `buildJointCampusRecommendationInput`
 
-## 9. 장소 추천 전체 흐름
+프롬프트 버전:
 
-`POST /api/direct-rooms/:directRoomId/recommendations` 요청은 아래 순서로 처리됩니다.
+```ts
+export const JOINT_CAMPUS_PLACE_PROMPT_VERSION = "1.0.0";
+```
+
+프롬프트의 핵심 지침:
+
+- `candidatePlaces` 안의 장소만 선택
+- 존재하지 않는 장소를 만들지 않음
+- 운영시간, 가격, 주소를 추측하지 않음
+- 명시적 관심사를 추론 관심사보다 우선
+- 두 사용자의 관심사를 균형 있게 반영
+- 식물도감과 축제 체험 연결 이유 작성
+- 지역 사업장 후보가 있으면 지역경제와 연결
+- 생년월일, 이메일, 성별, 건강, 정치 성향 등을 언급하거나 추론하지 않음
+- 채팅 원문을 인용하지 않음
+- 장소 최대 4개
+- 대화 주제 최대 3개
+- 반드시 JSON Schema 형식으로 응답
+
+기존 단일 사용자용 세종 장소 추천 프롬프트는 별도 파일에 있습니다.
 
 ```text
-1. 두 사용자가 1:1 채팅 요청을 수락하고 대화
-2. 참여자가 채팅방 안에서 분석 동의
-3. 서버가 방 권한과 활성 상태를 검사하고 실제 일반 메시지 최대 20개 조회
-4. OpenAI 또는 규칙 기반 로직이 공통 관심사·분위기·검색어만 추출
-5. Kakao Local API 또는 Mock 데이터에서 장소 후보 검색
-6. 서버가 필터링·점수화하고 상위 3개 선정
-7. `ai-recommendation` Socket.IO 메시지를 두 참여자에게 동시에 전송
-8. 채팅 메시지 목록 안에 카카오맵 링크가 있는 추천 카드 표시
+server/src/services/ai/prompts/sejongPlaceRecommendationPrompt.ts
 ```
 
-즉, 추천 결과는 `AI가 아무 장소나 답변하는 구조`가 아니라 **분석 → 실제 검색 → 서버 점수화 → 설명 생성**의 네 단계로 구성됩니다.
-
-### 9.1 추천 카드와 모임 장소 등록
-
-1:1 채팅방의 추천 카드에는 다음 기능이 있습니다.
-
-- **카카오맵에서 보기**: Kakao Local API가 반환한 `place_url`을 새 탭에서 엽니다. Mock 장소는 장소명과 주소를 이용한 카카오맵 검색 페이지를 엽니다.
-- **모임 장소로 선택**: 확인 창을 거친 뒤 해당 장소를 채팅방의 모임 장소로 등록합니다.
-- **장소 변경**: 다른 추천 카드에서 장소를 선택하면 기존 장소를 새 장소로 변경합니다.
-- **등록 해제**: 채팅방 상단 모임 장소 배너에서 현재 등록을 해제합니다.
-
-모임 장소 등록 요청은 브라우저가 보낸 장소명이나 주소를 신뢰하지 않습니다. 서버가 발급한 `recommendationId`와 `placeId`를 이용해 30분 동안 보관된 추천 결과에서 원본 장소를 다시 확인합니다. 방 참여자, 활성 상태, 차단 관계도 서버에서 검사합니다.
-
-등록·변경·해제 결과는 `directMeetingPlaceUpdated` Socket.IO 이벤트와 `system-meeting-place` 공지 메시지로 두 참여자에게 동시에 전달됩니다. 현재 장소는 서버 메모리에 저장되므로 서버 프로세스가 유지되는 동안 재조회할 수 있지만, 서버를 재시작하면 사라집니다.
-
-관련 API는 다음과 같습니다.
-
-| API | 역할 |
-|---|---|
-| `GET /api/direct-rooms/:directRoomId/meeting-place` | 현재 모임 장소 조회 |
-| `PUT /api/direct-rooms/:directRoomId/meeting-place` | 추천 결과의 장소를 모임 장소로 등록 또는 변경 |
-| `DELETE /api/direct-rooms/:directRoomId/meeting-place` | 모임 장소 등록 해제 |
-
-추천 및 모임 장소 통합 동작은 다음 명령으로 확인할 수 있습니다.
-
-```sh
-npm run verify:direct-recommendation
-npm run verify:meeting-place
-```
-
-## 10. Mock 모드와 실제 API 모드
-
-`server/.env.example`을 `server/.env`로 복사한 후 설정합니다.
-
-```env
-OPENAI_API_KEY=
-KAKAO_REST_API_KEY=
-AI_PROVIDER=auto
-PLACE_PROVIDER=auto
-```
-
-`auto`는 키가 있으면 실제 Provider를, 없으면 Mock을 선택합니다. 따라서 키만 채우고 서버를 재시작하면 코드 수정 없이 실제 연동으로 전환됩니다.
-
-### Mock 모드
-
-```env
-AI_PROVIDER=mock
-PLACE_PROVIDER=mock
-```
-
-- 대화 분석: 서버의 키워드/규칙 기반 분석
-- 장소 검색: `server/src/data/mockPlaces.json`
-- 추천 문구: 서버의 기본 템플릿
-- 외부 API 키 없이 개발과 시연 가능
-
-### 실제 연동 모드
-
-```env
-AI_PROVIDER=auto
-PLACE_PROVIDER=auto
-OPENAI_API_KEY=
-KAKAO_REST_API_KEY=
-```
-
-- OpenAI API 키: 실제 장소명이 아닌 대화의 장소 검색 조건 추출에 사용
-- Kakao REST API 키: 실제 장소 검색에 사용
-- 키는 프론트 환경 변수가 아니라 서버의 `.env`에만 둡니다.
-
-키가 하나만 있으면 해당 Provider만 실제 연동되는 혼합 모드가 자동으로 적용됩니다. `mock`, `openai`, `kakao`를 명시해 선택을 강제할 수도 있습니다.
-
-외부 API 호출 실패, 잘못된 응답, JSON 형식 불일치가 발생하면 요청 전체를 바로 실패시키지 않고 각각 규칙 기반 분석, Mock 장소, 기본 추천 문구로 대체합니다.
-
-## 11. 데이터와 개인정보 처리 범위
-
-- 대화 분석은 사용자가 추천 버튼에서 동의한 경우에만 실행됩니다.
-- 최근 대화는 최대 20개, 메시지당 최대 500자로 제한됩니다.
-- OpenAI 분석용 참여자는 participantA/B로 익명화하며 공개 관심사, 만남 목적, 선호 장소만 포함합니다.
-- 실제 장소는 Kakao Local API에서만 가져오며 Kakao 장소나 GPS 좌표를 OpenAI에 전달하지 않습니다.
-- 추천 결과는 해당 1:1 채팅방의 두 참여자에게 Socket.IO로 동시에 표시됩니다.
-- 전체 채팅 원문이나 외부 API 오류 내용을 서버 로그에 기록하도록 구현되어 있지 않습니다.
-- 현재 채팅방과 접속자 상태는 서버 메모리에만 있으며 서버 재시작 시 사라집니다.
-- API 키는 Git에 올리지 않고 `server/.env`에서 서버만 읽습니다.
-
-## 12. 현재 구조에서 확장할 부분
-
-현재 구현을 실제 서비스 수준으로 확장할 때는 다음 작업이 필요합니다.
-
-- 로그인/인증과 사용자 DB 연결
-- 채팅방 및 필요한 메시지의 저장 정책 결정
-- 추천 동의 이력과 개인정보 보관/삭제 정책 명시
-- API 호출 횟수 제한과 사용자별 권한 검사
-- Kakao 검색 시 현재 좌표 기반 반경 검색 강화
-- 장소 추천 투표 결과의 서버 저장 및 그룹별 집계
-- 매칭 가중치 검증을 위한 사용자 피드백과 운영 데이터 분석
-- OpenAI 모델/프롬프트 버전 및 추천 품질 모니터링
-
-## 13. 핵심 요약
-
-이 프로젝트에서 역할은 다음처럼 나뉩니다.
+관련 서비스와 스키마:
 
 ```text
-프론트엔드 = 프로필 입력 + 맵/채팅 UI + 동의 + 결과 표시
-서버       = 통신 + 보안성 있는 입력 정제 + 매칭 계산 + 추천 흐름 제어
-OpenAI     = 대화 의미 분석 + 자연어 추천 이유 작성
-Kakao      = 실제 장소 데이터 검색
+server/src/services/ai/sejongPlaceRecommendationService.ts
+server/src/services/ai/schemas/placeRecommendationSchema.ts
+server/src/models/AiPlaceRecommendation.ts
+server/src/routes/placeRecommendations.ts
 ```
 
-사용자 매칭률은 `관심사 60% + 이용 목적 25% + MBTI 15%`로 서버에서 계산합니다. 장소 추천은 AI가 검색 조건을 만들고, Kakao가 실제 장소를 제공하며, 서버가 `카테고리 35 + 관심사 25 + 관련성 20 + 거리 10 + 그룹 적합성 10`으로 순위를 정한 뒤 AI가 설명만 붙이는 구조입니다.
+## 공동 추천 처리 순서
+
+```text
+1. 인증 쿠키에서 requesterUserId 확인
+2. DirectRoom DB에서 요청자의 멤버십 확인
+3. 상대방 User ID 조회
+4. 두 User의 최신 ageGroup 재검증
+5. 두 User의 explicitInterests 조회
+6. 서버 캐시에서 inferredInterests 조회
+7. 명시적 관심사를 우선하여 관심사 병합
+8. 기존 Kakao Place Provider로 실제 세종 후보 검색
+9. 후보가 없으면 OpenAI를 호출하지 않고 오류 반환
+10. 후보와 비식별 사용자 컨텍스트를 OpenAI에 전달
+11. Structured Output 검증
+12. 후보 외 ID, 중복, 순서, 장소 수, 관심사 출처 검증
+13. totalEstimatedMinutes를 서버에서 재계산
+14. 검증 성공 결과만 MongoDB 저장
+15. recommendationId와 결과 반환
+```
+
+OpenAI에 전달하지 않는 정보:
+
+- 이메일
+- Kakao ID
+- 출생 연도
+- 생일
+- 연령 그룹
+- 카카오 액세스 토큰
+- 채팅 원문
+
+사용자 ID는 프롬프트 문자열을 만들 때 `사용자 A`, `사용자 B`로 대체합니다. OpenAI Responses 요청에는 `store: false`가 적용됩니다.
+
+## 추천 요청 예시
+
+```http
+POST /api/ai/joint-campus/recommendations
+Content-Type: application/json
+Cookie: auth_session=...
+```
+
+```json
+{
+  "roomId": "direct-room-id",
+  "constraints": {
+    "availableMinutes": 180,
+    "transportation": "public_transport",
+    "budgetPerPerson": 30000,
+    "preferredMood": ["조용한", "사진 찍기 좋은"],
+    "avoidActivities": ["장시간 걷기"]
+  }
+}
+```
+
+응답 예시:
+
+```json
+{
+  "success": true,
+  "recommendationId": "mongodb-document-id",
+  "data": {
+    "recommendationTitle": "식물과 사진을 잇는 세종 나들이",
+    "sharedInterestSummary": "두 사용자의 명시적 관심사를 우선 반영했습니다.",
+    "usedExplicitInterests": ["plant", "photo"],
+    "usedInferredInterests": ["cafe"],
+    "route": [
+      {
+        "placeId": "kakao-place-id",
+        "order": 1,
+        "recommendedMinutes": 60,
+        "reasonForRequester": "식물 관심사를 반영했습니다.",
+        "reasonForCompanion": "사진 관심사를 반영했습니다.",
+        "sharedReason": "자연을 살펴보며 사진을 찍기 좋은 장소입니다.",
+        "experienceConnection": "식물도감 체험과 연결됩니다.",
+        "localEconomyConnection": "세종 지역 상권 방문으로 이어질 수 있습니다."
+      }
+    ],
+    "conversationStarters": [
+      "가상 식물도감에서 가장 기억에 남은 식물을 이야기해 보세요."
+    ],
+    "totalEstimatedMinutes": 60,
+    "routeConcept": "자연 체험과 지역 상권을 연결하는 코스",
+    "cautions": [
+      "방문 전 공식 채널에서 운영 정보를 확인하세요."
+    ]
+  }
+}
+```
+
+## 테스트와 빌드
+
+테스트 범위:
+
+- 만 19세 경계 계산
+- 누락된 출생 정보
+- 미래 및 잘못된 날짜
+- 음력 날짜 미계산
+- 성인·미성년자·unknown 채팅 정책
+- 관심 키워드 추출
+- 원문 미저장
+- 캐시 TTL과 최대 크기
+- 후보 외 장소 차단
+- 중복 장소 차단
+- 잘못된 순서 차단
+- 모델이 만든 임의 관심사 차단
+- 빈 후보 입력 차단
+- 민감 정보가 포함된 AI 입력 차단
+- OpenAI API 키 누락 오류
+
+## 아직 연결되지 않은 부분
+
+- 공동캠퍼스 화면의 추천 버튼과 결과 UI는 아직 API에 직접 연결되지 않았습니다.
+- `src/services/jointCampusRecommendations.ts`에 요청 함수만 준비돼 있습니다.
+- 식물도감은 아직 완전한 MongoDB 모델/API로 이전되지 않았습니다.
+- AI 입력의 `experienceRecords` 확장 구조는 있지만 실제 식물도감 DB 문서와 연결하는 작업이 남았습니다.
+- 실제 Socket.IO 클라이언트를 실행하는 연령 우회 통합 테스트는 추가 보강이 필요합니다.
+- 운영 환경의 관심사 캐시는 메모리 Map 대신 Redis 사용을 권장합니다.
+- `DirectRoom.roomId`는 기존 프로젝트 구조를 유지하기 위해 MongoDB ObjectId가 아니라 UUID 문자열입니다.
+

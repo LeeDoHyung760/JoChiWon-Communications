@@ -2,6 +2,13 @@ import type { Server,Socket } from 'socket.io';import type { ClientToServerEvent
 import { bearWildlifeAnswer } from '../services/ai/bearWildlife.js';
 import { saveCampusFeaturePortalPosition } from '../models/CampusFeaturePortal.js';
 import { saveWorldRespawnPosition } from '../models/WorldRespawnPosition.js';
+import { UserModel } from '../models/User.js';
+import { canStartDirectChat, type AgeGroup } from '../services/users/agePolicy.js';
+import { DirectRoomModel } from '../models/DirectRoom.js';
+import { DirectMessageModel } from '../models/DirectMessage.js';
+import { canUsersStartDirectChat, loadDirectChatPolicy, AGE_GROUP_CHAT_RESTRICTED_MESSAGE } from '../services/chat/directChatPolicyService.js';
+import { localInterestKeywordExtractor } from '../services/interests/interestKeywordExtractor.js';
+import { conversationInterestCache } from '../services/interests/conversationInterestCache.js';
 type IO=Server<ClientToServerEvents,ServerToClientEvents>;type Client=Socket<ClientToServerEvents,ServerToClientEvents>;
 const clean=(value:string,max=180)=>value.trim().slice(0,max);
 const pendingBearStories=new Set<string>();
@@ -11,6 +18,16 @@ const BEAR_POINTS={
  tree:{cardId:'card_3' as const,place:'큰 나무',clue:'나무에 남은 발톱 자국'},
 };
 export function registerSocketHandlers(io:IO,socket:Client){
+ const savePlayerPosition=async(player:PlayerState)=>{
+  const userId=socket.data.userId as string|undefined;
+  if(!userId)return;
+  await UserModel.updateOne({_id:userId},{$set:{lastPosition:{mapId:player.mapId,x:player.x,z:player.y,yaw:player.yaw,savedAt:new Date()}}}).catch(error=>console.error('[player position save failed]',error instanceof Error?error.name:'unknown'));
+ };
+ const socketUserId=(socketId:string)=>io.sockets.sockets.get(socketId)?.data.userId as string|undefined;
+ const directChatAllowed=async(firstId:string,secondId:string)=>{
+  const firstUserId=socketUserId(firstId),secondUserId=socketUserId(secondId);
+  return Boolean(firstUserId&&secondUserId&&await canUsersStartDirectChat([firstUserId,secondUserId]));
+ };
  const publish=(mapId:PlayerState['mapId'])=>io.to(mapId).emit('onlineUsersUpdated',roomStore.playersIn(mapId));
  const publishBearExploration=(ids:string[])=>{if(!ids.length)roomStore.resetBearExploration();ids.forEach(id=>io.to(id).emit('bearExplorationUpdated',roomStore.bearExplorationState(id)))};
  const activeBearExplorers=()=>roomStore.playersIn('bear-play-zone').map(player=>player.id);
@@ -26,6 +43,16 @@ export function registerSocketHandlers(io:IO,socket:Client){
  };
  const safeMatchProfile=(value:PublicMatchProfile):PublicMatchProfile=>({mbti:clean(value.mbti,4),interests:value.interests.slice(0,10).map(v=>clean(v,30)),usagePurposes:value.usagePurposes.slice(0,10).map(v=>clean(v,30)),preferredPlaceCategories:value.preferredPlaceCategories.slice(0,10).map(v=>clean(v,30)),experienceRecords:value.experienceRecords.slice(0,10).map(v=>clean(v,50))});
  socket.on('getRespawnPosition',ack=>{if(typeof ack==='function')ack(roomStore.respawnPosition)});
+ socket.on('getPlayerResumeState',async ack=>{
+  if(typeof ack!=='function')return;
+  const userId=socket.data.userId as string|undefined;
+  if(!userId)return ack(null);
+  const user=await UserModel.findById(userId).select('lastPosition').lean().catch(()=>null);
+  const position=user?.lastPosition;
+  return ack(position?.mapId&&Number.isFinite(position.x)&&Number.isFinite(position.z)&&Number.isFinite(position.yaw)
+   ?{mapId:position.mapId,x:position.x!,z:position.z!,yaw:position.yaw!}
+   :null);
+ });
  socket.on('saveRespawnPosition',async(position,ack)=>{
   const player=roomStore.players.get(socket.id);
   if(player?.mapId!=='town'||!roomStore.setRespawnPosition(position)){
@@ -50,7 +77,8 @@ export function registerSocketHandlers(io:IO,socket:Client){
  socket.on('saveInteractionPosition',position=>{if(roomStore.setInteractionPosition(position))io.emit('interactionPositionsUpdated',roomStore.allInteractionPositions())});
  socket.on('enterLakeExperience',experience=>{const player=roomStore.players.get(socket.id);if(!player||player.mapId!=='town'||!['central-plaza','activity-zone','food-shop-zone','wind-hill'].includes(experience))return;roomStore.recordExperienceVisit(socket.id,experience);io.emit('lakeDailyStatsUpdated',roomStore.lakeDailyStats())});
  socket.on('addLakeWish',(raw,ack)=>{const player=roomStore.players.get(socket.id),message=clean(raw,80),reply=typeof ack==='function'?ack:undefined;if(!player||!message){reply?.({ok:false,message:'소원을 보내려면 월드에 다시 접속해 주세요.'});return}const wish=roomStore.addLakeWish(player.nickname,message);reply?.({ok:true,wish});socket.emit('lakeWishAdded',wish);socket.to('town').emit('lakeWishAdded',wish)});
- socket.on('userMoved',payload=>{const player=roomStore.players.get(socket.id);if(!player||player.mapId!==payload.mapId)return;Object.assign(player,{x:payload.x,y:payload.y,direction:payload.direction,isMoving:payload.isMoving,yaw:Number.isFinite(payload.yaw)?payload.yaw:player.yaw,motionState:payload.motionState,jumpHeight:Number.isFinite(payload.jumpHeight)?Math.max(0,Math.min(140,payload.jumpHeight!)):0,timestamp:payload.timestamp});socket.to(player.mapId).emit('userMoved',player)});
+ let lastPositionSavedAt=0;
+ socket.on('userMoved',payload=>{const player=roomStore.players.get(socket.id);if(!player||player.mapId!==payload.mapId)return;Object.assign(player,{x:payload.x,y:payload.y,direction:payload.direction,isMoving:payload.isMoving,yaw:Number.isFinite(payload.yaw)?payload.yaw:player.yaw,motionState:payload.motionState,jumpHeight:Number.isFinite(payload.jumpHeight)?Math.max(0,Math.min(140,payload.jumpHeight!)):0,timestamp:payload.timestamp});socket.to(player.mapId).emit('userMoved',player);if(Date.now()-lastPositionSavedAt>=5000){lastPositionSavedAt=Date.now();void savePlayerPosition(player)}});
  socket.on('getBearExploration',ack=>{if(typeof ack==='function')ack(roomStore.bearExplorationState(socket.id))});
  socket.on('collectBearExplorationCard',async(pointId,ack)=>{
   const result=roomStore.collectBearExplorationCard(socket.id,pointId),ids=activeBearExplorers();
@@ -66,15 +94,15 @@ export function registerSocketHandlers(io:IO,socket:Client){
  socket.on('captureBearExplorationPhoto',ack=>{const result=roomStore.captureBearExplorationPhoto(socket.id),ids=activeBearExplorers(),state=roomStore.bearExplorationState(socket.id);if(typeof ack==='function')ack({...result,state});if(result.ok){publishBearExploration(ids);void completeBearStory(ids)}});
  socket.on('finalizeBearExplorationReport',(payload,ack)=>{const result=roomStore.finalizeBearExplorationReport(socket.id,clean(payload.title,40),payload.cover),ids=activeBearExplorers(),state=roomStore.bearExplorationState(socket.id);if(typeof ack==='function')ack({...result,state});if(result.ok)publishBearExploration(ids)});
  socket.on('sendNearbyChat',raw=>{const player=roomStore.players.get(socket.id),message=clean(raw);if(!player||!message)return;const data=roomStore.addNearbyChat({id:crypto.randomUUID(),mapId:player.mapId,senderId:socket.id,nickname:player.nickname,message,createdAt:Date.now(),channel:'nearby'});io.to(player.mapId).emit('nearbyChat',data)});
- socket.on('directChatRequest',toId=>{const from=roomStore.players.get(socket.id),to=roomStore.players.get(toId);if(!from||!to)return socket.emit('errorMessage','접속 중인 사용자에게만 요청할 수 있어요.');const requestId=crypto.randomUUID();roomStore.pendingDirect.set(requestId,{fromId:from.id,toId});io.to(toId).emit('directChatRequested',{requestId,from:{id:from.id,nickname:from.nickname,appearance:from.appearance},toId})});
- socket.on('directChatAccept',requestId=>{const req=roomStore.pendingDirect.get(requestId);if(!req||req.toId!==socket.id)return;roomStore.pendingDirect.delete(requestId);const first=roomStore.players.get(req.fromId),second=roomStore.players.get(req.toId);if(!first||!second)return;const room=roomStore.createDirectRoom(first,second);room.participants.forEach(p=>{io.sockets.sockets.get(p.id)?.join(room.id);io.to(p.id).emit('directChatStarted',room)})});
+ socket.on('directChatRequest',async toId=>{const from=roomStore.players.get(socket.id),to=roomStore.players.get(toId);if(!from||!to)return socket.emit('errorMessage','접속 중인 사용자에게만 요청할 수 있어요.');if(!await directChatAllowed(socket.id,toId))return socket.emit('errorMessage',AGE_GROUP_CHAT_RESTRICTED_MESSAGE);const requestId=crypto.randomUUID();roomStore.pendingDirect.set(requestId,{fromId:from.id,toId});io.to(toId).emit('directChatRequested',{requestId,from:{id:from.id,nickname:from.nickname,appearance:from.appearance},toId})});
+ socket.on('directChatAccept',async requestId=>{const req=roomStore.pendingDirect.get(requestId);if(!req||req.toId!==socket.id)return;roomStore.pendingDirect.delete(requestId);if(!await directChatAllowed(req.fromId,req.toId)){io.to(req.fromId).emit('errorMessage',AGE_GROUP_CHAT_RESTRICTED_MESSAGE);return socket.emit('errorMessage',AGE_GROUP_CHAT_RESTRICTED_MESSAGE)}const first=roomStore.players.get(req.fromId),second=roomStore.players.get(req.toId),firstUserId=socketUserId(req.fromId),secondUserId=socketUserId(req.toId);if(!first||!second||!firstUserId||!secondUserId)return;const room=roomStore.createDirectRoom(first,second);try{await DirectRoomModel.findOneAndUpdate({roomId:room.id},{$set:{memberUserIds:[firstUserId,secondUserId],active:true}},{upsert:true,returnDocument:'after',runValidators:true})}catch(error){console.error('[direct room save failed]',error instanceof Error?error.name:'unknown');io.to(req.fromId).emit('errorMessage','채팅방을 저장하지 못했습니다.');return socket.emit('errorMessage','채팅방을 저장하지 못했습니다.')}room.participants.forEach(p=>{io.sockets.sockets.get(p.id)?.join(room.id);io.to(p.id).emit('directChatStarted',room)})});
  socket.on('directChatReject',requestId=>{const req=roomStore.pendingDirect.get(requestId);if(!req||req.toId!==socket.id)return;roomStore.pendingDirect.delete(requestId);io.to(req.fromId).emit('directChatRejected',{requestId,byId:socket.id})});
- socket.on('directMessage',({directRoomId,message:raw})=>{const player=roomStore.players.get(socket.id),room=roomStore.directRooms.get(directRoomId),message=clean(raw);if(!player||!room?.active||!message||!room.participants.some(p=>p.id===socket.id))return;const data=roomStore.addDirectMessage({id:crypto.randomUUID(),directRoomId,senderId:socket.id,nickname:player.nickname,message,createdAt:Date.now(),type:'user'});io.to(directRoomId).emit('directMessageReceived',data)});
+ socket.on('directMessage',async({directRoomId,message:raw})=>{const player=roomStore.players.get(socket.id),message=clean(raw,500),userId=socket.data.userId as string|undefined;if(!player||!message||!userId)return;const policy=await loadDirectChatPolicy(directRoomId,userId);if(!policy.allowed)return socket.emit('errorMessage',policy.code==='AGE_GROUP_CHAT_RESTRICTED'?AGE_GROUP_CHAT_RESTRICTED_MESSAGE:'채팅방 권한을 확인할 수 없습니다.');const messageId=crypto.randomUUID(),createdAt=Date.now();try{await DirectMessageModel.create({messageId,roomId:directRoomId,senderUserId:userId,message,type:'user',sentAt:new Date(createdAt)})}catch(error){console.error('[direct message save failed]',error instanceof Error?error.name:'unknown');return socket.emit('errorMessage','메시지를 저장하지 못했습니다.')}const data=roomStore.addDirectMessage({id:messageId,directRoomId,senderId:socket.id,nickname:player.nickname,message,createdAt,type:'user'});try{conversationInterestCache.merge(directRoomId,userId,localInterestKeywordExtractor.extract(message))}catch(error){console.warn('[conversation interest extraction failed]',error instanceof Error?error.name:'unknown')}io.to(directRoomId).emit('directMessageReceived',data)});
  socket.on('directChatClosed',directRoomId=>{const room=roomStore.directRooms.get(directRoomId);if(room?.participants.some(p=>p.id===socket.id)){room.active=false;io.to(directRoomId).emit('directChatClosed',{directRoomId,byId:socket.id})}});
  socket.on('proposeGovernmentSession',({directRoomId,activityTopic})=>{const room=roomStore.directRooms.get(directRoomId),from=roomStore.players.get(socket.id);if(!room?.active||!from||!room.participants.some(participant=>participant.id===socket.id))return socket.emit('errorMessage','활성화된 1대1 대화에서만 이동을 제안할 수 있어요.');const existing=[...roomStore.governmentProposals.values()].find(item=>item.directRoomId===directRoomId&&item.status==='pending');if(existing)return socket.emit('errorMessage','상대방의 응답을 기다리는 이동 제안이 있어요.');const proposal={id:`government-${crypto.randomUUID()}`,directRoomId,fromId:socket.id,fromNickname:from.nickname,activityTopic:clean(activityTopic??'',40)||undefined,status:'pending' as const,createdAt:Date.now()};roomStore.governmentProposals.set(proposal.id,proposal);io.to(directRoomId).emit('governmentSessionProposalUpdated',proposal)});
  socket.on('respondGovernmentSession',({proposalId,accept})=>{const proposal=roomStore.governmentProposals.get(proposalId),room=proposal&&roomStore.directRooms.get(proposal.directRoomId);if(!proposal||!room||proposal.status!=='pending'||proposal.fromId===socket.id||!room.participants.some(participant=>participant.id===socket.id))return socket.emit('errorMessage','응답할 수 있는 이동 제안을 찾지 못했어요.');proposal.status=accept?'accepted':'rejected';proposal.respondedAt=Date.now();if(accept)proposal.sessionId=`government-session-${crypto.randomUUID()}`;io.to(proposal.directRoomId).emit('governmentSessionProposalUpdated',proposal)});
  socket.on('createGroup',({name,inviteeIds})=>{const owner=roomStore.players.get(socket.id);if(!owner)return;const group=roomStore.createGroup(owner,clean(name,30),inviteeIds);group.memberIds.forEach(id=>{io.sockets.sockets.get(id)?.join(group.id);io.to(id).emit('groupCreated',group)})});
  socket.on('joinGroup',groupId=>{const player=roomStore.players.get(socket.id),group=roomStore.groups.get(groupId);if(!player||!group||player.mapId!==group.mapId)return;group.memberIds=[...new Set([...group.memberIds,socket.id])];socket.join(group.id);io.to(group.id).emit('groupUpdated',group)});
  socket.on('sendGroupChat',({groupId,message:raw})=>{const player=roomStore.players.get(socket.id),group=roomStore.groups.get(groupId),message=clean(raw);if(!player||!group||!group.memberIds.includes(socket.id)||!message)return;io.to(group.id).emit('nearbyChat',{id:crypto.randomUUID(),mapId:player.mapId,senderId:socket.id,nickname:player.nickname,message,createdAt:Date.now(),channel:'group'})});
- socket.on('disconnect',()=>{const player=roomStore.players.get(socket.id);if(!player)return;roomStore.removePlayer(socket.id);socket.to(player.mapId).emit('userLeft',socket.id);publish(player.mapId);if(player.mapId==='bear-play-zone')publishBearExploration(activeBearExplorers())});
+ socket.on('disconnect',()=>{const player=roomStore.players.get(socket.id);if(!player)return;void savePlayerPosition(player);roomStore.removePlayer(socket.id);socket.to(player.mapId).emit('userLeft',socket.id);publish(player.mapId);if(player.mapId==='bear-play-zone')publishBearExploration(activeBearExplorers())});
 }

@@ -26,6 +26,7 @@ import {
 
 import type { UserProfile } from './types';
 import type { GameReturnState } from './game/gameReturnState';
+import { loadAccountProfile, saveAccountProfile } from './services/accountProfile';
 
 const CharacterTestPage=lazy(()=>import('./pages/CharacterTestPage').then(module=>({default:module.CharacterTestPage})));
 const CommunityPage=lazy(()=>import('./pages/CommunityPage').then(module=>({default:module.CommunityPage})));
@@ -237,6 +238,13 @@ export default function App() {
     );
   }, []);
 
+  useEffect(() => {
+    if (!hasLoginIdentity) return;
+    void loadAccountProfile().then(saved => {
+      if (saved) setProfile({ ...defaultProfile, ...saved });
+    }).catch(() => undefined);
+  }, [hasLoginIdentity, setProfile]);
+
   const startExperience = () => {
     setPage(
       canExperience
@@ -304,6 +312,7 @@ export default function App() {
     completedProfile: UserProfile,
   ) => {
     setProfile(completedProfile);
+    void saveAccountProfile(completedProfile).catch(error => console.warn('[account profile save failed]', error instanceof Error ? error.message : 'unknown'));
 
     setJourney({
       authenticated: true,
@@ -452,6 +461,7 @@ export default function App() {
           updatedProfile,
         ) => {
           setProfile(updatedProfile);
+          void saveAccountProfile(updatedProfile).catch(error => console.warn('[account profile save failed]', error instanceof Error ? error.message : 'unknown'));
           setPage(gameReturnState?'game':'landing');
         }}
       /></DeferredPage>
