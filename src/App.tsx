@@ -462,9 +462,10 @@ export default function App() {
     return (
       <DeferredPage><CommunityPage
         profile={profile}
-        onBack={() =>
-          setPage('game')
-        }
+        onBack={() => {
+          setGameReturnState(current=>current?.mapId==='campus'?current:{mapId:'campus',x:1200,z:1500,yaw:Math.PI});
+          setPage('game');
+        }}
       /></DeferredPage>
     );
   }
@@ -489,9 +490,10 @@ export default function App() {
           setGameReturnState(state);
           setPage('account');
         }}
-        onOpenCommunity={() =>
-          setPage('community')
-        }
+        onOpenCommunity={state => {
+          setGameReturnState(state);
+          setPage('community');
+        }}
       />
     </Suspense>
   );
