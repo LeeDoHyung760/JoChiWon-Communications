@@ -31,17 +31,13 @@ const rendererOptionsFor=(mapId:MapId)=>mapId==='town'?LAKE_PARK_RENDERER_OPTION
 
 export const GameCanvas=memo(function GameCanvas({profile,returnState}:{profile:UserProfile;returnState?:GameReturnState}){
   const [entrySpawn,setEntrySpawn]=useState<RespawnPosition|undefined>(()=>returnState);
-  const [resumeState,setResumeState]=useState<GameReturnState|undefined>(()=>returnState);
   const ref=useRef<HTMLDivElement>(null),[loading,setLoading]=useState(true),[loadingMapId,setLoadingMapId]=useState<MapId>('town'),[loadError,setLoadError]=useState('');
   const loadingCopy=MAP_LOADING_COPY[loadingMapId];
   useEffect(()=>{
     if(returnState){setEntrySpawn(returnState);return}
     let active=true,settled=false,fallbackTimer=0;
     const finish=(position:RespawnPosition)=>{if(!active||settled)return;settled=true;window.clearTimeout(fallbackTimer);setEntrySpawn(position)};
-    const resolveRespawn=()=>socket.emit('getPlayerResumeState',saved=>{
-      if(saved){setResumeState(saved);finish(saved);return}
-      socket.emit('getRespawnPosition',finish);
-    });
+    const resolveRespawn=()=>socket.emit('getRespawnPosition',finish);
     // Remote shared servers can need more than a local round trip.
     fallbackTimer=window.setTimeout(()=>finish(LAKE_PARK_SPAWN),5000);
     socket.on('connect',resolveRespawn);
@@ -52,7 +48,7 @@ export const GameCanvas=memo(function GameCanvas({profile,returnState}:{profile:
     if(!ref.current||!entrySpawn)return;
     let cancelled=false,mapTravelActive=false,gardenReleaseTimer=0;
     const preloadIdleHandles:number[]=[];
-    const initialMapId=returnState?.mapId??resumeState?.mapId??'town',initialOptions=rendererOptionsFor(initialMapId);
+    const initialMapId=returnState?.mapId??'town',initialOptions=rendererOptionsFor(initialMapId);
     const initialRenderer=initialOptions?new VillageMapRenderer(ref.current,profile,{...initialOptions,spawn:entrySpawn}):undefined;
     const worldRenderers:Partial<Record<MapId,VillageMapRenderer>>=initialRenderer?{[initialMapId]:initialRenderer}:{};
     const ensureWorldRenderer=(mapId:MapId)=>{
@@ -137,6 +133,6 @@ export const GameCanvas=memo(function GameCanvas({profile,returnState}:{profile:
       game.destroy(true);
       Object.values(worldRenderers).forEach(renderer=>renderer?.destroy());
     };
-  },[profile,entrySpawn,returnState,resumeState,WORLD_RENDERER_LAYOUT_TOKEN]);
+  },[profile,entrySpawn,returnState,WORLD_RENDERER_LAYOUT_TOKEN]);
   return <><div className="game-canvas" ref={ref}/>{loading&&<div className="game-loading" role="status" aria-live="polite"><div className="game-loading-brand"><span>🧑🏻‍🌾</span><div><b>세종한바퀴</b><small>세종 소통형 체험 공간</small></div></div><div className="game-loading-center"><i/><span>{loadingCopy.place}</span><h1>{loadingCopy.title}</h1><p>{loadError||loadingCopy.description}</p><div className="world-loading-tasks">{loadingCopy.tasks.map((task,index)=><span key={task}>{index===0?'✓':'●'} {task}</span>)}</div><div className="game-loading-progress"><em/></div></div></div>}<ChungnyeongNotebook profile={profile}/><LakeParkExperiences/><NatureDiscoveryGuide userKey={profile.nickname}/><BearHabitatDesignExperience userKey={profile.nickname} mapId={loadingMapId}/><GreenhouseExperience userKey={profile.nickname}/></>;
 });

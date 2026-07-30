@@ -81,20 +81,6 @@ const schema = z.object({
 
   OPENAI_PROMPT_VERSION: z.string().trim().min(1).default('1.0.0'),
 
-  GEMINI_API_KEY: optionalSecret,
-
-  GEMINI_MODEL: z.preprocess(
-    (value) =>
-      typeof value === 'string' && value.trim() === ''
-        ? undefined
-        : value,
-    z
-      .string()
-      .trim()
-      .min(1)
-      .default('gemini-2.5-flash'),
-  ),
-
   OPENAI_TIMEOUT_MS: numberFromEnv(
     'OPENAI_TIMEOUT_MS',
     15000,

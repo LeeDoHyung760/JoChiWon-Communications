@@ -17,7 +17,7 @@ import boyUrl from '../../assets/characters/boy_metaverse.glb?url';
 import clothsUrl from '../../assets/characters/cloths_rig.glb?url';
 import womenUrl from '../../assets/characters/women_total.glb?url';
 import type { CharacterModel,CharacterParts,UserProfile } from '../../types';
-import type { BearTreePortalPositions,CampusFeaturePortalId,CampusFeaturePortalPosition,LakeExperienceId,LakeExperiencePosition,MapId,MotionState,PortalPosition,WorldInteractionPosition } from '../../../shared/socket-events';
+import { FIXED_LAKE_RESPAWN,type BearTreePortalPositions,type CampusFeaturePortalId,type CampusFeaturePortalPosition,type LakeExperienceId,type LakeExperiencePosition,type MapId,type MotionState,type PortalPosition,type WorldInteractionPosition } from '../../../shared/socket-events';
 import { gameEvents } from '../events';
 import { characterSettings } from '../character/characterSettings';
 import { applyColorsToThreeScene } from '../../utils/modelColorizer';
@@ -79,7 +79,7 @@ function preloadWorldMapDownload(url:string,label:string){
 }
 export const preloadCampusDownload=()=>preloadWorldMapDownload(campusModelUrl,'Campus');
 export const preloadBearTreeParkDownload=()=>preloadWorldMapDownload(bearTreeParkModelUrl,'Bear Tree Park');
-export const LAKE_PARK_SPAWN:{x:number;z:number;yaw:number}={x:1870,z:1180,yaw:2.1};
+export const LAKE_PARK_SPAWN:{x:number;z:number;yaw:number}={...FIXED_LAKE_RESPAWN};
 export const BEAR_TREE_PARK_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1610,yaw:Math.PI};
 export const BEAR_PLAY_ZONE_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1570,yaw:Math.PI};
 export const GARDEN_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1180,yaw:Math.PI};
@@ -88,6 +88,8 @@ export const GOVERNMENT_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1500,yaw:
 export const BEAR_TREE_PORTAL_POSITION={x:2122,z:944} as const;
 const CAMPUS_PORTAL_POSITION={x:1178,z:122} as const;
 const LAKE_PARK_GUIDE={x:2045,z:1138,yaw:-.78} as const;
+const LAKE_GUIDE_INTRO_DURATION_MS=2600;
+const LAKE_WELCOME_SEEN_KEY='sejong-lake-tutorial-hidden-v1';
 const GUIDE_PATROL_POINTS=([
   [LAKE_PARK_GUIDE.x,LAKE_PARK_GUIDE.z],[2050,1150],[2000,1150],[2000,750],[1900,750],[1900,500],
   [1400,500],[1400,350],[1350,350],[1350,200],[350,200],[350,250],[300,250],[300,400],[350,400],
@@ -172,7 +174,7 @@ export const GARDEN_RENDERER_OPTIONS:WorldMapRendererOptions={
   }],
   greenhouse:true,
 };
-export const CAMPUS_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:campusModelUrl,mapName:'공동캠퍼스',spawn:CAMPUS_SPAWN,portal:{x:1120,z:1731,destination:'town',label:'세종호수공원',theme:'blue',chargeSeconds:3},campusFeaturePortals:[{id:'people',x:881,z:950,label:'학생회관',description:'AI 추천 친구',color:0x56b28c},{id:'clubs',x:450,z:882,label:'동아리관',description:'테마별 동아리 선택',color:0xe9a14b},{id:'recruit',x:508,z:1382,label:'모집센터',description:'현재 모집 보기',color:0x7f8ed8},{id:'government',x:1656,z:1501,label:'프로젝트실',description:'같이 코스 만들기',color:0xee7b5b}],cameraElevationDeg:38,cameraZoom:CAMERA_ZOOM,characterHeight:CHARACTER_HEIGHT,performanceMode:true,balancedTextureQuality:true,prioritizeGroundTextures:true,performancePixelRatio:1.25,geometrySimplificationRatio:.55,groundGeometrySimplificationRatio:1};
+export const CAMPUS_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:campusModelUrl,mapName:'공동캠퍼스',spawn:CAMPUS_SPAWN,portal:{x:1120,z:1731,destination:'town',label:'세종호수공원',theme:'blue',chargeSeconds:3},campusFeaturePortals:[{id:'people',x:881,z:950,label:'학생회관',description:'친구 추천 · 프로필 · 게시판',color:0x56b28c},{id:'clubs',x:450,z:882,label:'동아리관',description:'가입 · 단체 채팅 · 활동',color:0xe9a14b},{id:'recruit',x:508,z:1382,label:'모집센터',description:'동행 모집 · 참가 신청',color:0x7f8ed8},{id:'government',x:1656,z:1501,label:'프로젝트실',description:'코스 만들기 · 프로젝트 생성',color:0xee7b5b}],cameraElevationDeg:38,cameraZoom:CAMERA_ZOOM,characterHeight:CHARACTER_HEIGHT,performanceMode:true,balancedTextureQuality:true,prioritizeGroundTextures:true,performancePixelRatio:1.25,geometrySimplificationRatio:.55,groundGeometrySimplificationRatio:1};
 export const GOVERNMENT_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:governmentModelUrl,mapName:'정부청사',spawn:GOVERNMENT_SPAWN,portal:{x:1120,z:1731,destination:'campus',label:'공동캠퍼스',theme:'orange',fixedPosition:true,sharedPosition:false},cameraElevationDeg:38,cameraZoom:1.05,characterHeight:CHARACTER_HEIGHT,performanceMode:true,balancedTextureQuality:true,performancePixelRatio:1.1};
 type LoadedModel=Awaited<ReturnType<GLTFLoader['loadAsync']>>;
 const modelAssetCache=new Map<string,Promise<LoadedModel>>();
@@ -570,6 +572,11 @@ export class VillageMapRenderer{
   private guideGround=0;
   private worldClockOffset=0;
   private guideNearby=false;
+  private guideIntroActive=false;
+  private guideIntroStartedAt=0;
+  private guideIntroArrived=false;
+  private guideIntroStart:{x:number;z:number}={x:LAKE_PARK_GUIDE.x,z:LAKE_PARK_GUIDE.z};
+  private guideIntroEnd:{x:number;z:number}={x:LAKE_PARK_SPAWN.x+55,z:LAKE_PARK_SPAWN.z-12};
   private mapSignNearby=false;
   private portalNearby=false;
   private portalEntryArmed=true;
@@ -636,6 +643,7 @@ export class VillageMapRenderer{
   constructor(parent:HTMLElement,profile:UserProfile,private options:WorldMapRendererOptions=LAKE_PARK_RENDERER_OPTIONS){
     options=this.options={...options,wildlifeClues:options.wildlifeClues?.map(config=>({...config}))};
     this.parent=parent;
+    this.guideIntroActive=!!options.guide&&localStorage.getItem(LAKE_WELCOME_SEEN_KEY)!=='true';
     if(options.performanceMode){this.pixelRatio=Math.min(MAX_PIXEL_RATIO,Math.max(MIN_PIXEL_RATIO,options.performancePixelRatio??1));this.renderInterval=1/30}
     this.localX=options.spawn.x;
     this.localZ=options.spawn.z;
@@ -696,6 +704,9 @@ export class VillageMapRenderer{
       gameEvents.on('habitat-resource-position-place',this.onHabitatResourcePositionPlace);
       gameEvents.on('habitat-resource-placement-arm',this.onHabitatResourcePlacementArm);
     }
+    if(options.campusFeaturePortals){
+      gameEvents.on('campus-building-fast-travel',this.onCampusBuildingFastTravel);
+    }
     window.addEventListener('keydown',this.onWorldPortalKeyDown);
     this.ready=this.loadVillage();
   }
@@ -745,7 +756,16 @@ export class VillageMapRenderer{
         this.localGround=safeSpawn.ground.height;this.localNormal.copy(safeSpawn.ground.normal);
       }
       if(this.options.guide){
-        const initialGuide=guidePatrolFrame(Date.now()+this.worldClockOffset);
+        if(this.guideIntroActive){
+          const endX=THREE.MathUtils.clamp(this.localX+55,35,WORLD_WIDTH-35),endZ=THREE.MathUtils.clamp(this.localZ-12,35,WORLD_HEIGHT-35);
+          const startX=THREE.MathUtils.clamp(this.localX+175,35,WORLD_WIDTH-35),startZ=THREE.MathUtils.clamp(this.localZ-42,35,WORLD_HEIGHT-35);
+          const safeEnd=this.findSafeSpawn(endX,endZ),safeStart=this.findSafeSpawn(startX,startZ);
+          this.guideIntroEnd=safeEnd?{x:safeEnd.x,z:safeEnd.z}:{x:endX,z:endZ};
+          this.guideIntroStart=safeStart?{x:safeStart.x,z:safeStart.z}:{x:startX,z:startZ};
+        }
+        const initialGuide=this.guideIntroActive
+          ?{...this.guideIntroStart,yaw:Math.atan2(this.guideIntroEnd.x-this.guideIntroStart.x,this.guideIntroEnd.z-this.guideIntroStart.z),motion:'walk' as const}
+          :guidePatrolFrame(Date.now()+this.worldClockOffset);
         this.guidePosition={x:initialGuide.x,z:initialGuide.z,yaw:initialGuide.yaw};
         const guideGround=this.sampleGround(this.guidePosition.x,this.guidePosition.z,0,true);
         if(guideGround){
@@ -826,6 +846,7 @@ export class VillageMapRenderer{
       }
       if(this.destroyed)return;
       this.mapReady=true;
+      if(this.guideIntroActive)this.guideIntroStartedAt=performance.now();
       this.render();
       console.log(`[${this.options.mapName} world] unified 3D scene ready`,{meshes:this.mapMeshes.length,scale});
     }catch(error){
@@ -1317,6 +1338,18 @@ export class VillageMapRenderer{
   private onHabitatResourcePlacementArm=(resource:HabitatResourceId|null)=>{
     this.pendingHabitatResource=resource&&['cave','food','water'].includes(resource)?resource:undefined;
   };
+  private onCampusBuildingFastTravel=(id:CampusFeaturePortalId)=>{
+    if(this.renderer.domElement.style.display==='none')return;
+    const target=this.options.campusFeaturePortals?.find(config=>config.id===id);
+    if(!target)return;
+    const spawn=this.findSafeSpawn(target.x,target.z);
+    if(!spawn)return;
+    this.localX=spawn.x;
+    this.localZ=spawn.z;
+    this.localGround=spawn.ground.height;
+    this.localNormal.copy(spawn.ground.normal);
+    this.pendingTeleport={x:spawn.x,z:spawn.z,groundHeight:spawn.ground.height};
+  };
   private async createResident(config:ResidentConfig){
     const gltf=await new GLTFLoader().loadAsync(config.modelUrl);
     if(this.destroyed)return;
@@ -1396,6 +1429,29 @@ export class VillageMapRenderer{
   }
   private updateGuideNpc(delta:number){
     if(!this.guideNpc)return;
+    if(this.guideIntroActive){
+      const progress=this.guideIntroStartedAt?Math.min(1,(performance.now()-this.guideIntroStartedAt)/LAKE_GUIDE_INTRO_DURATION_MS):0;
+      const eased=1-(1-progress)*(1-progress);
+      const frame={
+        x:THREE.MathUtils.lerp(this.guideIntroStart.x,this.guideIntroEnd.x,eased),
+        z:THREE.MathUtils.lerp(this.guideIntroStart.z,this.guideIntroEnd.z,eased),
+        yaw:Math.atan2(this.guideIntroEnd.x-this.guideIntroStart.x,this.guideIntroEnd.z-this.guideIntroStart.z),
+        motion:(progress<1?'walk':'idle') as Extract<MotionState,'idle'|'walk'>,
+      };
+      const ground=this.sampleGround(frame.x,frame.z,this.guideGround);
+      if(ground){
+        this.guideGround=ground.height;
+        this.guidePosition={x:frame.x,z:frame.z,yaw:frame.yaw};
+        this.guideNpcPosition.set(frame.x,ground.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(frame.z));
+        this.guideNpcNormal.copy(ground.normal);
+      }
+      this.guideNpc.update(this.guideNpcPosition,this.guideNpcNormal,this.guidePosition.yaw,frame.motion,delta);
+      if(progress===1&&!this.guideIntroArrived){
+        this.guideIntroArrived=true;
+        gameEvents.emit('guide-intro-arrived');
+      }
+      return;
+    }
     const frame=guidePatrolFrame(Date.now()+this.worldClockOffset);
     const ground=this.sampleGround(frame.x,frame.z,this.guideGround);
     if(ground){
@@ -1736,6 +1792,9 @@ export class VillageMapRenderer{
       gameEvents.emit('greenhouse-nearby-changed',null);
       gameEvents.off('greenhouse-progress-changed',this.onGreenhouseProgressChanged);
       this.parent.removeEventListener('pointerdown',this.onGreenhousePointerDown);
+    }
+    if(this.options.campusFeaturePortals){
+      gameEvents.off('campus-building-fast-travel',this.onCampusBuildingFastTravel);
     }
     if(this.options.campusFeaturePortals)gameEvents.emit('campus-feature-portal-proximity-changed',null);
     window.removeEventListener('keydown',this.onWorldPortalKeyDown);

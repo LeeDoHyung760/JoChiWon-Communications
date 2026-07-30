@@ -145,6 +145,102 @@ router.post('/:postId/like', async (request, response) => {
   }
 });
 
+router.post('/:postId/applications', async (request, response) => {
+  try {
+    const { postId } = request.params;
+    const { userId, name, introduction, interests, travelStyle } = request.body as {
+      userId?: string;
+      name?: string;
+      introduction?: string;
+      interests?: string[];
+      travelStyle?: string;
+    };
+
+    if (!userId?.trim() || !name?.trim() || !introduction?.trim()) {
+      response.status(400).json({ message: '신청자 프로필과 소개를 확인해 주세요.' });
+      return;
+    }
+
+    const post = await CommunityPostModel.findOne({ id: postId });
+    if (!post) {
+      response.status(404).json({ message: '모집글을 찾을 수 없습니다.' });
+      return;
+    }
+
+    if (post.category !== '모임·행사') {
+      response.status(400).json({ message: '모집글에만 참가 신청할 수 있습니다.' });
+      return;
+    }
+
+    const existing = post.applications.find((application) => application.userId === userId.trim());
+    if (existing) {
+      response.status(409).json({ message: '이미 참가 신청을 보냈습니다.' });
+      return;
+    }
+
+    const application = {
+      id: randomUUID(),
+      userId: userId.trim(),
+      name: name.trim(),
+      introduction: introduction.trim().slice(0, 160),
+      interests: Array.isArray(interests) ? interests.filter((value) => typeof value === 'string').slice(0, 8) : [],
+      travelStyle: travelStyle?.trim() || '여유롭게 둘러보기',
+      status: 'pending' as const,
+      createdAt: new Date(),
+    };
+
+    post.applications.push(application);
+    await post.save();
+    response.status(201).json(application);
+  } catch (error) {
+    console.error('[Community] 참가 신청 실패:', error);
+    response.status(500).json({ message: '참가 신청을 보내지 못했습니다.' });
+  }
+});
+
+router.patch('/:postId/applications/:applicationId', async (request, response) => {
+  try {
+    const { postId, applicationId } = request.params;
+    const { author, status } = request.body as {
+      author?: string;
+      status?: 'accepted' | 'rejected';
+    };
+
+    if (status !== 'accepted' && status !== 'rejected') {
+      response.status(400).json({ message: '수락 또는 거절 상태를 선택해 주세요.' });
+      return;
+    }
+
+    const post = await CommunityPostModel.findOne({ id: postId });
+    if (!post) {
+      response.status(404).json({ message: '모집글을 찾을 수 없습니다.' });
+      return;
+    }
+
+    if (post.author !== author?.trim()) {
+      response.status(403).json({ message: '모집글 작성자만 신청을 처리할 수 있습니다.' });
+      return;
+    }
+
+    const application = post.applications.find((item) => item.id === applicationId);
+    if (!application) {
+      response.status(404).json({ message: '참가 신청을 찾을 수 없습니다.' });
+      return;
+    }
+
+    application.status = status;
+    await post.save();
+    response.json({
+      application,
+      groupChatReady: status === 'accepted',
+      message: status === 'accepted' ? '참가를 수락하고 단체 채팅을 준비했습니다.' : '참가 신청을 거절했습니다.',
+    });
+  } catch (error) {
+    console.error('[Community] 참가 신청 처리 실패:', error);
+    response.status(500).json({ message: '참가 신청을 처리하지 못했습니다.' });
+  }
+});
+
 router.post(
   '/:postId/comments',
   async (request, response) => {

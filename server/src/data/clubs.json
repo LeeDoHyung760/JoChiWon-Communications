@@ -1,1 +1,36 @@
-[]
+[
+  {
+    "id": "1aeaca30-2776-4d13-a283-382224d3d9ed",
+    "name": "세종 축제 기획부",
+    "description": "세종의 밤을 빛낼 축제 아이디어를 함께 만들어요.",
+    "category": "문화·예술",
+    "color": "#e59a52",
+    "ownerId": "community-user-체험-탐험가",
+    "ownerName": "체험 탐험가",
+    "members": [
+      {
+        "userId": "community-user-체험-탐험가",
+        "name": "체험 탐험가",
+        "joinedAt": "2026-07-30T02:49:08.737Z"
+      }
+    ],
+    "createdAt": "2026-07-30T02:49:08.737Z"
+  },
+  {
+    "id": "e6ae37b5-0020-4736-b1c9-19377ceaf788",
+    "name": "식물사진 동아리",
+    "description": "계절마다 달라지는 식물과 풍경을 사진으로 기록해요.",
+    "category": "문화·예술",
+    "color": "#55a879",
+    "ownerId": "community-user-체험-탐험가",
+    "ownerName": "체험 탐험가",
+    "members": [
+      {
+        "userId": "community-user-체험-탐험가",
+        "name": "체험 탐험가",
+        "joinedAt": "2026-07-30T02:49:57.247Z"
+      }
+    ],
+    "createdAt": "2026-07-30T02:49:57.247Z"
+  }
+]

@@ -9,6 +9,7 @@ import type { RecommendationUser } from '../types/recommendation.js';
 import { greenhouseAnalyze,greenhouseAnalysisRequestSchema,greenhouseReflect,greenhouseReflectionRequestSchema } from '../services/ai/greenhouseExperience.js';
 import { publicMemoryStore } from '../services/greenhouse/publicMemoryStore.js';
 import { bearWildlifeAnswer } from '../services/ai/bearWildlife.js';
+import { generateGovernmentCourse,governmentCourseRequestSchema } from '../services/ai/governmentCourse.js';
 
 export const apiRouter=Router();
 const looksLikeAddress=(value:string)=>/(?:로|길|동|리|읍|면)\s*\d+(?:-\d+)?/.test(value)||/\d+(?:-\d+)?\s*(?:번지)?$/.test(value);
@@ -49,4 +50,10 @@ apiRouter.post('/bear-wildlife/ask',recommendationRateLimit,async(req,res)=>{
   if(question.length<2)return res.status(400).json({error:'궁금한 내용을 두 글자 이상 입력해 주세요.'});
   const findings=Array.isArray(req.body?.findings)?req.body.findings.slice(0,3):undefined;
   return res.json({answer:await bearWildlifeAnswer({mode,question,clueId,selected,findings})});
+});
+
+apiRouter.post('/government/course',recommendationRateLimit,async(req,res)=>{
+  const parsed=governmentCourseRequestSchema.safeParse(req.body);
+  if(!parsed.success)return res.status(400).json({error:'공동 코스 조건을 다시 확인해 주세요.'});
+  return res.json({course:await generateGovernmentCourse(parsed.data)});
 });

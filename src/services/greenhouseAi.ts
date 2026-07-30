@@ -67,7 +67,7 @@ export async function requestPlantReflectionAnalysis(plantId:string,answer:strin
   };
   try{
     const result=await post<GreenhousePlantReflectionResponse>('/greenhouse/reflection',body,12000);
-    if(!result?.analysis||!['gemini','fallback'].includes(result.source))throw new Error('Invalid greenhouse reflection');
+    if(!result?.analysis||!['openai','fallback'].includes(result.source))throw new Error('Invalid greenhouse reflection');
     if(import.meta.env.DEV)console.info('[greenhouse-reflection]',{source:result.source});
     return result;
   }catch{return {source:'fallback',analysis:fallback}}

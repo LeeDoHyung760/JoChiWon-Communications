@@ -68,6 +68,8 @@ function womenPartKind(nodeName: string): PartKind | undefined {
 
 const COLOR_MATERIAL_FLAG = '__characterColorMaterial';
 const ORIGINAL_COLOR_FLAG = '__characterOriginalColor';
+const EXTENDED_MODEL_METALNESS = 0;
+const EXTENDED_MODEL_ROUGHNESS = 0.5;
 
 function cloneColorMaterial(material: Material) {
   const clone = material.clone();
@@ -75,6 +77,21 @@ function cloneColorMaterial(material: Material) {
   const color = (material as any).color;
   if (color) clone.userData[ORIGINAL_COLOR_FLAG] = color.getHex();
   return clone;
+}
+
+function matchWomenFinishToCloths(node: any) {
+  if (!node.isMesh || !node.material) return;
+  const materials: any[] = Array.isArray(node.material) ? node.material : [node.material];
+  const normalized = materials.map(material => {
+    const target = material.userData?.[COLOR_MATERIAL_FLAG]
+      ? material
+      : cloneColorMaterial(material);
+    if ('metalness' in target) target.metalness = EXTENDED_MODEL_METALNESS;
+    if ('roughness' in target) target.roughness = EXTENDED_MODEL_ROUGHNESS;
+    target.needsUpdate = true;
+    return target;
+  });
+  node.material = Array.isArray(node.material) ? normalized : normalized[0];
 }
 
 export function applyColorsToThreeScene(
@@ -87,6 +104,8 @@ export function applyColorsToThreeScene(
 
   scene.traverse((node: any) => {
     if (model === 'women' && node.isMesh) {
+      // 여성형 2 GLB의 금속성 재질을 남성형 2와 같은 무광 마감으로 맞춘다.
+      matchWomenFinishToCloths(node);
       const normalizedName = String(node.name).replaceAll('.', '_').toLowerCase();
       const selectedHairStyle = parts.hairStyle??'hair1';
       if (

@@ -27,11 +27,19 @@ export function MeetingPlaceBanner({room,showToast}:{room:DirectRoom;showToast:(
 
 export function MeetingPlaceSystemMessage({message,showToast}:{message:DirectMessage;showToast:(message:string)=>void}){const place=message.meetingPlace;return <article className="meeting-place-system"><b>[공지]</b><p>{message.message}</p>{place&&<><strong>{place.placeName}</strong><small>{place.roadAddress||place.address}</small><button type="button" onClick={event=>openKakaoMap(event,{name:place.placeName,address:place.address,externalUrl:place.externalUrl},showToast)}>카카오맵에서 보기</button></>}</article>}
 
-export function GovernmentSessionPanel({room,showToast}:{room:DirectRoom;showToast:(message:string)=>void}){
+export function GovernmentSessionPanel({room,showToast,onSessionReady}:{room:DirectRoom;showToast:(message:string)=>void;onSessionReady?:(sessionId:string)=>void}){
  const [proposal,setProposal]=useState<GovernmentSessionProposal|null>(null);
  const nickname=room.participants.find(participant=>participant.id===socket.id)?.nickname??'';
- const topic=localStorage.getItem(`campus-activity-vote:${nickname}`)?.replaceAll('-',' ');
+ let clubContext:{clubName?:string;topic?:string;place?:string}={};
+ try{clubContext=JSON.parse(localStorage.getItem(`campus-club-government-context:${nickname}`)??'{}') as typeof clubContext}catch{clubContext={}}
+ const savedTopic=localStorage.getItem(`campus-activity-vote:${nickname}`)?.replaceAll('-',' ');
+ const topic=[
+  clubContext.clubName?`${clubContext.clubName} 공동 활동`:undefined,
+  clubContext.topic?`주제 ${clubContext.topic}`:savedTopic,
+  clubContext.place?`희망 장소 ${clubContext.place}`:undefined,
+ ].filter(Boolean).join(' · ')||undefined;
  useEffect(()=>{const updated=(next:GovernmentSessionProposal)=>{if(next.directRoomId!==room.id)return;setProposal(next);if(next.status==='accepted')showToast('두 사람의 정부청사 계획 세션이 만들어졌어요.');if(next.status==='rejected')showToast('상대방이 이번 이동 제안을 정중히 거절했어요.')};socket.on('governmentSessionProposalUpdated',updated);return()=>{socket.off('governmentSessionProposalUpdated',updated)}},[room.id,showToast]);
+ useEffect(()=>{if(proposal?.status==='accepted'&&proposal.sessionId)onSessionReady?.(proposal.sessionId)},[proposal,onSessionReady]);
  const mine=proposal?.fromId===socket.id;
  if(proposal?.status==='accepted')return <section className="government-session-panel accepted"><span>🏛️</span><div><small>공유 계획 세션 생성 완료</small><b>정부청사에서 함께 장소를 정해요</b><p>세션 코드 {proposal.sessionId?.slice(-8).toUpperCase()}</p></div><button type="button" onClick={()=>gameEvents.emit('travel-to-map','government')}>정부청사 이동</button></section>;
  if(proposal?.status==='pending')return <section className="government-session-panel"><span>🏛️</span><div><small>{mine?'응답 대기 중':'정부청사 이동 제안'}</small><b>{mine?'상대방의 선택을 기다리고 있어요':`${proposal.fromNickname}님이 함께 장소를 정하고 싶어 해요`}</b>{proposal.activityTopic&&<p>모임 주제 · {proposal.activityTopic}</p>}</div>{!mine&&<aside><button type="button" onClick={()=>socket.emit('respondGovernmentSession',{proposalId:proposal.id,accept:false})}>다음에</button><button type="button" onClick={()=>socket.emit('respondGovernmentSession',{proposalId:proposal.id,accept:true})}>수락</button></aside>}</section>;
