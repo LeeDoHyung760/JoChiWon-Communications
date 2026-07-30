@@ -30,6 +30,54 @@ const communityCommentSchema = new Schema(
   },
 );
 
+const recruitmentApplicationSchema = new Schema(
+  {
+    id: {
+      type: String,
+      required: true,
+      default: randomUUID,
+    },
+    userId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    introduction: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 160,
+    },
+    interests: {
+      type: [String],
+      default: [],
+    },
+    travelStyle: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'accepted', 'rejected'],
+      default: 'pending',
+    },
+    createdAt: {
+      type: Date,
+      required: true,
+      default: Date.now,
+    },
+  },
+  {
+    _id: false,
+  },
+);
+
 const communityPostSchema = new Schema(
   {
     id: {
@@ -73,6 +121,10 @@ const communityPostSchema = new Schema(
     },
     comments: {
       type: [communityCommentSchema],
+      default: [],
+    },
+    applications: {
+      type: [recruitmentApplicationSchema],
       default: [],
     },
     createdAt: {

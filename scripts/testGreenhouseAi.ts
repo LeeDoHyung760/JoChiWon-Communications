@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 process.env.AI_PROVIDER='mock';
-process.env.GEMINI_API_KEY='';
+process.env.OPENAI_API_KEY='';
 
 const {fallbackGreenhouseAnalysis,fallbackGreenhouseReflection,greenhouseAnalyze,greenhouseAnalysisRequestSchema,greenhouseReflect,greenhouseReflectionRequestSchema}=await import('../server/src/services/ai/greenhouseExperience.js');
 
@@ -64,4 +64,4 @@ const expanded=fallbackGreenhouseAnalysis({...request,stage:7,previousAnalysis:f
 assert.equal(expanded.frequentEmotion.title,fallback.frequentEmotion.title,'7종 확장은 기존 분석의 핵심 방향을 유지해야 한다');
 assert.match(expanded.memoryLetter,/일곱 식물/,'7종 편지는 추가 기록으로 확장되어야 한다');
 
-console.log('Greenhouse AI tests passed: one-answer Gemini schema, reflection fallback, fixed rule outputs, 3/7 fallback, previous-analysis continuity');
+console.log('Greenhouse AI tests passed: one-answer OpenAI schema, reflection fallback, fixed rule outputs, 3/7 fallback, previous-analysis continuity');

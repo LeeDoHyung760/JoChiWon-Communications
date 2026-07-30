@@ -18,7 +18,6 @@ import { festivalsRouter } from './routes/festivals.js';
 import { connectDatabase, disconnectDatabase } from './config/database.js';
 import { authRouter } from './routes/auth.js';
 import { loadCampusFeaturePortalPositions, seedCampusFeaturePortalPositions } from './models/CampusFeaturePortal.js';
-import { loadOrSeedWorldRespawnPosition } from './models/WorldRespawnPosition.js';
 import { roomStore } from './rooms/roomStore.js';
 import { placeRecommendationsRouter } from './routes/placeRecommendations.js';
 import { accountRouter } from './routes/account.js';
@@ -87,7 +86,6 @@ process.once('SIGTERM', () => void shutdown('SIGTERM'));
 
 const startServer = async (): Promise<void> => {
   await connectDatabase();
-  roomStore.setRespawnPosition(await loadOrSeedWorldRespawnPosition(roomStore.respawnPosition));
   roomStore.replaceCampusFeaturePortalPositions(await seedCampusFeaturePortalPositions(roomStore.allCampusFeaturePortalPositions()));
   let campusPortalSignature=JSON.stringify(roomStore.allCampusFeaturePortalPositions().sort((a,b)=>a.portal.localeCompare(b.portal)));
   campusPortalSyncTimer=setInterval(()=>{void loadCampusFeaturePortalPositions().then(positions=>{

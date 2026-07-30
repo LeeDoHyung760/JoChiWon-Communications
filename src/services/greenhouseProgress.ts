@@ -30,7 +30,7 @@ export interface CollectedPlant{
   keywords?:string[];
   reflectionTitle?:string;
   shortReflection?:string;
-  analysisSource?:'gemini'|'fallback';
+  analysisSource?:'openai'|'fallback';
   includeInAnalysis?:boolean;
   aiMessage:string;
   userMemo?:string;
@@ -67,7 +67,7 @@ const safeEmotion=(value:unknown):value is GreenhouseEmotion=>GREENHOUSE_EMOTION
 const normalizeEmotion=(value:unknown):GreenhouseEmotion|undefined=>value==='평온'?'평온함':safeEmotion(value)?value:undefined;
 const safeReasonCategory=(value:unknown):value is EmotionReasonCategory=>['scene','change','relationship','memory'].includes(String(value));
 const safeRecordStyle=(value:unknown):value is GreenhouseRecordStyle=>['visual','language','inner','share'].includes(String(value));
-const safeReflectionSource=(value:unknown):value is 'gemini'|'fallback'=>value==='gemini'||value==='fallback';
+const safeReflectionSource=(value:unknown):value is 'openai'|'fallback'=>value==='openai'||value==='fallback';
 const safeNarrativeSection=(value:unknown):value is {title:string;description:string}=>{
   if(!value||typeof value!=='object')return false;
   const section=value as Record<string,unknown>;
@@ -151,7 +151,7 @@ export class GreenhouseProgressService{
       keywords?:string[];
       reflectionTitle?:string;
       shortReflection?:string;
-      analysisSource?:'gemini'|'fallback';
+      analysisSource?:'openai'|'fallback';
       includeInAnalysis?:boolean;
     },
   ){

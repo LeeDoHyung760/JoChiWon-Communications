@@ -1,6 +1,6 @@
 export type GreenhouseAnalysisStage=3|7;
 export type GreenhouseAnalysisSource='ai'|'fallback';
-export type GreenhouseReflectionSource='gemini'|'fallback';
+export type GreenhouseReflectionSource='openai'|'fallback';
 export type GreenhouseReflectionEmotion=
   '평온함'|'설렘'|'따뜻함'|'신비로움'|'그리움'|'희망'
   |'기쁨'|'감탄'|'호기심'|'애틋함'|'상쾌함'|'외로움'|'용기'|'아쉬움';

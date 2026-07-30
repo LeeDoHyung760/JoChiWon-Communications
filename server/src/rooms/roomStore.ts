@@ -1,15 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { BearExplorationAnalysis,BearExplorationCardId,BearExplorationMember,BearExplorationPointId,BearExplorationReport,BearExplorationRole,BearExplorationState,BearTreePortalPositions,CampusFeaturePortalId,CampusFeaturePortalPosition,ChatMessage,DirectMessage,DirectRecommendationPlace,DirectRoom,GovernmentSessionProposal,GroupRoom,LakeDailyStats,LakeExperienceId,LakeExperiencePosition,LakeWish,MapId,PlayerState,PortalPosition,RespawnPosition,WorldInteractionPosition } from '../../../shared/socket-events.js';
+import { FIXED_LAKE_RESPAWN } from '../../../shared/socket-events.js';
+import type { BearExplorationAnalysis,BearExplorationCardId,BearExplorationMember,BearExplorationPointId,BearExplorationReport,BearExplorationRole,BearExplorationState,BearTreePortalPositions,CampusFeaturePortalId,CampusFeaturePortalPosition,ChatMessage,DirectMessage,DirectRecommendationPlace,DirectRoom,GovernmentPlanState,GovernmentPlanUpdate,GovernmentSessionProposal,GroupRoom,LakeDailyStats,LakeExperienceId,LakeExperiencePosition,LakeWish,MapId,PlayerState,PortalPosition,RespawnPosition,WorldInteractionPosition } from '../../../shared/socket-events.js';
 export class RoomStore {
- players=new Map<string,PlayerState>(); groups=new Map<string,GroupRoom>(); pendingDirect=new Map<string,{fromId:string;toId:string}>(); directRooms=new Map<string,DirectRoom>(); directMessages=new Map<string,DirectMessage[]>(); governmentProposals=new Map<string,GovernmentSessionProposal>(); recommendationCache=new Map<string,{roomId:string;places:DirectRecommendationPlace[];expiresAt:number}>(); blockedPairs=new Set<string>();
+ players=new Map<string,PlayerState>(); groups=new Map<string,GroupRoom>(); pendingDirect=new Map<string,{fromId:string;toId:string}>(); directRooms=new Map<string,DirectRoom>(); directMessages=new Map<string,DirectMessage[]>(); governmentProposals=new Map<string,GovernmentSessionProposal>(); governmentPlans=new Map<string,GovernmentPlanState>(); recommendationCache=new Map<string,{roomId:string;places:DirectRecommendationPlace[];expiresAt:number}>(); blockedPairs=new Set<string>();
  bearExplorationCards=new Map<BearExplorationCardId,string>();bearExplorationAnalyzed=new Set<BearExplorationCardId>();bearExplorationAnalyses=new Map<BearExplorationCardId,BearExplorationAnalysis>();bearExplorationJoinedAt=new Map<string,number>();bearExplorationStory='';bearExplorationReport?:BearExplorationReport;completedBearRoutes:string[][]=[];
  portalPositions=new Map<PortalPosition['destination'],PortalPosition>([['bear-tree-park',{destination:'bear-tree-park',x:2122,z:944}],['town',{destination:'town',x:1120,z:1731}],['garden',{destination:'garden',x:682,z:735}],['campus',{destination:'campus',x:1178,z:122}]]);
  bearTreePortalPositions:BearTreePortalPositions={town:{x:980,z:1580},photo:{x:1569,z:1525}};
  interactionPositions=new Map<WorldInteractionPosition['destination'],WorldInteractionPosition>([['bear-play-zone',{destination:'bear-play-zone',x:1616,z:601}],['bear-tree-park',{destination:'bear-tree-park',x:1200,z:1650}]]);
  lakeExperiencePositions=new Map<LakeExperienceId,LakeExperiencePosition>([['central-plaza',{experience:'central-plaza',x:1219,z:1462}],['activity-zone',{experience:'activity-zone',x:603,z:452}],['food-shop-zone',{experience:'food-shop-zone',x:491,z:1556}],['wind-hill',{experience:'wind-hill',x:1908,z:549}]]);
  campusFeaturePortalPositions=new Map<CampusFeaturePortalId,CampusFeaturePortalPosition>([['people',{portal:'people',x:881,z:950}],['clubs',{portal:'clubs',x:450,z:882}],['recruit',{portal:'recruit',x:508,z:1382}],['government',{portal:'government',x:1656,z:1501}]]);
- respawnPosition:RespawnPosition={x:1870,z:1180,yaw:2.1};
+ readonly respawnPosition:RespawnPosition={...FIXED_LAKE_RESPAWN};
  lakeWishes:LakeWish[]=[];
  nearbyChatMessages=new Map<MapId,ChatMessage[]>();
  private dailyDate='';private dailyVisitors=new Set<string>();private dailyExperienceVisits:Record<LakeExperienceId,Set<string>>={'central-plaza':new Set(),'activity-zone':new Set(),'food-shop-zone':new Set(),'wind-hill':new Set()};
@@ -37,11 +38,6 @@ export class RoomStore {
  allCampusFeaturePortalPositions(){return [...this.campusFeaturePortalPositions.values()]}
  setCampusFeaturePortalPosition(_position:CampusFeaturePortalPosition){return false}
  replaceCampusFeaturePortalPositions(_positions:CampusFeaturePortalPosition[]){/* Verified campus coordinates are fixed in source. */}
- setRespawnPosition(position:RespawnPosition){
-  if(!Number.isFinite(position.x)||!Number.isFinite(position.z)||!Number.isFinite(position.yaw)||position.x<0||position.x>2400||position.z<0||position.z>1900)return false;
-  this.respawnPosition={x:Math.round(position.x),z:Math.round(position.z),yaw:position.yaw};
-  return true;
- }
  addLakeWish(nickname:string,message:string){const wish:LakeWish={id:crypto.randomUUID(),nickname,message,createdAt:Date.now()};this.lakeWishes=[...this.lakeWishes.slice(-79),wish];try{fs.writeFileSync(this.lakeWishFile,JSON.stringify(this.lakeWishes,null,2))}catch(error){console.error('[lake wish persistence failed]',error)}return wish}
  addNearbyChat(message:ChatMessage){
   const messages=[...(this.nearbyChatMessages.get(message.mapId)??[]),message].slice(-80);
@@ -119,6 +115,22 @@ export class RoomStore {
  createDirectRoom(first:PlayerState,second:PlayerState){const ids=[first.id,second.id].sort();const existing=[...this.directRooms.values()].find(r=>r.participants.map(p=>p.id).sort().join(':')===ids.join(':'));if(existing){existing.active=true;return existing}const room:DirectRoom={id:`direct-${crypto.randomUUID()}`,participants:[first,second].map(({id,nickname,appearance,matchProfile})=>({id,nickname,appearance,matchProfile})),active:true,acceptedAt:Date.now()};this.directRooms.set(room.id,room);this.directMessages.set(room.id,[]);return room}
  addDirectMessage(message:DirectMessage){const messages=this.directMessages.get(message.directRoomId)??[];messages.push(message);this.directMessages.set(message.directRoomId,messages.slice(-200));return message}
  recentUserMessages(roomId:string,limit=20){return (this.directMessages.get(roomId)??[]).filter(message=>message.type==='user'&&!message.deleted&&message.message.trim()).sort((a,b)=>a.createdAt-b.createdAt).slice(-limit)}
+ createGovernmentPlan(sessionId:string,room:DirectRoom){
+  const selections=Object.fromEntries(room.participants.map(participant=>[participant.id,{nickname:participant.nickname,themes:[],placeIds:[]}]));
+  const plan:GovernmentPlanState={sessionId,memberIds:room.participants.map(participant=>participant.id),selections,constraints:{date:'토요일',startTime:'13:00',endTime:'19:00',transport:'대중교통',meal:true,cafe:true,experience:true,activities:['사진 촬영']},updatedAt:Date.now()};
+  this.governmentPlans.set(sessionId,plan);return plan;
+ }
+ updateGovernmentPlan(sessionId:string,playerId:string,update:GovernmentPlanUpdate){
+  const plan=this.governmentPlans.get(sessionId),player=this.players.get(playerId);
+  if(!plan||!player||!plan.memberIds.includes(playerId))return;
+  const current=plan.selections[playerId]??{nickname:player.nickname,themes:[],placeIds:[]};
+  if(update.themes)current.themes=[...new Set(update.themes.filter(value=>typeof value==='string'))].slice(0,6);
+  if(update.placeIds)current.placeIds=[...new Set(update.placeIds.filter(value=>typeof value==='string'))].slice(0,3);
+  plan.selections[playerId]=current;
+  if(update.constraints)plan.constraints={...plan.constraints,...update.constraints,activities:update.constraints.activities?[...new Set(update.constraints.activities)].slice(0,6):plan.constraints.activities};
+  if(update.course===null)delete plan.course;else if(update.course)plan.course=update.course;
+  plan.updatedAt=Date.now();return plan;
+ }
  saveRecommendation(roomId:string,places:DirectRecommendationPlace[]){const recommendationId=crypto.randomUUID();this.recommendationCache.set(recommendationId,{roomId,places,expiresAt:Date.now()+30*60_000});return recommendationId}
  recentRecommendedPlaceIds(roomId:string){const now=Date.now(),ids=new Set<string>();for(const [key,cached] of this.recommendationCache){if(cached.expiresAt<=now){this.recommendationCache.delete(key);continue}if(cached.roomId===roomId)for(const place of cached.places)ids.add(place.id)}return ids}
  getRecommendedPlace(recommendationId:string,roomId:string,placeId:string){const cached=this.recommendationCache.get(recommendationId);if(!cached||cached.roomId!==roomId||cached.expiresAt<=Date.now()){if(cached)this.recommendationCache.delete(recommendationId);return {category:'expired' as const}}const place=cached.places.find(item=>item.id===placeId);return place?{category:'ok' as const,place}:{category:'invalid' as const}}

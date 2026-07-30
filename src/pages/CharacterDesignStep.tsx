@@ -87,7 +87,7 @@ export function CharacterDesignStep({
             <small>드래그해서 캐릭터를 돌려보세요</small>
           </aside>
 
-          <div className="character-design-controls">
+          <div className={`character-design-controls ${model==='boy1'||model==='women'?'compact-options':''}`}>
             <div className="character-model-picker" aria-label="캐릭터 선택">
               {(['girl1', 'boy1', 'cloths', 'women'] as CharacterModel[]).map(option => (
                 <button type="button" key={option} className={model === option ? 'selected' : ''} onClick={() => selectModel(option)}>

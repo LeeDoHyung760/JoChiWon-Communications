@@ -9,6 +9,7 @@ const ACCOUNT_DATA_PREFIXES=[
   'bear-tree-',
   'nature-discovery-visits-',
   'campus-activity-vote:',
+  'campus-visited-buildings:',
   'character-debug-settings-',
 ] as const;
 

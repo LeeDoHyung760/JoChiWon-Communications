@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import { zodResponseFormat } from 'openai/helpers/zod';
 import { env } from '../../config/env.js';
+import { getOpenAIClient } from './openaiClient.js';
 import type {
   GreenhouseAnalysisResponse,
   GreenhouseNarrativeAnalysis,
@@ -68,71 +70,8 @@ const reflectionResult=z.object({
   shortReflection:z.string().trim().min(1).max(180),
 });
 
-const GEMINI_MODEL=env.GEMINI_MODEL;
-const GEMINI_ENDPOINT=`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-const GEMINI_TIMEOUT_MS=15000;
-const geminiConfigured=Boolean(env.GEMINI_API_KEY)&&env.AI_PROVIDER!=='mock';
-console.log('[greenhouse-ai] Gemini API key configured:',Boolean(env.GEMINI_API_KEY));
-
-const geminiResponseSchema={
-  type:'object',
-  properties:{
-    frequentEmotion:{
-      type:'object',
-      properties:{
-        title:{type:'string',description:'사용자가 자연에서 자주 발견한 감정을 담은 한국어 제목'},
-        description:{type:'string',description:'규칙 분석과 실제 기록에 근거한 한국어 설명'},
-      },
-      required:['title','description'],
-    },
-    natureValue:{
-      type:'object',
-      properties:{
-        title:{type:'string',description:'사용자가 자연에서 중요하게 보는 가치를 담은 한국어 제목'},
-        description:{type:'string',description:'규칙 분석과 실제 기록에 근거한 한국어 설명'},
-      },
-      required:['title','description'],
-    },
-    recordStyle:{
-      type:'object',
-      properties:{
-        title:{type:'string',description:'대표 기록 방식을 담은 한국어 제목'},
-        description:{type:'string',description:'확정된 기록 방식에 근거한 한국어 설명'},
-      },
-      required:['title','description'],
-    },
-    representativePlant:{
-      type:'object',
-      properties:{
-        plantId:{type:'string',description:'ruleAnalysis의 representativePlantId를 그대로 복사'},
-        plantName:{type:'string',description:'ruleAnalysis의 representativePlantName을 그대로 복사'},
-        reason:{type:'string',description:'사용자 기록과 대표 식물의 상징을 연결한 한국어 이유'},
-      },
-      required:['plantId','plantName','reason'],
-    },
-    memoryLetter:{type:'string',description:'세 문장 또는 세 문단 이내의 개인화된 한국어 기억나무 편지'},
-  },
-  required:['frequentEmotion','natureValue','recordStyle','representativePlant','memoryLetter'],
-} as const;
-
-const geminiReflectionSchema={
-  type:'object',
-  properties:{
-    emotion:{type:'string',enum:REFLECTION_EMOTIONS},
-    reasonCategory:{type:'string',enum:['scene','change','relationship','memory']},
-    recordStyle:{type:'string',enum:['visual','language','inner','share']},
-    keywords:{type:'array',items:{type:'string'},minItems:1,maxItems:5},
-    reflectionTitle:{type:'string',description:'사용자 답변의 핵심 감정과 관심을 담은 짧은 한국어 제목'},
-    shortReflection:{type:'string',description:'사용자 답변의 구체적인 표현을 근거로 보여 주는 공감형 한국어 해석'},
-  },
-  required:['emotion','reasonCategory','recordStyle','keywords','reflectionTitle','shortReflection'],
-} as const;
-
-type GeminiGenerateContentResponse={
-  candidates?:Array<{
-    content?:{parts?:Array<{text?:string}>};
-  }>;
-};
+const openAIConfigured=Boolean(env.OPENAI_API_KEY&&env.OPENAI_MODEL)&&env.AI_PROVIDER!=='mock';
+console.log('[greenhouse-ai] OpenAI configured:',openAIConfigured);
 
 const scoredValue=<T extends string>(text:string,terms:Record<T,string[]>)=>{
   const ranked=(Object.keys(terms) as T[]).map(key=>({
@@ -238,7 +177,7 @@ export function fallbackGreenhouseReflection(input:GreenhouseReflectionInput):Gr
 
 export async function greenhouseReflect(input:GreenhouseReflectionInput):Promise<GreenhousePlantReflectionResponse>{
   const fallback=fallbackGreenhouseReflection(input);
-  if(!geminiConfigured||!env.GEMINI_API_KEY)return {source:'fallback',analysis:fallback};
+  if(!openAIConfigured)return {source:'fallback',analysis:fallback};
   try{
     const prompt=`당신은 수목원에서 사용자의 짧은 자연 기록을 정리하는 해석 도우미입니다.
 식물 정보와 미리 정한 질문, 사용자의 답변을 근거로만 분석하세요.
@@ -255,32 +194,20 @@ shortReflection은 사용자가 실제로 쓴 표현을 자연스럽게 반영�
 
 입력 데이터:
 ${JSON.stringify(input)}`;
-    const response=await fetch(GEMINI_ENDPOINT,{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-goog-api-key':env.GEMINI_API_KEY},
-      signal:AbortSignal.timeout(GEMINI_TIMEOUT_MS),
-      body:JSON.stringify({
-        contents:[{role:'user',parts:[{text:prompt}]}],
-        generationConfig:{
-          responseMimeType:'application/json',
-          responseSchema:geminiReflectionSchema,
-          maxOutputTokens:600,
-          thinkingConfig:{thinkingBudget:0},
-        },
-      }),
+    const response=await getOpenAIClient().chat.completions.parse({
+      model:env.OPENAI_MODEL!,
+      max_completion_tokens:600,
+      response_format:zodResponseFormat(reflectionResult,'greenhouse_reflection'),
+      messages:[{role:'user',content:prompt}],
     });
-    if(!response.ok)throw new Error(`Gemini request failed: ${response.status}`);
-    const body=await response.json() as GeminiGenerateContentResponse;
-    const text=body.candidates?.[0]?.content?.parts?.map(part=>part.text??'').join('').trim();
-    if(!text)return {source:'fallback',analysis:fallback};
-    const parsed=reflectionResult.safeParse(JSON.parse(text));
-    if(!parsed.success)return {source:'fallback',analysis:fallback};
+    const parsed=response.choices[0]?.message.parsed;
+    if(!parsed)return {source:'fallback',analysis:fallback};
     const answerSupportsChange=['희망','시작','새로','변화','변해','자라','피어','도전','앞으로'].some(term=>input.answer.includes(term));
-    const generatedText=`${parsed.data.reflectionTitle} ${parsed.data.shortReflection}`;
+    const generatedText=`${parsed.reflectionTitle} ${parsed.shortReflection}`;
     const addedUnsupportedChange=!answerSupportsChange&&['희망','새로운 시작','변화'].some(term=>generatedText.includes(term));
-    return addedUnsupportedChange?{source:'fallback',analysis:fallback}:{source:'gemini',analysis:parsed.data};
+    return addedUnsupportedChange?{source:'fallback',analysis:fallback}:{source:'openai',analysis:parsed};
   }catch(error){
-    console.warn('[greenhouse-ai] Gemini reflection failed',{reason:error instanceof Error?error.message:'unknown'});
+    console.warn('[greenhouse-ai] OpenAI reflection failed',{reason:error instanceof Error?error.message:'unknown'});
     return {source:'fallback',analysis:fallback};
   }
 }
@@ -332,7 +259,7 @@ export function fallbackGreenhouseAnalysis(input:GreenhouseAnalysisInput):Greenh
 
 export async function greenhouseAnalyze(input:GreenhouseAnalysisInput):Promise<GreenhouseAnalysisResponse>{
   const fallback=fallbackGreenhouseAnalysis(input);
-  if(!geminiConfigured||!env.GEMINI_API_KEY)return {source:'fallback',analysis:fallback};
+  if(!openAIConfigured)return {source:'fallback',analysis:fallback};
   const recordedEmotions=[...new Set(input.records.map(item=>item.emotion))];
   const recordedPlants=[...new Set(input.records.map(item=>({plantId:item.plantId,plantName:item.plantName})))];
   const unselectedEmotions=REFLECTION_EMOTIONS.filter(item=>!recordedEmotions.includes(item));
@@ -359,53 +286,33 @@ ${JSON.stringify({
           allowedEmotions:recordedEmotions,
           allowedPlants:recordedPlants,
         })}`;
-    const response=await fetch(GEMINI_ENDPOINT,{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-goog-api-key':env.GEMINI_API_KEY,
-      },
-      signal:AbortSignal.timeout(GEMINI_TIMEOUT_MS),
-      body:JSON.stringify({
-        contents:[{role:'user',parts:[{text:prompt}]}],
-        generationConfig:{
-          responseMimeType:'application/json',
-          responseSchema:geminiResponseSchema,
-          maxOutputTokens:2200,
-          thinkingConfig:{thinkingBudget:0},
-        },
-      }),
+    const response=await getOpenAIClient().chat.completions.parse({
+      model:env.OPENAI_MODEL!,
+      max_completion_tokens:2200,
+      response_format:zodResponseFormat(narrativeResult,'greenhouse_narrative'),
+      messages:[{role:'user',content:prompt}],
     });
-    if(!response.ok)throw new Error(`Gemini request failed: ${response.status}`);
-    const body=await response.json() as GeminiGenerateContentResponse;
-    const text=body.candidates?.[0]?.content?.parts?.map(part=>part.text??'').join('').trim();
-    if(!text){
-      console.warn('[greenhouse-ai] Gemini returned no narrative text');
-      return {source:'fallback',analysis:fallback};
-    }
-    const parsed=narrativeResult.safeParse(JSON.parse(text));
-    if(!parsed.success){
-      console.warn('[greenhouse-ai] Gemini narrative failed schema validation',{
-        paths:parsed.error.issues.map(issue=>issue.path.join('.')),
-      });
+    const parsed=response.choices[0]?.message.parsed;
+    if(!parsed){
+      console.warn('[greenhouse-ai] OpenAI returned no narrative result');
       return {source:'fallback',analysis:fallback};
     }
     const analysis:GreenhouseNarrativeAnalysis={
-      ...parsed.data,
+      ...parsed,
       representativePlant:{
         plantId:input.ruleAnalysis.representativePlantId,
         plantName:input.ruleAnalysis.representativePlantName,
-        reason:parsed.data.representativePlant.reason,
+        reason:parsed.representativePlant.reason,
       },
     };
     const allText=JSON.stringify(analysis);
     if(unselectedEmotions.some(item=>allText.includes(item))){
-      console.warn('[greenhouse-ai] Gemini narrative referenced an unselected emotion');
+      console.warn('[greenhouse-ai] OpenAI narrative referenced an unselected emotion');
       return {source:'fallback',analysis:fallback};
     }
     return {source:'ai',analysis};
   }catch(error){
-    console.warn('[greenhouse-ai] Gemini request failed',{
+    console.warn('[greenhouse-ai] OpenAI narrative failed',{
       reason:error instanceof Error?error.message:'unknown',
     });
     return {source:'fallback',analysis:fallback};

@@ -312,6 +312,7 @@ export default function App() {
     completedProfile: UserProfile,
   ) => {
     setProfile(completedProfile);
+    localStorage.removeItem('sejong-lake-tutorial-hidden-v1');
     void saveAccountProfile(completedProfile).catch(error => console.warn('[account profile save failed]', error instanceof Error ? error.message : 'unknown'));
 
     setJourney({
@@ -320,7 +321,8 @@ export default function App() {
       onboardingStep: 'character',
     });
 
-    setPage('complete');
+    setGameReturnState(undefined);
+    setPage('game');
   };
 
   if (
@@ -341,8 +343,8 @@ export default function App() {
         }
         actionLabel={
           canExperience
-            ? '체험 시작하기'
-            : '로그인 후 체험하기'
+            ? '세종 월드 입장하기'
+            : '로그인하고 월드 입장'
         }
         userName={
           canExperience

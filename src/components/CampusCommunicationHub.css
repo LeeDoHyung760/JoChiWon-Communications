@@ -5,6 +5,7 @@
 .campus-hub-body{height:calc(100% - 112px);display:grid;grid-template-columns:220px minmax(0,1fr)}
 .campus-hub-nav{padding:18px 13px;display:flex;flex-direction:column;gap:7px;border-right:1px solid #dfe9e4;background:#edf4f1}.campus-hub-nav>button{width:100%;padding:12px 10px;display:flex;align-items:center;gap:10px;border:1px solid transparent;border-radius:15px;background:transparent;color:#45645c;text-align:left}.campus-hub-nav>button>i{width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:#fff;font-size:17px;font-style:normal;box-shadow:0 5px 14px rgba(29,73,61,.06)}.campus-hub-nav>button>span{min-width:0;display:flex;flex:1;flex-direction:column}.campus-hub-nav>button b{font-size:11px}.campus-hub-nav>button small{margin-top:2px;color:#84968f;font-size:7px}.campus-hub-nav>button>svg{opacity:.4}.campus-hub-nav>button.active{border-color:#cde3da;background:#fff;color:#286c59;box-shadow:0 9px 22px rgba(31,83,67,.09)}.campus-hub-nav>button.active>i{background:#dcf2e9}.campus-hub-nav>aside{margin-top:auto;padding:12px;display:flex;align-items:center;gap:9px;border-radius:14px;background:#dcece5;color:#346b5b}.campus-hub-nav>aside>div{display:flex;flex-direction:column}.campus-hub-nav>aside b{font-size:9px}.campus-hub-nav>aside span{margin-top:2px;font-size:7px;color:#6a8a80}
 .campus-hub-nav>.campus-board-link{margin-top:5px;border-top:1px solid #d5e3dd;border-radius:0;padding-top:15px}
+.campus-building-nav{gap:12px}.campus-building-context{padding:16px 12px;display:flex;align-items:center;gap:11px;border:1px solid #cde3da;border-radius:17px;background:#fff;color:#286c59;box-shadow:0 9px 22px rgba(31,83,67,.09)}.campus-building-context>i{width:42px;height:42px;display:grid;place-items:center;flex:none;border-radius:13px;background:#dcf2e9;font-size:21px;font-style:normal}.campus-building-context>span{min-width:0;display:flex;flex-direction:column}.campus-building-context small{color:#72a193;font-size:7px;font-weight:900}.campus-building-context b{margin-top:2px;font-size:13px}.campus-building-context p{margin:3px 0 0;color:#758b84;font-size:8px}.campus-building-rule{padding:13px 12px;display:flex;align-items:flex-start;gap:9px;border-radius:14px;background:#e2eee9;color:#376e5e}.campus-building-rule>svg{flex:none;margin-top:1px}.campus-building-rule>span{display:flex;flex-direction:column}.campus-building-rule b{font-size:9px}.campus-building-rule small{margin-top:4px;color:#6e8980;font-size:7px;line-height:1.55}.campus-student-lower.is-board-only{grid-template-columns:1fr}
 .campus-hub-nav>.campus-portal-editor-toggle{padding-top:8px;padding-bottom:8px}.campus-hub-nav>.campus-portal-editor-toggle>svg:first-child{margin-left:8px;color:#4b927c}.campus-portal-editor{position:absolute;z-index:8;inset:16px 18px 18px 238px;padding:18px;border:1px solid #cfe2da;border-radius:20px;background:rgba(248,252,250,.98);box-shadow:0 20px 55px rgba(20,61,50,.2);backdrop-filter:blur(14px)}.campus-portal-editor>header{display:flex;align-items:flex-start;justify-content:space-between}.campus-portal-editor>header>div{display:flex;flex-direction:column}.campus-portal-editor header small{color:#4f9a82;font-size:7px;font-weight:950;letter-spacing:.1em}.campus-portal-editor header b{margin-top:4px;font-size:16px}.campus-portal-editor header p{margin:5px 0 0;color:#74867f;font-size:8px}.campus-portal-editor>header>button{width:32px;height:32px;display:grid;place-items:center;border:0;border-radius:9px;background:#e5f1ec;color:#477267}.campus-portal-editor>div{margin-top:18px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.campus-portal-editor>div>button{padding:14px;display:flex;align-items:center;gap:11px;border:1px solid #d5e4de;border-radius:14px;background:#fff;color:#315e52;text-align:left}.campus-portal-editor>div>button>span{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:#e5f3ed;font-size:18px}.campus-portal-editor>div>button>div{display:flex;flex:1;flex-direction:column}.campus-portal-editor>div b{font-size:10px}.campus-portal-editor>div small{margin-top:3px;color:#7a8c86;font-size:7px}.campus-portal-editor>div svg{color:#4e9a82}
 .campus-hub-content{min-width:0;padding:24px 27px 32px;overflow:auto}.campus-section-title{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:19px}.campus-section-title small{color:#4f9a82;font-size:8px;font-weight:900}.campus-section-title h2{margin:4px 0;font-size:21px;letter-spacing:-.04em}.campus-section-title p{margin:0;color:#73857f;font-size:9px}.campus-live,.campus-status-pill{padding:7px 10px;border-radius:999px;background:#e3f3ed;color:#347e68;font-size:8px;font-weight:900}.campus-live i{display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:#42b783}
 .campus-empty{grid-column:1/-1;min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px dashed #c9ddd5;border-radius:20px;background:#fbfdfc;color:#6f837c;text-align:center}.campus-empty>span{font-size:34px}.campus-empty b{margin-top:9px;color:#31564c}.campus-empty p{font-size:9px}
@@ -26,3 +27,585 @@
 @media(max-width:620px){.campus-hub-header p{display:none}.campus-hub-header h1{font-size:17px}.campus-hub-content{padding:18px 14px}.campus-club-grid,.campus-vote-grid,.campus-government-layout,.campus-project-grid{grid-template-columns:1fr}.campus-inline-form,.campus-recruit-form,.campus-project-form,.campus-recruit-filters{grid-template-columns:1fr}.campus-section-title{flex-direction:column}.campus-government-flow{grid-template-columns:1fr}.campus-government-flow>svg{display:none}.campus-student-actions{grid-template-columns:1fr 1fr}.campus-student-actions .campus-tour-action{grid-column:1/-1}.campus-club-room>nav,.campus-project-detail>nav{grid-template-columns:repeat(3,1fr)}.club-room-intro dl,.club-room-album>div{grid-template-columns:1fr}.campus-final-journey>div{grid-template-columns:1fr}.campus-final-journey span>svg{display:none}.campus-recruit-complete,.campus-project-next{align-items:flex-start;flex-wrap:wrap}}
 .campus-project-board-head{grid-template-columns:42px minmax(170px,2fr) minmax(120px,1fr) 120px 105px 88px}.campus-project-board-head span:first-child{grid-column:1/3}
 @media(max-width:900px){.campus-project-board-head,.campus-recruit-board-head{display:none}.campus-project-grid,.campus-recruit-center-grid{border-top:0}.campus-project-grid>article{grid-template-columns:38px 1fr auto;border-top:1px solid #d8e3df}.campus-project-grid>article>span{grid-row:1/3}.project-board-goal{grid-column:2;text-align:left}.campus-project-grid dl{grid-column:3;grid-row:1}.project-card-members{grid-column:2}.campus-project-grid>article>button{grid-column:3;grid-row:2}.campus-recruit-center-grid>article{grid-template-columns:1fr auto;border-top:1px solid #d8e3df}.recruit-center-tags{grid-column:1}.campus-recruit-center-grid dl{grid-column:1}.recruit-board-status{grid-column:2;grid-row:1}.campus-recruit-center-grid footer{grid-column:2;grid-row:2/4}}
+
+/* Reference-style individual campus building pages */
+.campus-hub-overlay{padding:18px;background:rgba(24,47,40,.35);backdrop-filter:blur(12px)}
+.campus-building-page{width:min(1460px,calc(100vw - 36px));height:min(920px,calc(100dvh - 36px));border:1px solid #dce7e2;border-radius:25px;background:#fbfdfc;box-shadow:0 28px 90px rgba(22,57,47,.22)}
+.campus-building-page .campus-hub-header{position:relative;height:126px;padding:24px 30px;overflow:hidden;align-items:flex-start;border-bottom:1px solid rgba(208,226,219,.7);background:linear-gradient(112deg,#fff 0%,#f8fcfa 45%,#e7f5f1 100%);color:#164c3d}
+.campus-building-page.is-people .campus-hub-header{background:linear-gradient(110deg,#fff 0%,rgba(247,252,250,.97) 48%,rgba(212,239,248,.9) 100%)}
+.campus-building-page.is-government .campus-hub-header{background:linear-gradient(110deg,#fff 0%,#fbfdf8 48%,#edf6df 100%)}
+.campus-building-page.is-recruit .campus-hub-header{background:linear-gradient(110deg,#fff 0%,#fbfcfb 55%,#f1f7f4 100%)}
+.campus-building-page .campus-hub-header::after{content:"";position:absolute;right:8%;bottom:-22px;width:310px;height:120px;border-radius:55% 45% 0 0;background:radial-gradient(circle at 72% 30%,#8fc87d 0 9%,transparent 10%),radial-gradient(circle at 82% 44%,#74b06d 0 11%,transparent 12%),linear-gradient(145deg,transparent 35%,rgba(69,139,111,.14) 36% 39%,transparent 40%);opacity:.58;pointer-events:none}
+.campus-building-page .campus-hub-header>div:first-child{position:relative;z-index:1;display:flex;align-items:center;gap:16px}
+.campus-building-page .campus-hub-header>div:first-child>span{width:58px;height:58px;display:grid;place-items:center;flex:none;border:1px solid #e3ebe7;border-radius:18px;background:rgba(255,255,255,.86);color:#23725b;font-size:29px;box-shadow:0 9px 24px rgba(38,92,75,.07)}
+.campus-building-page .campus-hub-header small{color:#4d947e;font-size:10px;letter-spacing:.12em}
+.campus-building-page .campus-hub-header h1{margin:3px 0 5px;color:#0f503e;font-size:32px;line-height:1.05}
+.campus-building-page .campus-hub-header p{color:#5f746d;font-size:12px}
+.campus-building-header-actions{position:relative;z-index:2;display:flex!important;align-items:center!important;gap:9px!important}
+.campus-building-header-actions>button{height:38px;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid #dfe9e5;border-radius:12px;background:rgba(255,255,255,.9);color:#456b60;font-size:11px;font-weight:850;box-shadow:0 5px 15px rgba(27,69,57,.07)}
+.campus-building-header-actions>.campus-building-close{width:38px;padding:0;color:#59736b}
+.campus-building-page .campus-hub-body{height:calc(100% - 126px);display:block}
+.campus-building-page .campus-hub-content{height:100%;padding:22px 28px 30px;overflow:auto;background:transparent;scrollbar-color:#bfd6cd transparent}
+.campus-building-page .campus-section-title{margin-bottom:17px;align-items:center}
+.campus-building-page .campus-section-title small{color:#4c927c;font-size:9px}
+.campus-building-page .campus-section-title h2{margin:4px 0;font-size:22px}
+.campus-building-page .campus-section-title p{font-size:10px;line-height:1.5}
+.campus-building-page .campus-create-button{min-height:38px;padding:0 15px;border-radius:10px;font-size:10px;box-shadow:0 7px 17px rgba(42,111,88,.18)}
+.campus-building-page .campus-live,.campus-building-page .campus-status-pill{padding:8px 12px;font-size:9px}
+
+/* Student hall */
+.campus-building-page .campus-student-purpose{margin:0 0 17px;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;gap:18px;border-radius:14px}
+.campus-building-page .campus-student-purpose small{font-size:8px}
+.campus-building-page .campus-student-purpose b{font-size:10px}
+.campus-building-page .campus-analysis-sources{margin:0;justify-content:flex-end}
+.campus-building-page .campus-analysis-sources span{padding:4px 7px;font-size:7px}
+.campus-building-page .campus-student-people{grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.campus-building-page .campus-student-people .campus-person-card{min-width:0;padding:15px;border-radius:16px;box-shadow:0 7px 22px rgba(31,76,63,.045)}
+.campus-building-page .campus-person-rank{top:10px;right:12px;font-size:7px}
+.campus-building-page .campus-person-main{padding-top:9px;gap:7px}
+.campus-building-page .campus-person-main>.avatar{margin:-11px -9px;transform:scale(.68)}
+.campus-building-page .campus-person-main h3{font-size:12px}
+.campus-building-page .campus-person-main p{font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.campus-building-page .campus-person-main>strong{margin-top:9px;font-size:25px}
+.campus-building-page .campus-person-main>strong small{font-size:9px}
+.campus-building-page .campus-activity-line{margin-top:6px;padding:6px 8px}
+.campus-building-page .campus-activity-line small,.campus-building-page .campus-activity-line b{font-size:7px}
+.campus-building-page .campus-match-reason{min-height:52px;margin-top:7px;padding:7px 8px;font-size:7px}
+.campus-building-page .campus-common-title{margin-top:7px;font-size:7px}
+.campus-building-page .campus-common-tags{min-height:26px;padding:6px 0 3px}
+.campus-building-page .campus-common-tags span{padding:4px 6px;font-size:7px}
+.campus-building-page .campus-student-actions{grid-template-columns:repeat(3,1fr);gap:5px}
+.campus-building-page .campus-student-actions button{min-height:30px;font-size:7px}
+.campus-building-page .campus-student-lower{margin-top:13px}
+.campus-building-page .campus-student-board{padding:13px 15px;border-radius:15px}
+.campus-building-page .campus-student-board>header{align-items:center}
+.campus-building-page .campus-student-board header b{font-size:10px}
+.campus-building-page .campus-student-board header p{font-size:7px}
+.campus-building-page .campus-student-board>nav{margin:8px 0 6px}
+.campus-building-page .campus-student-board>div{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.campus-building-page .campus-student-board>div>button+button{margin-top:0}
+
+/* Club hall */
+.campus-building-page .campus-club-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.campus-building-page .campus-club-grid>article{min-height:238px;padding:15px;border-top-width:1px;border-radius:16px;box-shadow:0 6px 20px rgba(34,76,64,.04)}
+.campus-building-page .campus-club-icon{width:45px;height:45px;margin-top:-20px;border-radius:13px;font-size:24px}
+.campus-building-page .campus-club-grid h3{margin:10px 0 4px;font-size:13px}
+.campus-building-page .campus-club-grid>article>p{min-height:32px;font-size:8px}
+.campus-building-page .campus-club-grid>article>small{font-size:7px}
+.campus-building-page .campus-ai-helper{margin-top:8px;padding:7px 9px}
+.campus-building-page .campus-ai-helper b{font-size:7px}
+.campus-building-page .campus-ai-helper>p{font-size:7px}
+.campus-building-page .campus-ai-helper button{display:none}
+.campus-building-page .campus-club-grid>article>button{min-height:31px;margin-top:auto;border-color:#37876c;background:#37876c;color:#fff;font-size:8px}
+
+/* Project room */
+.campus-building-page .campus-project-recommend{position:relative;min-height:142px;margin-bottom:17px;padding:20px 22px;overflow:hidden;border-radius:16px;background:linear-gradient(90deg,rgba(255,255,255,.98) 0%,rgba(255,255,255,.86) 48%,rgba(255,255,255,.08) 78%),url('../assets/plants/hydrangea.jpg') center 62%/cover;color:#327c66}
+.campus-building-page .campus-project-recommend>svg,.campus-building-page .campus-project-recommend>div,.campus-building-page .campus-project-recommend>button{position:relative;z-index:1}
+.campus-building-page .campus-project-recommend small{font-size:9px}
+.campus-building-page .campus-project-recommend b{margin-top:6px;font-size:19px}
+.campus-building-page .campus-project-recommend p{margin-top:5px;font-size:9px}
+.campus-building-page .campus-project-recommend button{align-self:flex-end;padding:9px 13px;font-size:8px}
+.campus-building-page .campus-project-board-head{display:none}
+.campus-building-page .campus-project-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;border:0}
+.campus-building-page .campus-project-grid>article{position:relative;padding:0 14px 14px;display:flex;flex-direction:column;align-items:stretch;gap:0;overflow:hidden;border:1px solid #dce7e2;border-radius:15px!important;background:#fff;box-shadow:0 6px 20px rgba(34,76,64,.045)}
+.campus-building-page .campus-project-grid>article::before{content:"";height:94px;margin:0 -14px 0;background:url('../assets/plants/hydrangea.jpg') center/cover}
+.campus-building-page .campus-project-grid>article:nth-child(2)::before{background-image:url('../assets/maps/hotspots/traditional-market-map.jpg')}
+.campus-building-page .campus-project-grid>article:nth-child(3)::before{background-image:url('../assets/maps/hotspots/jochwon-park-map.jpg')}
+.campus-building-page .campus-project-grid>article>span{position:absolute;top:70px;left:13px;width:38px;height:38px;border:3px solid #fff;border-radius:12px;background:#f4faf7;font-size:19px}
+.campus-building-page .project-card-heading{padding-top:12px}
+.campus-building-page .project-card-heading small{margin-left:42px}
+.campus-building-page .project-card-heading h3{margin:8px 0 3px;font-size:11px}
+.campus-building-page .project-card-heading p{min-height:25px;font-size:7px;white-space:normal}
+.campus-building-page .project-board-goal{margin-top:7px;padding:7px 8px;border-radius:8px;background:#f4f8f6;font-size:7px;text-align:left}
+.campus-building-page .campus-project-grid dl{margin:7px 0;display:flex;background:transparent}
+.campus-building-page .campus-project-grid dl>div{padding:0 9px 0 0;text-align:left}
+.campus-building-page .campus-project-grid dt{display:block;font-size:6px}
+.campus-building-page .project-card-members{min-height:22px}
+.campus-building-page .campus-project-grid>article>button{margin-top:auto;padding:7px;font-size:7px}
+.campus-building-page .campus-project-next{margin-top:13px;padding:12px 15px;border:1px solid #dce7e2;border-radius:13px;background:#f7faf8;color:#3b7664}
+.campus-building-page .campus-project-next p{color:#74887f}
+.campus-building-page .campus-project-next button{background:#37816a;color:#fff}
+
+/* Recruitment center */
+.campus-building-page .campus-recruit-filters{padding:10px 12px;border-radius:13px}
+.campus-building-page .campus-recruit-filters>div>small,.campus-building-page .campus-recruit-filters label{font-size:7px}
+.campus-building-page .campus-recruit-board-head{display:none}
+.campus-building-page .campus-recruit-center-grid{display:grid;grid-template-columns:1fr;gap:0;border:1px solid #dae5e1;border-radius:15px;overflow:hidden}
+.campus-building-page .campus-recruit-center-grid>article{padding:12px 14px;display:grid;grid-template-columns:minmax(260px,2fr) minmax(160px,1fr) minmax(170px,.8fr) 75px minmax(165px,.8fr);gap:12px;border:0;border-bottom:1px solid #e2eae7;border-radius:0!important;background:#fff}
+.campus-building-page .campus-recruit-center-grid>article:last-child{border-bottom:0}
+.campus-building-page .campus-recruit-center-grid article>header{min-width:0}
+.campus-building-page .campus-recruit-center-grid header>span{width:43px;height:43px;border-radius:50%;font-size:21px}
+.campus-building-page .campus-recruit-center-grid header b{font-size:10px}
+.campus-building-page .campus-recruit-center-grid header small{font-size:7px}
+.campus-building-page .recruit-center-tags{align-content:center}
+.campus-building-page .recruit-center-tags span{font-size:7px}
+.campus-building-page .campus-recruit-center-grid dl{margin:0;display:flex;align-items:center;background:transparent}
+.campus-building-page .campus-recruit-center-grid dl>div{padding:3px 9px}
+.campus-building-page .campus-recruit-center-grid dt{font-size:6px}
+.campus-building-page .campus-recruit-center-grid dd{font-size:8px}
+.campus-building-page .recruit-board-status{font-size:7px}
+.campus-building-page .campus-recruit-center-grid footer{margin:0;grid-template-columns:34px 34px minmax(80px,1fr)}
+.campus-building-page .campus-recruit-center-grid footer button{min-height:32px;border-radius:8px;font-size:7px}
+.campus-building-page .campus-recruit-complete{margin-top:13px;border:1px solid #dce7e2;background:#f7faf8;color:#397662}
+.campus-building-page .campus-recruit-complete p{color:#74887f}
+
+@media(max-width:1050px){
+  .campus-building-page .campus-student-purpose{align-items:flex-start;flex-direction:column}.campus-building-page .campus-analysis-sources{justify-content:flex-start}
+  .campus-building-page .campus-student-people,.campus-building-page .campus-club-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .campus-building-page .campus-recruit-center-grid>article{grid-template-columns:minmax(240px,2fr) 1fr 1fr}.campus-building-page .recruit-board-status{grid-column:2}.campus-building-page .campus-recruit-center-grid footer{grid-column:3;grid-row:1/3}
+}
+@media(max-width:720px){
+  .campus-hub-overlay{padding:0}.campus-building-page{width:100vw;height:100dvh;border-radius:0}.campus-building-page .campus-hub-header{height:105px;padding:18px}.campus-building-page .campus-hub-header>div:first-child>span{width:48px;height:48px;font-size:24px}.campus-building-page .campus-hub-header h1{font-size:24px}.campus-building-page .campus-hub-header p{display:block;font-size:9px}.campus-building-header-actions>button:first-child{width:38px;padding:0;font-size:0}.campus-building-page .campus-hub-body{height:calc(100% - 105px)}.campus-building-page .campus-hub-content{padding:18px 14px 28px}
+  .campus-building-page .campus-section-title{align-items:flex-start;flex-direction:column}.campus-building-page .campus-section-title h2{font-size:18px}
+  .campus-building-page .campus-student-people,.campus-building-page .campus-club-grid,.campus-building-page .campus-project-grid{grid-template-columns:1fr}
+  .campus-building-page .campus-student-board>div{grid-template-columns:1fr}
+  .campus-building-page .campus-recruit-filters{grid-template-columns:1fr}
+  .campus-building-page .campus-recruit-center-grid{border:0;gap:9px;overflow:visible}.campus-building-page .campus-recruit-center-grid>article{padding:13px;grid-template-columns:1fr auto;border:1px solid #dce7e2;border-radius:14px!important}.campus-building-page .recruit-center-tags,.campus-building-page .campus-recruit-center-grid dl{grid-column:1}.campus-building-page .recruit-board-status{grid-column:2;grid-row:1}.campus-building-page .campus-recruit-center-grid footer{grid-column:2;grid-row:2/4}
+}
+
+/* Recruitment center social feed */
+.campus-recruit-title{margin-bottom:13px!important}
+.campus-recruit-discovery{margin-bottom:16px;padding:16px;border:1px solid #dce7e2;border-radius:18px;background:#fff;box-shadow:0 7px 22px rgba(29,70,58,.04)}
+.campus-recruit-search{height:46px;padding:0 14px;display:flex;align-items:center;gap:10px;border:2px solid #cfe2da;border-radius:13px;background:#fbfdfc;color:#45856f}
+.campus-recruit-search:focus-within{border-color:#4e977f;box-shadow:0 0 0 3px rgba(78,151,127,.1)}
+.campus-recruit-search input{min-width:0;flex:1;border:0;background:transparent;color:#294f44;font-size:12px;outline:0}
+.campus-recruit-search input::placeholder{color:#93a39e}
+.campus-recruit-search>button{width:28px;height:28px;display:grid;place-items:center;border:0;border-radius:8px;background:#edf4f1;color:#627b73}
+.campus-recruit-interest-head{margin:15px 0 10px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.campus-recruit-interest-head>div{display:flex;flex-direction:column}
+.campus-recruit-interest-head b{font-size:12px}
+.campus-recruit-interest-head small{margin-top:3px;color:#82918c;font-size:8px}
+.campus-recruit-write{min-height:42px;padding:0 19px;border:0;border-radius:12px;background:#328269;color:#fff;font-size:11px;font-weight:950;box-shadow:0 9px 21px rgba(42,119,94,.22)}
+.campus-recruit-write:hover{background:#276f59;transform:translateY(-1px)}
+.campus-recruit-interest{display:flex;flex-wrap:wrap;gap:7px}
+.campus-recruit-interest button{min-height:37px;padding:0 13px;display:flex;align-items:center;gap:6px;border:1px solid #dce7e2;border-radius:11px;background:#f9fbfa;color:#557168;font-size:9px;font-weight:850}
+.campus-recruit-interest button span{font-size:15px}
+.campus-recruit-interest button.active{border-color:#4b927a;background:#e8f4ef;color:#26705a;box-shadow:inset 0 0 0 1px #4b927a}
+.campus-recruit-more-filters{margin-top:12px;padding-top:11px;display:flex;align-items:flex-end;gap:7px;border-top:1px solid #edf2ef}
+.campus-recruit-more-filters label{display:flex;flex-direction:column;gap:4px;color:#71847d;font-size:7px;font-weight:850}
+.campus-recruit-more-filters select{min-height:31px;padding:0 25px 0 9px;border:1px solid #dce6e2;border-radius:8px;background:#fff;color:#4f6961;font-size:8px}
+.campus-recruit-more-filters>span{margin-left:auto;padding-bottom:8px;color:#4d8b77;font-size:8px;font-weight:900}
+.campus-recruit-composer-wrap{margin-bottom:16px;padding:15px;border:1px solid #bad9ce;border-radius:17px;background:linear-gradient(125deg,#edf8f4,#fff)}
+.campus-recruit-composer-wrap>header{margin-bottom:11px;display:flex;flex-direction:column}
+.campus-recruit-composer-wrap>header b{font-size:12px}
+.campus-recruit-composer-wrap>header small{margin-top:3px;color:#71877f;font-size:8px}
+.campus-recruit-composer-wrap .campus-recruit-form{margin:0;padding:0;border:0;background:transparent}
+.campus-recruit-feed{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.campus-recruit-card{padding:17px;display:flex;flex-direction:column;border:1px solid #dce6e2;border-radius:18px;background:#fff;box-shadow:0 8px 25px rgba(27,69,57,.055);transition:transform .18s ease,box-shadow .18s ease}
+.campus-recruit-card:hover{transform:translateY(-2px);box-shadow:0 13px 30px rgba(27,69,57,.09)}
+.campus-recruit-card>header{display:flex;align-items:center;gap:9px}
+.campus-recruit-card>header>span{width:43px;height:43px;display:grid;place-items:center;flex:none;border-radius:13px;background:#f1f7f4;font-size:23px}
+.campus-recruit-card>header>div{min-width:0;display:flex;flex:1;flex-direction:column}
+.campus-recruit-card>header b{font-size:10px}
+.campus-recruit-card>header small{margin-top:3px;color:#879690;font-size:7px}
+.campus-recruit-card>header>i{padding:5px 8px;border-radius:999px;background:#e8f4ef;color:#347a64;font-size:7px;font-style:normal;font-weight:900}
+.campus-recruit-card h3{margin:15px 0 5px;color:#183f34;font-size:15px;letter-spacing:-.03em}
+.campus-recruit-card>p{min-height:31px;margin:0;color:#667b74;font-size:9px;line-height:1.55}
+.campus-recruit-card .recruit-center-tags{margin-top:10px}
+.campus-recruit-card .recruit-center-tags span{padding:5px 8px;background:#f1f6f4;font-size:7px}
+.campus-recruit-card dl{margin:13px 0 0;padding:11px;display:grid;grid-template-columns:.8fr 1.25fr .8fr;gap:7px;border-radius:12px;background:#f7faf8}
+.campus-recruit-card dl>div{min-width:0;display:flex;align-items:center;gap:7px;color:#4e9079}
+.campus-recruit-card dl span{min-width:0;display:flex;flex-direction:column}
+.campus-recruit-card dt{color:#84938e;font-size:6px}
+.campus-recruit-card dd{margin:2px 0 0;overflow:hidden;color:#3c5d54;font-size:8px;font-weight:900;text-overflow:ellipsis;white-space:nowrap}
+.campus-recruit-card>footer{margin-top:13px;padding-top:12px;display:flex;align-items:center;gap:8px;border-top:1px solid #edf2f0}
+.campus-recruit-card>footer button{min-height:38px;display:flex;align-items:center;justify-content:center;gap:7px;border-radius:10px;font-size:9px;font-weight:900}
+.campus-recruit-heart{min-width:72px;border:1px solid #dce6e2;background:#fff;color:#698078}
+.campus-recruit-heart.liked{border-color:#efb5b2;background:#fff3f2;color:#d65455}
+.campus-recruit-apply{flex:1;border:0;background:#36846c;color:#fff}
+.campus-recruit-apply.applied{background:#e8f1ed;color:#5f8075}
+.campus-recruit-applicants{margin-top:13px;padding:12px;border:1px solid #cfe2da;border-radius:13px;background:#f6faf8}
+.campus-recruit-applicants>header{display:flex;align-items:center;justify-content:space-between}
+.campus-recruit-applicants>header b{font-size:9px}.campus-recruit-applicants>header span{color:#4b8a75;font-size:7px;font-weight:850}
+.campus-recruit-applicants>article{margin-top:9px;padding:11px;border:1px solid #dde8e3;border-radius:11px;background:#fff}
+.campus-applicant-name{display:flex;align-items:center;gap:8px}.campus-applicant-name>span{width:32px;height:32px;display:grid;place-items:center;border-radius:50%;background:#dcefe7;color:#337962;font-size:10px;font-weight:950}
+.campus-applicant-name>div{display:flex;flex-direction:column}.campus-applicant-name b{font-size:8px}.campus-applicant-name small{margin-top:2px;color:#82928d;font-size:7px}
+.campus-recruit-applicants>article>p{margin:8px 0;color:#60766e;font-size:8px;line-height:1.5}
+.campus-applicant-tags{display:flex;flex-wrap:wrap;gap:4px}.campus-applicant-tags span{padding:4px 6px;border-radius:999px;background:#eef5f2;color:#57786d;font-size:6px}
+.campus-recruit-applicants article>footer{margin-top:9px;display:flex;justify-content:flex-end;gap:6px}.campus-recruit-applicants article>footer button{min-width:55px;min-height:29px;border:1px solid #d8e4df;border-radius:8px;background:#fff;color:#60766e;font-size:7px;font-weight:900}.campus-recruit-applicants article>footer button:last-child{border-color:#367e69;background:#367e69;color:#fff}
+.campus-recruit-applicants article>footer strong{padding:7px 9px;border-radius:8px;background:#edf4f1;color:#6f817b;font-size:7px}.campus-recruit-applicants article>footer strong.accepted{background:#e3f3ed;color:#347a65}
+.campus-recruit-flow{margin-top:15px;padding:13px 16px;display:flex;align-items:center;justify-content:center;gap:13px;border:1px solid #dce7e2;border-radius:15px;background:#f7faf8;color:#59736b}
+.campus-recruit-flow span{display:flex;align-items:center;gap:6px;font-size:8px;font-weight:850}
+.campus-recruit-flow span b{width:21px;height:21px;display:grid;place-items:center;border-radius:50%;background:#dfeee8;color:#327762;font-size:8px}
+.campus-recruit-flow>i{color:#8cad9f;font-size:17px;font-style:normal}
+.campus-application-overlay{position:fixed;z-index:230;inset:0;padding:18px;display:grid;place-items:center;background:rgba(15,43,35,.48);backdrop-filter:blur(7px)}
+.campus-application-card{width:min(480px,calc(100vw - 28px));max-height:calc(100dvh - 34px);padding:21px;overflow:auto;border:1px solid #dce7e2;border-radius:22px;background:#fff;box-shadow:0 30px 80px rgba(14,45,36,.3)}
+.campus-application-card>header{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.campus-application-card>header>div{display:flex;flex-direction:column}
+.campus-application-card>header small{color:#448970;font-size:8px;font-weight:950}
+.campus-application-card>header h3{margin:4px 0;font-size:19px}
+.campus-application-card>header p{margin:0;color:#778b84;font-size:8px}
+.campus-application-card>header>button{width:34px;height:34px;display:grid;place-items:center;border:0;border-radius:10px;background:#eff4f2;color:#5c746c}
+.campus-application-target{margin-top:15px;padding:11px;display:flex;align-items:center;gap:10px;border-radius:13px;background:#f3f8f6}
+.campus-application-target>span{font-size:25px}
+.campus-application-target>div{display:flex;flex-direction:column}
+.campus-application-target small{color:#7c9089;font-size:7px}
+.campus-application-target b{margin-top:3px;font-size:9px}
+.campus-application-profile{margin-top:13px;padding:13px;display:flex;align-items:center;gap:11px;border:1px solid #dbe7e2;border-radius:14px}
+.campus-application-profile>span{width:48px;height:48px;display:grid;place-items:center;flex:none;border-radius:50%;background:linear-gradient(145deg,#dcefe7,#b9dacc);color:#2f735e;font-size:18px;font-weight:950}
+.campus-application-profile>div{display:flex;flex-direction:column}
+.campus-application-profile small{color:#669083;font-size:7px}
+.campus-application-profile h4{margin:2px 0;font-size:13px}
+.campus-application-profile p{margin:0;color:#71857e;font-size:8px}
+.campus-application-card>label{position:relative;margin-top:13px;display:flex;flex-direction:column;gap:6px;color:#4f7066;font-size:8px;font-weight:900}
+.campus-application-card textarea{height:86px;padding:11px;resize:none;border:1px solid #d9e5e0;border-radius:11px;background:#fafcfb;color:#385a51;font:inherit;font-size:9px;line-height:1.55;outline:0}
+.campus-application-card textarea:focus{border-color:#5b9c86}
+.campus-application-card>label>small{position:absolute;right:9px;bottom:8px;color:#92a09b;font-size:7px}
+.campus-application-tags,.campus-application-style{margin-top:12px}
+.campus-application-tags>b,.campus-application-style>b{display:block;margin-bottom:7px;color:#4f7066;font-size:8px}
+.campus-application-tags>div{display:flex;flex-wrap:wrap;gap:5px}
+.campus-application-tags span{padding:5px 7px;border-radius:999px;background:#edf5f2;color:#4c776a;font-size:7px}
+.campus-application-style{padding:10px 11px;display:flex;align-items:center;justify-content:space-between;border-radius:10px;background:#f7faf8}
+.campus-application-style>b{margin:0}.campus-application-style>span{color:#3d6d5f;font-size:8px;font-weight:850}
+.campus-application-card>footer{margin-top:16px;display:grid;grid-template-columns:.7fr 1.3fr;gap:7px}
+.campus-application-card>footer button{min-height:41px;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #d8e4df;border-radius:11px;background:#fff;color:#567168;font-size:9px;font-weight:900}
+.campus-application-card>footer button:last-child{border-color:#347e67;background:#347e67;color:#fff}.campus-application-card>footer button:disabled{opacity:.5}
+.campus-application-note{margin:10px 0 0;color:#789087;font-size:7px;text-align:center}
+
+@media(max-width:900px){.campus-recruit-feed{grid-template-columns:1fr}}
+@media(max-width:620px){
+  .campus-recruit-discovery{padding:12px}.campus-recruit-interest-head{align-items:flex-start;flex-direction:column}.campus-recruit-write{width:100%}
+  .campus-recruit-interest{display:grid;grid-template-columns:repeat(2,1fr)}.campus-recruit-interest button{justify-content:center}
+  .campus-recruit-more-filters{align-items:stretch;flex-direction:column}.campus-recruit-more-filters label select{width:100%}.campus-recruit-more-filters>span{margin-left:0;padding:3px 0 0}
+  .campus-recruit-card dl{grid-template-columns:1fr}.campus-recruit-flow{align-items:flex-start;flex-direction:column}.campus-recruit-flow>i{display:none}
+  .campus-recruit-composer-wrap .campus-recruit-form{grid-template-columns:1fr}.campus-recruit-composer-wrap .campus-recruit-form>button{min-height:38px}
+}
+
+/* Compact recruitment center */
+.campus-building-page.is-recruit{width:min(1220px,calc(100vw - 100px));height:min(790px,calc(100dvh - 80px))}
+.campus-building-page.is-recruit .campus-hub-header{height:100px;padding:18px 24px}
+.campus-building-page.is-recruit .campus-hub-header>div:first-child>span{width:48px;height:48px;border-radius:15px;font-size:24px}
+.campus-building-page.is-recruit .campus-hub-header small{font-size:8px}
+.campus-building-page.is-recruit .campus-hub-header h1{font-size:26px}
+.campus-building-page.is-recruit .campus-hub-header p{font-size:10px}
+.campus-building-page.is-recruit .campus-header-recruit-write{border-color:#328269;background:#328269;color:#fff;box-shadow:0 7px 17px rgba(42,119,94,.2)}
+.campus-building-page.is-recruit .campus-hub-body{height:calc(100% - 100px)}
+.campus-building-page.is-recruit .campus-hub-content{padding:16px 22px 24px}
+.campus-building-page.is-recruit .campus-section-title{margin-bottom:10px!important}
+.campus-building-page.is-recruit .campus-section-title h2{font-size:18px}
+.campus-building-page.is-recruit .campus-section-title p{font-size:8px}
+.campus-building-page.is-recruit .campus-recruit-discovery{margin-bottom:12px;padding:12px 14px;border-radius:15px}
+.campus-building-page.is-recruit .campus-recruit-search{height:38px;padding:0 11px;border-width:1px;border-radius:10px}
+.campus-building-page.is-recruit .campus-recruit-search input{font-size:9px}
+.campus-building-page.is-recruit .campus-recruit-interest-head{display:none}
+.campus-building-page.is-recruit .campus-recruit-interest-head b{font-size:10px}
+.campus-building-page.is-recruit .campus-recruit-interest-head small{font-size:7px}
+.campus-building-page.is-recruit .campus-recruit-write{min-height:34px;padding:0 14px;border-radius:9px;font-size:9px}
+.campus-building-page.is-recruit .campus-recruit-interest{margin-top:7px;gap:0;border-bottom:1px solid #e2ebe7}
+.campus-building-page.is-recruit .campus-recruit-interest button{position:relative;min-height:27px;padding:0 13px;border:0;border-radius:0;background:transparent;color:#758780;font-size:8px}
+.campus-building-page.is-recruit .campus-recruit-interest button::after{content:"";position:absolute;right:11px;bottom:-1px;left:11px;height:2px;border-radius:2px;background:transparent}
+.campus-building-page.is-recruit .campus-recruit-interest button.active{border:0;background:transparent;color:#26705a;box-shadow:none}
+.campus-building-page.is-recruit .campus-recruit-interest button.active::after{background:#3f8a71}
+.campus-building-page.is-recruit .campus-recruit-more-filters{margin-top:8px;padding-top:8px}
+.campus-building-page.is-recruit .campus-recruit-more-filters select{min-height:27px;font-size:7px}
+.campus-building-page.is-recruit .campus-recruit-more-filters>span{padding-bottom:6px;font-size:7px}
+.campus-building-page.is-recruit .campus-recruit-feed{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.campus-building-page.is-recruit .campus-recruit-card{padding:13px;border-radius:15px}
+.campus-building-page.is-recruit .campus-recruit-card>header>span{width:36px;height:36px;border-radius:11px;font-size:19px}
+.campus-building-page.is-recruit .campus-recruit-card>header b{font-size:8px}
+.campus-building-page.is-recruit .campus-recruit-card h3{margin:10px 0 4px;font-size:12px}
+.campus-building-page.is-recruit .campus-recruit-card>p{min-height:24px;font-size:7px}
+.campus-building-page.is-recruit .campus-recruit-card .recruit-center-tags{margin-top:7px}
+.campus-building-page.is-recruit .campus-recruit-card .recruit-center-tags span{padding:4px 6px;font-size:6px}
+.campus-building-page.is-recruit .campus-recruit-card dl{margin-top:9px;padding:8px}
+.campus-building-page.is-recruit .campus-recruit-card dl svg{width:13px;height:13px}
+.campus-building-page.is-recruit .campus-recruit-card>footer{margin-top:9px;padding-top:8px}
+.campus-building-page.is-recruit .campus-recruit-card>footer button{min-height:32px;border-radius:8px;font-size:8px}
+.campus-building-page.is-recruit .campus-recruit-flow{margin-top:11px;padding:9px 12px}
+.campus-building-page.is-recruit .campus-recruit-composer-wrap{padding:12px}
+.campus-building-page.is-recruit .campus-recruit-form{display:grid;grid-template-columns:minmax(210px,1.8fr) minmax(125px,.8fr) minmax(95px,.55fr) minmax(210px,1.25fr) auto;align-items:start;gap:8px}
+.campus-building-page.is-recruit .campus-recruit-form label{gap:5px;font-size:7px}
+.campus-building-page.is-recruit .campus-recruit-form input,.campus-building-page.is-recruit .campus-recruit-form select{height:34px;padding:0 9px}
+.campus-recruit-tag-builder{display:flex;flex-direction:column;gap:5px;color:#658079;font-size:7px;font-weight:900}
+.campus-recruit-tag-builder>div{display:grid;grid-template-columns:1fr 34px}
+.campus-recruit-tag-builder>div input{min-width:0;border-radius:9px 0 0 9px!important}
+.campus-recruit-tag-builder>div button{display:grid;place-items:center;border:0;border-radius:0 9px 9px 0;background:#3b816b;color:#fff}
+.campus-recruit-tag-builder>aside{min-height:21px;display:flex;flex-wrap:wrap;gap:4px}
+.campus-recruit-tag-builder>aside button{padding:3px 6px;display:flex;align-items:center;gap:3px;border:0;border-radius:999px;background:#e8f3ef;color:#397763;font-size:6px}
+.campus-recruit-submit{height:34px;margin-top:17px;padding:0 13px;border:0;border-radius:9px;background:#347e67;color:#fff;font-size:8px;font-weight:900}
+
+@media(max-width:1050px){
+  .campus-building-page.is-recruit{width:100vw;height:100dvh}
+  .campus-building-page.is-recruit .campus-recruit-feed{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .campus-building-page.is-recruit .campus-recruit-form{grid-template-columns:1fr 1fr}
+  .campus-recruit-submit{margin-top:17px}
+}
+@media(max-width:720px){
+  .campus-building-page.is-recruit .campus-recruit-feed{grid-template-columns:1fr}
+  .campus-building-page.is-recruit .campus-recruit-form{grid-template-columns:1fr}
+  .campus-recruit-submit{margin-top:0}
+}
+
+/* Compact, left-aligned recruitment category buttons */
+.campus-building-page.is-recruit .campus-recruit-discovery{display:flex;flex-direction:column;gap:7px;padding:10px 12px}
+.campus-building-page.is-recruit .campus-recruit-search{height:36px}
+.campus-building-page.is-recruit .campus-recruit-interest{width:100%;margin:0;padding:0;display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:5px;border:0}
+.campus-building-page.is-recruit .campus-recruit-interest button{min-height:26px;padding:0 11px;border:1px solid #d9e5e0;border-radius:8px;background:#f8faf9;color:#647a72;font-size:8px;box-shadow:0 1px 2px rgba(30,70,58,.04)}
+.campus-building-page.is-recruit .campus-recruit-interest button::after{display:none}
+.campus-building-page.is-recruit .campus-recruit-interest button:hover{border-color:#8bb8a8;background:#f0f7f4;color:#34755f}
+.campus-building-page.is-recruit .campus-recruit-interest button.active{border:1px solid #3f876f;background:#3f876f;color:#fff;box-shadow:0 3px 8px rgba(45,119,94,.17)}
+.campus-building-page.is-recruit .campus-recruit-more-filters{margin:0;padding-top:7px;align-items:flex-end}
+
+@media(max-width:620px){
+  .campus-building-page.is-recruit .campus-recruit-interest{display:flex}
+  .campus-building-page.is-recruit .campus-recruit-interest button{justify-content:center}
+}
+
+/* Remove inherited vertical space from the recruitment filter area */
+.campus-building-page.is-recruit .campus-recruit-discovery{height:auto!important;min-height:0!important;padding:7px 10px!important;gap:4px!important}
+.campus-building-page.is-recruit .campus-recruit-search{height:34px;min-height:34px;flex:0 0 34px}
+.campus-building-page.is-recruit .campus-recruit-interest{height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;flex:0 0 auto!important;align-content:center}
+.campus-building-page.is-recruit .campus-recruit-interest button{height:24px;min-height:24px;padding:0 9px}
+.campus-building-page.is-recruit .campus-recruit-more-filters{height:auto!important;min-height:0!important;margin:0!important;padding:4px 0 0!important;flex:0 0 auto!important}
+.campus-building-page.is-recruit .campus-recruit-more-filters label{margin:0}
+.campus-building-page.is-recruit .campus-recruit-more-filters select{height:25px;min-height:25px}
+.campus-building-page.is-recruit .campus-recruit-more-filters>span{padding-bottom:5px}
+
+/* Match the student hall window to the compact recruitment center */
+.campus-building-page.is-people{width:min(1220px,calc(100vw - 100px));height:min(790px,calc(100dvh - 80px))}
+.campus-building-page.is-people .campus-hub-header{height:100px;padding:18px 24px}
+.campus-building-page.is-people .campus-hub-header>div:first-child>span{width:48px;height:48px;border-radius:15px;font-size:24px}
+.campus-building-page.is-people .campus-hub-header small{font-size:8px}
+.campus-building-page.is-people .campus-hub-header h1{font-size:26px}
+.campus-building-page.is-people .campus-hub-header p{font-size:10px}
+.campus-building-page.is-people .campus-hub-body{height:calc(100% - 100px)}
+.campus-building-page.is-people .campus-hub-content{padding:16px 22px 24px}
+
+@media(max-width:1050px){
+  .campus-building-page.is-people{width:100vw;height:100dvh}
+}
+
+/* Student hall internal board */
+.campus-student-empty{min-height:210px}
+.campus-board-view{height:100%;display:flex;flex-direction:column}
+.campus-board-view>header{padding-bottom:13px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #e1eae6}
+.campus-board-view>header>div{display:flex;flex-direction:column}
+.campus-board-view>header small{color:#4c927c;font-size:8px;font-weight:950}
+.campus-board-view>header h2{margin:4px 0;font-size:20px}
+.campus-board-view>header p{margin:0;color:#75877f;font-size:8px}
+.campus-board-view>header>button{height:34px;padding:0 11px;display:flex;align-items:center;gap:5px;border:1px solid #d8e4df;border-radius:9px;background:#fff;color:#577169;font-size:8px;font-weight:900}
+.campus-board-toolbar{padding:11px 0;display:flex;align-items:center;gap:7px}
+.campus-board-toolbar>label{height:34px;padding:0 10px;display:flex;align-items:center;gap:7px;flex:1;border:1px solid #d8e5df;border-radius:9px;background:#fff;color:#4f9079}
+.campus-board-toolbar input{min-width:0;flex:1;border:0;background:transparent;color:#38584f;font-size:8px;outline:0}
+.campus-board-toolbar nav{display:flex;gap:4px}
+.campus-board-toolbar nav button{height:30px;padding:0 9px;border:1px solid #dbe6e2;border-radius:8px;background:#fff;color:#6e827b;font-size:7px}
+.campus-board-toolbar nav button.active{border-color:#4d927b;background:#e9f4f0;color:#31755f;font-weight:900}
+.campus-board-write{height:34px;padding:0 12px;display:flex;align-items:center;gap:5px;border:0;border-radius:9px;background:#357f68;color:#fff;font-size:8px;font-weight:900}
+.campus-board-composer{margin-bottom:11px;padding:11px;display:grid;grid-template-columns:1fr 1.7fr auto;gap:7px;border:1px solid #cfe2da;border-radius:12px;background:#f4f9f7}
+.campus-board-composer input,.campus-board-composer textarea{min-width:0;padding:9px;border:1px solid #d8e4df;border-radius:8px;background:#fff;color:#3e5e55;font:inherit;font-size:8px;outline:0}
+.campus-board-composer textarea{height:35px;resize:none}
+.campus-board-composer>div{display:flex;gap:5px}
+.campus-board-composer button{padding:0 10px;border:1px solid #d7e3de;border-radius:8px;background:#fff;color:#657b73;font-size:7px;font-weight:900}
+.campus-board-composer button:last-child{border-color:#367f69;background:#367f69;color:#fff}
+.campus-board-feed{min-height:0;padding-right:3px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:9px;overflow:auto}
+.campus-board-feed>article{padding:13px;border:1px solid #dce7e2;border-radius:13px;background:#fff;box-shadow:0 5px 16px rgba(31,74,62,.04)}
+.campus-board-feed>article>header{display:flex;align-items:center;gap:8px}
+.campus-board-feed>article>header>span{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:#dfeee8;color:#357a64;font-size:9px;font-weight:950}
+.campus-board-feed>article>header>div{display:flex;flex-direction:column}
+.campus-board-feed>article>header b{font-size:8px}.campus-board-feed>article>header small{margin-top:2px;color:#8a9893;font-size:6px}
+.campus-board-feed h3{margin:10px 0 4px;font-size:11px}.campus-board-feed>article>p{min-height:28px;margin:0;color:#667b74;font-size:8px;line-height:1.5}
+.campus-board-tags{margin-top:8px;display:flex;gap:4px}.campus-board-tags span{padding:4px 6px;border-radius:999px;background:#eef5f2;color:#52776b;font-size:6px}
+.campus-board-feed article>footer{margin-top:9px;padding-top:8px;display:flex;gap:12px;border-top:1px solid #edf2f0;color:#71857e}
+.campus-board-feed article>footer span{display:flex;align-items:center;gap:4px;font-size:7px}
+.campus-board-empty{grid-column:1/-1;padding:50px;text-align:center;color:#7a8e86;font-size:9px}
+
+@media(max-width:700px){
+  .campus-board-toolbar{align-items:stretch;flex-direction:column}.campus-board-toolbar>*{width:100%}.campus-board-toolbar nav{display:grid;grid-template-columns:repeat(3,1fr)}
+  .campus-board-composer{grid-template-columns:1fr}.campus-board-composer textarea{height:70px}.campus-board-composer>div{justify-content:flex-end}.campus-board-composer button{min-height:32px}
+  .campus-board-feed{grid-template-columns:1fr}
+}
+
+/* Stronger visual hierarchy for student recommendations and board */
+.campus-building-page.is-people .campus-student-people.is-preview{grid-template-columns:repeat(2,minmax(0,1fr))}
+.campus-building-page.is-people .campus-person-card{border-color:#d4e4de}
+.campus-preview-person{overflow:hidden;border:1px solid #91c4b3!important;background:linear-gradient(145deg,#fff 35%,#eff9f5 100%)!important;box-shadow:0 9px 24px rgba(40,108,86,.11)!important}
+.campus-preview-person::before{content:"";position:absolute;top:0;right:0;left:0;height:4px;background:linear-gradient(90deg,#2f8368,#7fc3aa)}
+.campus-preview-label{width:max-content;margin:0 0 4px;padding:4px 7px;display:flex;align-items:center;gap:4px;border-radius:999px;background:#dff1ea;color:#2f755f;font-size:7px;font-weight:900}
+.campus-preview-person .campus-person-main>strong{width:58px;height:58px;margin:0;display:grid;place-items:center;border:5px solid #d8ebe4;border-radius:50%;background:#fff;color:#25765d;font-size:19px;box-shadow:0 4px 12px rgba(43,104,84,.09)}
+.campus-preview-person .campus-person-main>strong small{margin-left:-9px;margin-top:20px}
+.campus-preview-person .campus-match-reason{border:1px solid #d3e9e1;background:#eaf7f2}
+.campus-preview-person .campus-match-reason b{font-size:8px}
+.campus-preview-actions{margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.campus-preview-actions button{min-height:31px;border:1px solid #c8ddd5;border-radius:9px;background:#fff;color:#347760;font-size:7px;font-weight:900}
+.campus-preview-actions button:first-child{border-color:#39816b;background:#39816b;color:#fff}
+.campus-preview-actions button:disabled{background:#eef3f1;color:#8b9994}
+.campus-board-separation{margin:10px 0 0;padding:9px 11px;display:flex;align-items:center;gap:8px;border-left:4px solid #3d896f;border-radius:8px;background:#edf7f3}
+.campus-board-separation b{color:#276d56;font-size:8px}
+.campus-board-separation span{color:#4f7066;font-size:7px;font-weight:850}
+.campus-board-separation i{margin-left:auto;color:#71877f;font-size:7px;font-style:normal}
+.campus-building-page.is-people .campus-student-board{border-color:#bddacf;background:linear-gradient(120deg,#fff,#f5fbf8);box-shadow:0 6px 18px rgba(36,88,71,.06)}
+.campus-building-page.is-people .campus-student-board>header>div small{color:#2e8065}
+.campus-building-page.is-people .campus-student-board>header>button{min-height:32px;padding:0 12px;background:#317f66;font-size:8px}
+.campus-board-feed>article{position:relative;overflow:hidden}
+.campus-board-feed>article::before{content:"";position:absolute;top:0;bottom:0;left:0;width:3px;background:#64a98f}
+.campus-board-feed h3{color:#173f34}
+
+@media(max-width:720px){
+  .campus-building-page.is-people .campus-student-people.is-preview{grid-template-columns:1fr}
+  .campus-board-separation{align-items:flex-start;flex-direction:column}.campus-board-separation i{margin-left:0}
+}
+
+/* Community-style full board feed */
+.campus-board-view{min-height:0;overflow:hidden}
+.campus-board-toolbar{flex:none}
+.campus-board-feed{min-height:0;padding:2px 5px 24px 2px;display:flex;flex:1;flex-direction:column;align-content:unset;gap:9px;overflow-x:hidden;overflow-y:auto}
+.campus-board-feed>article{width:100%;height:auto!important;min-height:0!important;padding:14px 16px;display:block;flex:0 0 auto;overflow:visible;border:1px solid #d7e5df;border-radius:14px;background:#fff;box-shadow:0 5px 16px rgba(31,74,62,.045)}
+.campus-board-feed>article::before{top:12px;bottom:12px;width:3px;border-radius:3px}
+.campus-board-feed>article>header{display:flex;align-items:center;gap:9px}
+.campus-board-feed>article>header>span{width:34px;height:34px;flex:none}
+.campus-board-feed>article>header>div{min-width:0;display:flex;flex:1;flex-direction:column}
+.campus-board-feed>article>header b{font-size:9px}
+.campus-board-feed>article>header small{font-size:7px}
+.campus-board-feed>article>header>i{padding:5px 8px;border-radius:999px;background:#e7f3ee;color:#377a65;font-size:7px;font-style:normal;font-weight:900}
+.campus-board-feed h3{margin:11px 0 5px;padding-left:2px;font-size:13px}
+.campus-board-feed>article>p{min-height:0;margin:0;padding-left:2px;color:#5e746c;font-size:8px;line-height:1.65}
+.campus-board-tags{margin-top:9px;padding-left:2px}
+.campus-board-feed article>footer{margin-top:11px;padding:9px 2px 0;display:flex;align-items:center;gap:6px}
+.campus-board-feed article>footer button{min-height:29px;padding:0 9px;display:flex;align-items:center;gap:5px;border:1px solid #dbe6e2;border-radius:8px;background:#fff;color:#647b73;font-size:7px;font-weight:850}
+.campus-board-feed article>footer button:hover{background:#f1f7f4}
+.campus-board-feed article>footer button.liked{border-color:#efb8b5;background:#fff3f2;color:#d45e5b}
+.campus-board-feed article>footer>span{margin-left:auto;color:#899690;font-size:6px}
+
+@media(max-width:620px){
+  .campus-board-feed article>footer{align-items:flex-start;flex-wrap:wrap}
+  .campus-board-feed article>footer>span{width:100%;margin-left:0}
+}
+
+/* Student recommendation reasons and four primary actions */
+.campus-building-page.is-people .campus-student-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.campus-building-page.is-people .campus-student-actions button{min-height:32px}
+.campus-building-page.is-people .campus-student-actions .campus-tour-request{border-color:#9fcbbd;background:#e9f5f1;color:#2f775f}
+.campus-building-page.is-people .campus-match-reason{min-height:76px}
+.campus-building-page.is-people .campus-match-reason span{gap:3px}
+.campus-building-page.is-people .campus-match-reason span b{color:#216f56;font-size:8px}
+.campus-building-page.is-people .campus-match-reason span em{color:#526f65;font-size:7px;font-style:normal;line-height:1.5}
+.campus-building-page.is-people .campus-match-reason span strong{color:#285f4e;font-size:7px;line-height:1.45}
+.campus-building-page.is-people .campus-preview-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+.campus-building-page.is-people .campus-preview-actions button{display:flex;align-items:center;justify-content:center;gap:4px}
+
+/* Compact preview cards with detailed interest signals */
+.campus-building-page.is-people .campus-preview-person{padding:11px 13px}
+.campus-building-page.is-people .campus-preview-label{margin-bottom:1px;padding:3px 6px;font-size:6px}
+.campus-building-page.is-people .campus-preview-person .campus-person-rank{top:8px}
+.campus-building-page.is-people .campus-preview-person .campus-person-main{padding-top:4px}
+.campus-building-page.is-people .campus-preview-person .campus-person-main>.avatar{margin:-14px -11px;transform:scale(.6)}
+.campus-building-page.is-people .campus-preview-person .campus-person-main h3{font-size:11px}
+.campus-building-page.is-people .campus-preview-person .campus-person-main p{font-size:6px}
+.campus-building-page.is-people .campus-preview-person .campus-person-main>strong{width:47px;height:47px;border-width:4px;font-size:16px}
+.campus-building-page.is-people .campus-preview-person .campus-person-main>strong small{margin-left:-7px;margin-top:15px;font-size:7px}
+.campus-building-page.is-people .campus-preview-person .campus-match-reason{min-height:49px;margin-top:4px;padding:6px 7px}
+.campus-building-page.is-people .campus-preview-person .campus-match-reason span{gap:2px}
+.campus-building-page.is-people .campus-preview-person .campus-match-reason span b{font-size:7px}
+.campus-building-page.is-people .campus-preview-person .campus-match-reason span em{font-size:6px}
+.campus-match-signals{margin-top:6px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.campus-match-signals>span{padding:5px 6px;display:flex;align-items:center;justify-content:space-between;border-radius:7px;background:#f0f6f3}
+.campus-match-signals b{color:#60766e;font-size:6px}.campus-match-signals i{color:#28755b;font-size:7px;font-style:normal;font-weight:950}
+.campus-building-page.is-people .campus-preview-person .campus-common-title{margin-top:6px;font-size:6px}
+.campus-building-page.is-people .campus-preview-person .campus-common-tags{min-height:0;padding:4px 0 2px;gap:3px}
+.campus-building-page.is-people .campus-preview-person .campus-precise-tags span{padding:3px 5px;color:#476f62;font-size:5.5px}
+.campus-building-page.is-people .campus-preview-person .campus-preview-actions{margin-top:5px;gap:4px}
+.campus-building-page.is-people .campus-preview-person .campus-preview-actions button{min-height:27px;font-size:6px}
+
+/* Match the club hall window to the student hall */
+.campus-building-page.is-clubs{width:min(1220px,calc(100vw - 100px));height:min(790px,calc(100dvh - 80px))}
+.campus-building-page.is-clubs .campus-hub-header{height:100px;padding:18px 24px}
+.campus-building-page.is-clubs .campus-hub-header>div:first-child>span{width:48px;height:48px;border-radius:15px;font-size:24px}
+.campus-building-page.is-clubs .campus-hub-header small{font-size:8px}
+.campus-building-page.is-clubs .campus-hub-header h1{font-size:26px}
+.campus-building-page.is-clubs .campus-hub-header p{font-size:10px}
+.campus-building-page.is-clubs .campus-hub-body{height:calc(100% - 100px)}
+.campus-building-page.is-clubs .campus-hub-content{padding:16px 22px 24px}
+
+@media(max-width:1050px){
+  .campus-building-page.is-clubs{width:100vw;height:100dvh}
+}
+
+/* Detailed club creation */
+.campus-club-create-form{margin-bottom:13px;padding:13px;border:1px solid #bddacf;border-radius:15px;background:linear-gradient(130deg,#eff8f4,#fff);box-shadow:0 7px 20px rgba(35,88,71,.06)}
+.campus-club-create-form>header{display:flex;align-items:flex-start;justify-content:space-between}
+.campus-club-create-form>header>div{display:flex;flex-direction:column}
+.campus-club-create-form>header b{font-size:11px}.campus-club-create-form>header small{margin-top:3px;color:#758980;font-size:7px}
+.campus-club-create-form>header>button{width:29px;height:29px;display:grid;place-items:center;border:0;border-radius:8px;background:#e4f0eb;color:#55756b}
+.campus-club-create-fields{margin-top:11px;display:grid;grid-template-columns:1.4fr .7fr 1.4fr 1fr .7fr .65fr;gap:8px}
+.campus-club-create-fields label,.campus-club-tag-builder{display:flex;flex-direction:column;gap:5px;color:#5c766e;font-size:7px;font-weight:900}
+.campus-club-create-fields input,.campus-club-create-fields select,.campus-club-create-fields textarea{min-width:0;height:34px;padding:0 9px;border:1px solid #d7e4df;border-radius:8px;background:#fff;color:#3f5e55;font:inherit;font-size:8px;outline:0}
+.campus-club-create-fields input:focus,.campus-club-create-fields select:focus,.campus-club-create-fields textarea:focus{border-color:#5b9b85;box-shadow:0 0 0 2px rgba(72,145,120,.08)}
+.campus-club-description-field{grid-column:1/4}.campus-club-description-field textarea{height:61px;padding:9px;resize:none;line-height:1.45}
+.campus-club-tag-builder{grid-column:4/7}
+.campus-club-tag-builder>div{display:grid;grid-template-columns:1fr 34px}
+.campus-club-tag-builder>div input{border-radius:8px 0 0 8px}
+.campus-club-tag-builder>div button{display:grid;place-items:center;border:0;border-radius:0 8px 8px 0;background:#3c816b;color:#fff}
+.campus-club-tag-builder>aside{min-height:22px;display:flex;flex-wrap:wrap;gap:4px}
+.campus-club-tag-builder>aside button{padding:3px 6px;display:flex;align-items:center;gap:3px;border:0;border-radius:999px;background:#e3f1eb;color:#387761;font-size:6px}
+.campus-club-create-form>footer{margin-top:9px;display:flex;justify-content:flex-end;gap:6px}
+.campus-club-create-form>footer button{min-height:32px;padding:0 13px;border:1px solid #d4e2dc;border-radius:8px;background:#fff;color:#62786f;font-size:7px;font-weight:900}
+.campus-club-create-form>footer button:last-child{border-color:#357f68;background:#357f68;color:#fff}
+.campus-club-details{margin-top:7px;padding:7px 8px;display:flex;flex-direction:column;border-radius:8px;background:#f2f7f5}
+.campus-club-details b{color:#416c5f;font-size:7px}.campus-club-details span{margin-top:3px;color:#789087;font-size:6px}
+.campus-club-tags{margin-top:6px;display:flex;flex-wrap:wrap;gap:3px}.campus-club-tags span{padding:3px 5px;border-radius:999px;background:#edf5f2;color:#55776d;font-size:6px}
+
+@media(max-width:900px){
+  .campus-club-create-fields{grid-template-columns:repeat(2,1fr)}
+  .campus-club-description-field,.campus-club-tag-builder{grid-column:1/-1}
+}
+@media(max-width:620px){
+  .campus-club-create-fields{grid-template-columns:1fr}
+}
+
+/* Club room shared activities */
+.campus-club-room>nav{grid-template-columns:repeat(7,1fr)}
+.campus-club-room-layout.is-activities{grid-template-columns:minmax(0,1fr) 188px}
+.campus-club-room-layout.is-activities>main{height:440px;min-height:0;padding:12px;overflow:auto}
+.campus-club-room-layout.is-activities>aside{min-height:440px;padding:13px}
+.club-activity-board>header{padding:2px 2px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.club-activity-board>header>div{display:flex;flex-direction:column}
+.club-activity-board>header small{color:#47876f;font-size:6px;font-weight:900}
+.club-activity-board>header h3{margin:3px 0 0;color:#244d42;font-size:12px}
+.club-activity-board>header>span{padding:5px 7px;display:flex;align-items:center;gap:4px;border-radius:999px;background:#e7f4ef;color:#387961;font-size:6px;font-weight:850}
+.club-activity-sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.club-activity-sections>article{padding:10px;border:1px solid #dce7e2;border-radius:12px;background:#fff;transition:border-color .16s,box-shadow .16s}
+.club-activity-sections>article.focused{border-color:#6bad94;box-shadow:0 0 0 2px rgba(73,148,121,.09)}
+.club-activity-title{display:flex;align-items:flex-start;gap:7px;color:#3a816a}
+.club-activity-title>div{display:flex;flex-direction:column}
+.club-activity-title b{color:#294f44;font-size:8px}
+.club-activity-title small{margin-top:2px;color:#7c8d87;font-size:6px}
+.club-vote-list{margin-top:8px;display:grid;gap:4px}
+.club-vote-list>button{position:relative;min-height:34px;padding:5px 8px;display:flex;align-items:center;justify-content:space-between;overflow:hidden;border:1px solid #e1e9e6;border-radius:8px;background:#f8faf9;color:#496b61;text-align:left}
+.club-vote-list>button.selected{border-color:#65a98f;background:#edf7f3;color:#287158}
+.club-vote-list button>span,.club-vote-list button>span small{position:relative;z-index:1;display:block}
+.club-vote-list button>span{font-size:7px;font-weight:900}.club-vote-list button>span small{margin-top:2px;color:#84928d;font-size:5px;font-weight:500}
+.club-vote-list button>b{position:relative;z-index:1;font-size:7px}.club-vote-list button>i{position:absolute;bottom:0;left:0;width:var(--vote-width);height:2px;background:#55a183}
+.club-topic-options{margin-top:8px;display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
+.club-topic-options button{min-height:38px;padding:5px 7px;display:flex;align-items:center;justify-content:space-between;border:1px solid #e0e9e5;border-radius:9px;background:#f8faf9;color:#58736a;font-size:7px;font-weight:850}
+.club-topic-options button b{width:20px;height:20px;display:grid;place-items:center;border-radius:50%;background:#e5efeb;color:#47806d;font-size:6px}
+.club-topic-options button.selected{border-color:#4d977c;background:#e8f5f0;color:#246d54}
+.club-topic-options button.selected b{background:#42886f;color:#fff}
+.club-inline-form,.club-place-form{margin-top:8px;display:grid;grid-template-columns:1fr auto;gap:5px}
+.club-inline-form input,.club-place-form input,.club-intro-controls select,.club-intro-controls textarea{min-width:0;padding:7px 8px;border:1px solid #dbe6e1;border-radius:7px;background:#f9fbfa;color:#435f57;font:inherit;font-size:7px;outline:0}
+.club-inline-form button,.club-place-form button,.club-intro-controls button{padding:0 9px;border:0;border-radius:7px;background:#3c816a;color:#fff;font-size:6px;font-weight:900}
+.club-idea-list,.club-place-cards{margin-top:7px;display:grid;gap:4px}
+.club-idea-list p,.club-place-cards p{margin:0;padding:5px 7px;display:flex;align-items:center;justify-content:space-between;border-radius:7px;background:#f3f7f5;color:#526e65;font-size:6px}
+.club-idea-list p small{color:#89968f;font-size:5px}
+.club-idea-list p.empty,.club-place-cards p.empty{color:#8a9993}
+.club-place-form{grid-template-columns:.65fr 1fr auto}
+.club-place-cards p{justify-content:flex-start;gap:6px;color:#3d826b}
+.club-place-cards p span{display:flex;flex-direction:column}.club-place-cards p b{color:#46685e;font-size:6px}.club-place-cards p small{margin-top:2px;color:#84928d;font-size:5px}
+.club-activity-sections>.club-intro-maker{grid-column:1/-1;display:grid;grid-template-columns:190px 1fr;gap:8px}
+.club-intro-controls{display:grid;grid-template-columns:130px 75px 1fr auto;gap:5px}
+.club-intro-controls textarea{height:35px;padding:7px;resize:none}
+.club-latest-intro{grid-column:1/-1;margin:0;padding:6px 8px;display:flex;gap:8px;border-radius:7px;background:#f2f7f5;color:#658078;font-size:6px}
+.club-latest-intro b{color:#34775f}.club-latest-intro span{flex:1}
+
+@media(max-width:900px){
+  .campus-club-room-layout.is-activities{grid-template-columns:1fr}
+  .campus-club-room-layout.is-activities>main{height:auto;max-height:none}
+  .campus-club-room-layout.is-activities>aside{min-height:auto}
+}
+@media(max-width:700px){
+  .campus-club-room>nav{grid-template-columns:repeat(4,1fr)}
+  .club-activity-sections{grid-template-columns:1fr}
+  .club-activity-sections>.club-intro-maker{grid-column:auto;grid-template-columns:1fr}
+  .club-intro-controls{grid-template-columns:1fr auto}
+  .club-intro-controls textarea{grid-column:1/-1}
+  .club-place-form{grid-template-columns:1fr auto}.club-place-form input:nth-child(2){grid-column:1/2}
+}
