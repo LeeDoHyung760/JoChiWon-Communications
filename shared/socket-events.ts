@@ -1,8 +1,9 @@
-export type MapId = 'town' | 'bear-tree-park' | 'bear-play-zone' | 'garden' | 'campus' | 'government' | 'jochwon-station' | 'traditional-market' | 'jochwon-park' | 'college-street';
+export type MapId = 'town' | 'bear-tree-park' | 'bear-play-zone' | 'garden' | 'campus' | 'student-hall' | 'project-room' | 'government' | 'government-central-plaza' | 'government-policy-hall' | 'government-observatory' | 'sejong-smart-city' | 'jochwon-station' | 'traditional-market' | 'jochwon-park' | 'college-street';
 export type Direction = 'up' | 'down' | 'left' | 'right';
 export type MotionState = 'idle' | 'walk' | 'run';
+export type CharacterEmote = 'hi' | 'clapping' | 'talking';
 export type CharacterModel = 'custom' | 'chungnyeong' | 'girl1' | 'boy1' | 'cloths' | 'women';
-export interface Appearance { hair:string; hairStyle?:'hair1'|'hair2'|'both'; face:string; top:string; topLayer?:string; bottom:string; shoes:string; accessory?:string }
+export interface Appearance { hair:string; hairStyle?:'hair1'|'hair2'|'both'; topStyle?:'style1'|'style2'; bottomStyle?:'style1'|'style2'; shoesStyle?:'style1'|'style2'; outfitStyle?:'outfit1'|'outfit2'; face:string; top:string; topLayer?:string; bottom:string; shoes:string; accessory?:string }
 export interface PublicMatchProfile { mbti:string; interests:string[]; usagePurposes:string[]; preferredPlaceCategories:string[]; experienceRecords:string[] }
 export interface PlayerState { id:string; mapId:MapId; x:number; y:number; direction:Direction; isMoving:boolean; yaw:number; motionState:MotionState; jumpHeight?:number; timestamp:number; nickname:string; appearance:Appearance; model:CharacterModel; matchProfile?:PublicMatchProfile }
 export interface JoinMapPayload { mapId:MapId; nickname:string; appearance:Appearance; model:CharacterModel; x:number; y:number; matchProfile?:PublicMatchProfile }
@@ -10,7 +11,7 @@ export interface MovementPayload { mapId:MapId; x:number; y:number; direction:Di
 export interface RespawnPosition { x:number; z:number; yaw:number }
 export const FIXED_LAKE_RESPAWN:Readonly<RespawnPosition>={x:1870,z:1180,yaw:2.1};
 export interface PlayerResumeState extends RespawnPosition { mapId:MapId }
-export interface PortalPosition { destination:Extract<MapId,'town'|'bear-tree-park'|'garden'|'campus'|'government'>; x:number; z:number }
+export interface PortalPosition { destination:Extract<MapId,'town'|'bear-tree-park'|'garden'|'campus'|'project-room'|'government'|'government-central-plaza'|'government-policy-hall'|'government-observatory'|'sejong-smart-city'>; x:number; z:number }
 export interface BearTreePortalPositions { town:{x:number;z:number}; photo:{x:number;z:number} }
 export interface WorldInteractionPosition { destination:Extract<MapId,'bear-tree-park'|'bear-play-zone'>; x:number; z:number }
 export type LakeExperienceId = 'central-plaza' | 'activity-zone' | 'food-shop-zone' | 'wind-hill';
@@ -65,6 +66,8 @@ export interface BearExplorationState {
 export interface ServerToClientEvents {
  worldClock:(serverNow:number)=>void; respawnPositionUpdated:(position:RespawnPosition)=>void; portalPositionsUpdated:(positions:PortalPosition[])=>void; bearTreePortalPositionsUpdated:(positions:BearTreePortalPositions)=>void; interactionPositionsUpdated:(positions:WorldInteractionPosition[])=>void; lakeExperiencePositionsUpdated:(positions:LakeExperiencePosition[])=>void; campusFeaturePortalPositionsUpdated:(positions:CampusFeaturePortalPosition[])=>void; lakeWishesUpdated:(wishes:LakeWish[])=>void; lakeWishAdded:(wish:LakeWish)=>void; lakeDailyStatsUpdated:(stats:LakeDailyStats)=>void; currentMapUsers:(players:PlayerState[])=>void; userJoined:(player:PlayerState)=>void; userMoved:(player:PlayerState)=>void; userLeft:(id:string)=>void; onlineUsersUpdated:(players:PlayerState[])=>void;
  nearbyChat:(message:ChatMessage)=>void; nearbyChatHistory:(messages:ChatMessage[])=>void; directChatRequested:(request:DirectRequest)=>void; directChatRejected:(data:{requestId:string;byId:string})=>void; directChatStarted:(room:DirectRoom)=>void; directMessageReceived:(message:DirectMessage)=>void; directChatClosed:(data:{directRoomId:string;byId:string})=>void;
+ encounterFocusChanged:(data:{withId:string;active:boolean})=>void;
+ characterEmoteChanged:(data:{playerId:string;emote:CharacterEmote|null})=>void;
  directRecommendationStarted:(data:{directRoomId:string;stage:'analyzing'|'searching'})=>void; directRecommendationCompleted:(data:{directRoomId:string;message:DirectMessage})=>void; directRecommendationFailed:(data:{directRoomId:string;category:'permission'|'message_shortage'|'cooldown'|'openai'|'kakao_authentication'|'place_empty'|'network'|'unknown';message:string})=>void;
  directMeetingPlaceUpdated:(data:{roomId:string;meetingPlace:DirectRoomMeetingPlace|null})=>void;
  governmentSessionProposalUpdated:(proposal:GovernmentSessionProposal)=>void;
@@ -74,6 +77,8 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
  getRespawnPosition:(ack:(position:RespawnPosition)=>void)=>void; getPlayerResumeState:(ack:(position:PlayerResumeState|null)=>void)=>void; migrateBearTreePortalPositions:(positions:BearTreePortalPositions,ack:(result:{ok:boolean;positions:BearTreePortalPositions})=>void)=>void; joinMap:(payload:JoinMapPayload)=>void; changeMap:(payload:JoinMapPayload)=>void; updateMatchProfile:(profile:PublicMatchProfile)=>void; userMoved:(payload:MovementPayload)=>void; savePortalPosition:(position:PortalPosition)=>void; saveCampusFeaturePortalPosition:(position:CampusFeaturePortalPosition)=>void; saveInteractionPosition:(position:WorldInteractionPosition)=>void; saveLakeExperiencePosition:(position:LakeExperiencePosition)=>void; enterLakeExperience:(experience:LakeExperienceId)=>void; addLakeWish:(message:string,ack:(result:{ok:boolean;wish?:LakeWish;message?:string})=>void)=>void; sendNearbyChat:(message:string)=>void;
  directChatRequest:(toId:string)=>void; directChatAccept:(requestId:string)=>void; directChatReject:(requestId:string)=>void; directMessage:(data:{directRoomId:string;message:string})=>void; directChatClosed:(directRoomId:string)=>void;
+ encounterFocus:(data:{toId:string;active:boolean})=>void;
+ characterEmote:(emote:CharacterEmote|null)=>void;
  proposeGovernmentSession:(data:{directRoomId:string;activityTopic?:string})=>void; respondGovernmentSession:(data:{proposalId:string;accept:boolean})=>void;
  getGovernmentPlan:(data:{sessionId:string},ack:(result:{ok:boolean;plan?:GovernmentPlanState;message?:string})=>void)=>void; updateGovernmentPlan:(data:{sessionId:string;update:GovernmentPlanUpdate},ack?:(result:{ok:boolean;message?:string})=>void)=>void;
  createGroup:(data:{name:string;inviteeIds:string[]})=>void; joinGroup:(groupId:string)=>void; sendGroupChat:(data:{groupId:string;message:string})=>void;

@@ -7,6 +7,10 @@ const shortList = z.array(z.string().trim().min(1).max(50)).max(30);
 const characterSchema = z.object({
   hair: z.string().trim().min(1).max(80),
   hairStyle: z.enum(['hair1', 'hair2', 'both']).optional(),
+  topStyle: z.enum(['style1', 'style2']).optional(),
+  bottomStyle: z.enum(['style1', 'style2']).optional(),
+  shoesStyle: z.enum(['style1', 'style2']).optional(),
+  outfitStyle: z.enum(['outfit1', 'outfit2']).optional(),
   face: z.string().trim().min(1).max(80),
   top: z.string().trim().min(1).max(80),
   topLayer: z.string().trim().max(80).optional(),

@@ -13,9 +13,11 @@ server/.env.production
 !server/.env.example
 server/.data/
 server/greenhouse-public-memories.json
+server/nearby-chat.json
 client/.env
 client/.env.local
 *.log
+*.blend1
 .DS_Store
 Thumbs.db
 .agents/

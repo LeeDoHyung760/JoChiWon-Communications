@@ -26,6 +26,7 @@ import {
 
 import type { UserProfile } from './types';
 import type { GameReturnState } from './game/gameReturnState';
+import type { MapId } from '../shared/socket-events';
 import { loadAccountProfile, saveAccountProfile } from './services/accountProfile';
 
 const CharacterTestPage=lazy(()=>import('./pages/CharacterTestPage').then(module=>({default:module.CharacterTestPage})));
@@ -38,15 +39,19 @@ function DeferredPage({children}:{children:React.ReactNode}){
   return <Suspense fallback={<main className="deferred-page-loading" role="status"><span>🌿</span><b>페이지를 준비하고 있어요</b></main>}>{children}</Suspense>;
 }
 
-function ExperienceLoading(){
-  const tasks=['입장 위치 확인','호수공원 산책로 불러오기','캐릭터 배치','축제·공연 체험 연결','주변 사용자 연결'];
+function ExperienceLoading({mapId='town'}:{mapId?:MapId}){
+  const government=mapId==='government';
+  const place=government?'정부청사':'세종호수공원';
+  const tasks=government
+    ?['정부청사 입구 확인','정부청사 불러오기','캐릭터 배치','공동 계획 공간 연결','주변 사용자 연결']
+    :['입장 위치 확인','호수공원 산책로 불러오기','캐릭터 배치','축제·공연 체험 연결','주변 사용자 연결'];
   return <main className="experience-entry-loading" role="status" aria-live="polite">
     <div className="experience-entry-brand"><span>🧑🏻‍🌾</span><div><b>세종한바퀴</b><small>세종 소통형 체험 공간</small></div></div>
     <div className="experience-entry-center">
       <i/>
-      <span>세종호수공원</span>
-      <h1>세종호수공원으로 이동중...</h1>
-      <p>호수 산책로와 다양한 취향 체험을 준비하고 있어요.</p>
+      <span>{place}</span>
+      <h1>{place}로 이동중...</h1>
+      <p>{government?'함께 방문할 장소와 코스를 정할 공간을 준비하고 있어요.':'호수 산책로와 다양한 취향 체험을 준비하고 있어요.'}</p>
       <div className="experience-entry-tasks">{tasks.map((task,index)=><span key={task}>{index===0?'✓':'●'} {task}</span>)}</div>
       <div className="experience-entry-progress"><em/></div>
     </div>
@@ -253,6 +258,19 @@ export default function App() {
     );
   };
 
+  const enterWorld = (mapId:MapId) => {
+    const entryPoints:Partial<Record<MapId,GameReturnState>>={
+      'student-hall':{mapId:'student-hall',x:1200,z:1510,yaw:Math.PI},
+      'project-room':{mapId:'project-room',x:1200,z:1550,yaw:Math.PI},
+      government:{mapId:'government',x:1200,z:1500,yaw:Math.PI},
+      'government-central-plaza':{mapId:'government-central-plaza',x:1200,z:1530,yaw:0},
+      'government-observatory':{mapId:'government-observatory',x:1200,z:1380,yaw:Math.PI},
+      'sejong-smart-city':{mapId:'sejong-smart-city',x:1200,z:1580,yaw:Math.PI},
+    };
+    setGameReturnState(entryPoints[mapId]);
+    setPage('game');
+  };
+
   const openLogin = () => {
     setPage('login');
   };
@@ -337,6 +355,7 @@ export default function App() {
     return (
       <LandingPage
         onStart={startExperience}
+        onEnterWorld={enterWorld}
         onLogin={openLogin}
         onUserClick={() =>
           setPage('account')
@@ -483,7 +502,7 @@ export default function App() {
   }
 
   return (
-    <Suspense fallback={<ExperienceLoading/>}>
+    <Suspense fallback={<ExperienceLoading mapId={gameReturnState?.mapId}/>}>
       <GamePage
         profile={
           profile.nickname.trim()

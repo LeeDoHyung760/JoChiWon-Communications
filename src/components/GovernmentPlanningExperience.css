@@ -10,3 +10,79 @@
 .government-course-heading>button{padding:8px 11px;display:flex;align-items:center;gap:5px;border:1px solid #cfe0d7;border-radius:9px;background:#fff;color:#33775f;font-size:8px;font-weight:850}.government-course-heading svg{width:14px}.government-course-list{display:grid;gap:0}.government-course-list article{display:grid;grid-template-columns:53px 16px 1fr;gap:8px;min-height:115px}.government-course-list time{padding-top:9px;color:#2d755d;font-size:12px;font-weight:950}.course-line{position:relative;width:2px;height:100%;background:#b8dacb}.course-line:before{content:"";position:absolute;left:50%;top:11px;width:11px;height:11px;transform:translateX(-50%);border:3px solid #fff;border-radius:50%;background:#499476;box-shadow:0 0 0 2px #8dc5ad}.government-course-list article>div{margin-bottom:10px;padding:12px 14px;border:1px solid #dce8e2;border-radius:14px;background:#fff}.government-course-list article small{color:#4c987b;font-size:7px;font-weight:900}.government-course-list h3{margin:3px 0;font-size:13px}.government-course-list p{margin:0;color:#6f837c;font-size:8px;line-height:1.5}.government-course-list footer{margin-top:9px;display:flex;gap:5px}.government-course-list footer button{padding:5px 7px;display:flex;align-items:center;gap:3px;border:1px solid #dbe6e1;border-radius:7px;background:#f8faf9;color:#5d766d;font-size:7px}.government-course-list footer svg{width:11px}.government-final{margin-top:10px;padding:13px;display:grid;grid-template-columns:1.25fr repeat(4,1fr);align-items:center;gap:7px;border-radius:15px;background:#1e4a3e;color:#fff}.government-final>div{display:flex;flex-direction:column}.government-final b{margin-top:3px;font-size:9px}.government-final button{min-height:39px;padding:6px;display:flex;align-items:center;justify-content:center;gap:4px;border:0;border-radius:9px;background:#fff;color:#2f6c57;font-size:7px;font-weight:900}.government-final button:disabled{opacity:.4}.government-final svg{width:13px}.government-empty-course{height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center}.government-empty-course>svg{width:48px;height:48px;color:#60a98c}.government-empty-course h2{margin:12px 0 5px}.government-empty-course p{color:#71867e;font-size:9px}.government-empty-course button{margin-top:10px;padding:10px 14px;border:0;border-radius:10px;background:#2f765e;color:#fff;font-size:9px;font-weight:900}
 @media(max-width:1100px){.government-planner{left:18px;right:18px}.government-theme-grid{grid-template-columns:repeat(2,1fr)}.government-condition-grid{grid-template-columns:repeat(2,1fr)}.government-final{grid-template-columns:1fr 1fr}.government-final>div{grid-column:1/-1}}
 @media(max-width:700px){.government-planner{inset:70px 10px 82px}.government-planner-header p{display:none}.government-planner>nav{padding:7px}.government-planner>nav button{font-size:0}.government-planner>nav button span{font-size:9px}.government-planner-body{padding:13px}.government-theme-grid{grid-template-columns:1fr 1fr}.government-map-layout{grid-template-columns:1fr}.government-map-layout>aside{flex-direction:row;overflow:auto}.government-map-layout>aside button{white-space:nowrap}.government-selection-summary{grid-template-columns:1fr}.government-condition-grid{grid-template-columns:1fr 1fr}}
+.government-planner.is-overview{inset:18px;z-index:110;border:0;border-radius:28px;background:#f7fbff;box-shadow:0 30px 100px #0e365848}
+.government-planner.is-overview .government-planner-body{padding:0;overflow:auto}
+.government-planner-header{position:relative}
+.government-planner-header>.government-brand{width:auto;height:auto;display:flex;align-items:center;gap:11px;padding:0;border:0;border-radius:0;background:transparent;color:inherit;text-align:left}
+.government-planner>nav{grid-template-columns:repeat(5,1fr)}
+.government-brand>span{width:46px;height:46px;display:grid;place-items:center;border-radius:14px;background:linear-gradient(145deg,#69b89b,#d5ed99);box-shadow:inset 0 0 0 1px #ffffff55}
+.government-brand>span svg{width:25px}
+.government-brand small{display:block}
+.government-brand h1{font-size:21px}
+.government-header-copy{position:absolute;left:50%;display:flex;flex-direction:column;align-items:center;transform:translateX(-50%);font-size:9px;color:#d5ebe3}
+.government-header-copy b{font-size:10px;color:#fff}
+.government-close{width:36px;height:36px;display:grid;place-items:center;border:0;border-radius:50%;background:#ffffff18;color:#fff}
+.government-overview{min-height:100%;display:grid;grid-template-columns:minmax(0,1fr) 226px;background:linear-gradient(135deg,#f8fbff 0%,#eef6fb 54%,#f8fbff 100%)}
+.government-overview-main{min-width:0;padding:16px}
+.government-hero{position:relative;min-height:390px;overflow:hidden;border-radius:24px;background:#dceaf2;box-shadow:0 20px 45px #26507120}
+.government-hero>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.government-hero-shade{position:absolute;inset:0;background:linear-gradient(90deg,#eff6f9ed 0%,#eff6f9a3 18%,transparent 43%),linear-gradient(0deg,#18364b45,transparent 35%)}
+.government-hero-intro{position:absolute;z-index:2;left:25px;top:30px;width:220px;color:#193b59}
+.government-eyebrow{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid #6ba3d577;border-radius:99px;background:#ffffffb8;color:#3479b6;font-size:7px;font-weight:950;letter-spacing:.11em}
+.government-eyebrow svg{width:11px;height:11px}
+.government-hero-intro h2{margin:10px 0 8px;font-size:29px;line-height:1.08;letter-spacing:-.06em}
+.government-hero-intro h2 em{color:#2f7db7;font-style:normal}
+.government-hero-intro p{margin:0;color:#5c7487;font-size:9px;line-height:1.65}
+.government-flow{position:absolute;z-index:3;right:18px;top:17px;width:310px;padding:11px 14px;border:1px solid #ffffffa8;border-radius:17px;background:#ffffffde;color:#284e68;box-shadow:0 12px 30px #244c6d1e;backdrop-filter:blur(9px)}
+.government-flow>b{display:block;margin-bottom:8px;text-align:center;font-size:9px}
+.government-flow>div{display:flex;align-items:center;justify-content:space-between}
+.government-flow>div>span{display:flex;flex-direction:column;align-items:center;font-size:17px}
+.government-flow small{margin-top:2px;color:#60798a;font-size:6px;font-weight:850}
+.government-flow svg{width:12px;color:#79a3c0}
+.government-hotspot{position:absolute;z-index:4;min-width:128px;padding:9px 11px 9px 38px;border:1px solid currentColor;border-radius:13px;background:#ffffffed;color:#2f7fbd;text-align:left;box-shadow:0 8px 22px #284b6530;transition:.2s ease}
+.government-hotspot:hover{transform:translateY(-3px);box-shadow:0 12px 28px #284b6540}
+.government-hotspot>span{position:absolute;left:9px;top:50%;width:21px;height:21px;display:grid;place-items:center;transform:translateY(-50%);border-radius:50%;background:currentColor;color:#fff;font-size:8px;font-weight:950}
+.government-hotspot b,.government-hotspot small{display:block}
+.government-hotspot b{font-size:9px}.government-hotspot small{margin-top:2px;color:#607282;font-size:7px}
+.government-hotspot:after{content:"";position:absolute;left:50%;bottom:-8px;width:14px;height:14px;transform:translateX(-50%) rotate(45deg);border-right:1px solid currentColor;border-bottom:1px solid currentColor;background:#fff}
+.spot-one{left:43%;top:18%}.spot-two{left:19%;top:39%;color:#6a9946}.spot-three{right:20%;top:44%;color:#7655bb}.spot-four{right:5%;bottom:20%;color:#d48c27}
+.government-start-orb{position:absolute;z-index:4;left:50%;bottom:10%;width:92px;height:92px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;transform:translateX(-50%);border:1px solid #e8fbff;border-radius:50%;background:#eafaffd9;color:#247ea6;box-shadow:0 0 0 10px #69d9f544,0 0 40px #38bdea9e;backdrop-filter:blur(4px);font-size:8px;font-weight:950}
+.government-start-orb svg{width:25px}
+.government-experience-grid{margin-top:13px;display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+.government-experience-grid>button{overflow:hidden;padding:0;border:1px solid #dce9f1;border-radius:16px;background:#fff;color:#27465b;text-align:left;box-shadow:0 8px 22px #1f526d10;transition:.2s ease}
+.government-experience-grid>button:hover{transform:translateY(-3px);box-shadow:0 13px 28px #1f526d20}
+.experience-head{height:49px;padding:8px 10px;display:flex;align-items:center;gap:8px;background:#eff7ff}
+.experience-head>span{width:23px;height:23px;display:grid;place-items:center;border-radius:50%;background:#3e8ac8;color:#fff;font-size:8px;font-weight:950}
+.experience-head>div{display:flex;flex:1;flex-direction:column}.experience-head small{color:#6e8ca1;font-size:6px}.experience-head b{font-size:9px}.experience-head svg{width:14px;color:#6a8da6}
+.experience-visual{height:77px;padding:13px;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#183f5c,#2d6d91);color:#fff}
+.experience-visual>svg{width:30px;height:30px;flex:0 0 auto;color:#8bdcff}.experience-visual p{margin:0;color:#d8e9f2;font-size:7px;line-height:1.55}.experience-visual b{color:#fff;font-size:8px}
+.government-experience-grid footer{padding:8px 10px;display:flex;justify-content:space-between;color:#648092;font-size:6px}.government-experience-grid footer span{display:flex;align-items:center;gap:4px}.government-experience-grid footer svg{width:11px}.government-experience-grid footer strong{color:#3d83b6;font-size:7px}
+.government-experience-grid .green .experience-head{background:#f0f8e8}.government-experience-grid .green .experience-head>span{background:#71a84b}.government-experience-grid .green .experience-visual{background:linear-gradient(135deg,#25594d,#579477)}.government-experience-grid .green .experience-visual>svg{color:#b6edc8}
+.government-experience-grid .violet .experience-head{background:#f4f0ff}.government-experience-grid .violet .experience-head>span{background:#795cc2}.government-experience-grid .violet .experience-visual{background:linear-gradient(135deg,#352d63,#6955a3)}.government-experience-grid .violet .experience-visual>svg{color:#d0c4ff}
+.government-experience-grid .orange .experience-head{background:#fff5e8}.government-experience-grid .orange .experience-head>span{background:#d58d2c}.government-experience-grid .orange .experience-visual{background:linear-gradient(135deg,#7b4927,#c18342)}.government-experience-grid .orange .experience-visual>svg{color:#ffe3a9}
+.government-profile{padding:19px 16px;display:flex;align-items:center;flex-direction:column;border-left:1px solid #dbe9f2;background:#ffffffc9;text-align:center}
+.profile-title{width:100%;padding-bottom:12px;border-bottom:1px solid #e3edf3}.profile-title small{color:#4b91c2;font-size:6px;font-weight:950;letter-spacing:.12em}.profile-title h3{margin:3px 0 0;color:#28638c;font-size:15px}
+.profile-avatar{width:72px;height:72px;margin-top:17px;display:grid;place-items:center;border:7px solid #edf5f9;border-radius:25px;background:linear-gradient(145deg,#f2c69e,#8f5e45);color:#fff;font-size:28px;font-weight:950;box-shadow:0 8px 20px #385e7428}
+.government-profile>b{margin-top:8px;color:#26495f;font-size:12px}.government-profile>span{margin-top:3px;color:#79909e;font-size:7px}
+.government-profile dl{width:100%;margin:15px 0 0;padding:12px;border-radius:14px;background:#f2f7fb;text-align:left}.government-profile dl>div+div{margin-top:9px}.government-profile dt{color:#6c8799;font-size:6px;font-weight:850}.government-profile dd{margin:2px 0 0;color:#31546a;font-size:8px;font-weight:850}
+.government-progress{width:100%;margin-top:13px;padding:11px;border:1px solid #e0eaf0;border-radius:13px}.government-progress>div{display:flex;justify-content:space-between;color:#537286;font-size:7px}.government-progress i{height:5px;margin-top:7px;display:block;overflow:hidden;border-radius:9px;background:#e5edf2}.government-progress i span{height:100%;display:block;border-radius:inherit;background:linear-gradient(90deg,#4b96d0,#74cbb5)}
+.government-ai-card{width:100%;margin-top:13px;padding:14px;border-radius:16px;background:linear-gradient(145deg,#eaf5ff,#dfeefe);text-align:left}.government-ai-card>span{display:flex;align-items:center;gap:4px;color:#4386b8;font-size:7px;font-weight:900}.government-ai-card>span svg{width:12px}.government-ai-card h4{margin:8px 0 4px;color:#245f8d;font-size:13px;line-height:1.25}.government-ai-card p{min-height:28px;margin:0;color:#6b8599;font-size:6px;line-height:1.5}.government-ai-card button{width:100%;height:34px;margin-top:10px;padding:0 11px;display:flex;align-items:center;justify-content:space-between;border:0;border-radius:9px;background:#337ec2;color:#fff;font-size:8px;font-weight:900}.government-ai-card button svg{width:14px}
+.government-live{margin:auto 0 0!important;color:#7b919e!important;font-size:6px!important}.government-live i{width:6px;height:6px;display:inline-block;border-radius:50%;background:#54b982;box-shadow:0 0 0 3px #54b98222}
+@media(max-width:1000px){
+  .government-overview{grid-template-columns:1fr}
+  .government-profile{display:grid;grid-template-columns:90px 1fr 1fr;gap:10px;text-align:left;border-top:1px solid #dbe9f2;border-left:0}
+  .government-profile .profile-title{grid-column:1/-1}.government-profile .profile-avatar{grid-row:2/4;margin:0}
+  .government-profile>b,.government-profile>span{margin:0}.government-profile dl{grid-column:2/4;margin:0}.government-profile dl>div{display:inline-block;width:33%;vertical-align:top}
+  .government-profile dl>div+div{margin-top:0}.government-progress,.government-ai-card{margin:0}.government-live{display:none}
+}
+@media(max-width:700px){
+  .government-planner.is-overview{inset:8px;border-radius:20px}
+  .government-header-copy,.government-flow{display:none}
+  .government-overview-main{padding:9px}.government-hero{min-height:430px}
+  .government-hero-intro{left:17px;top:20px}.government-hero-intro h2{font-size:25px}
+  .government-hotspot{min-width:116px;padding-left:34px}.spot-one{left:42%;top:28%}.spot-two{left:5%;top:47%}.spot-three{right:4%;top:55%}.spot-four{right:5%;bottom:7%}
+  .government-start-orb{left:42%;bottom:19%;width:75px;height:75px}
+  .government-experience-grid{grid-template-columns:1fr 1fr}
+  .government-profile{display:flex;text-align:center}.government-profile dl{width:100%}.government-profile dl>div{display:block;width:100%}.government-profile dl>div+div{margin-top:9px}
+  .government-progress,.government-ai-card{margin-top:12px}
+}

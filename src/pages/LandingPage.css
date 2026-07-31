@@ -187,3 +187,6 @@
 .guide-world-experiences svg{flex:0 0 auto;color:#25a17d}
 @media(max-width:900px){.guide-world-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.guide-world-grid{grid-template-columns:1fr}.guide-home-route>div{grid-template-columns:1fr 1fr}}
+.welcome-world-journey .welcome-place-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:900px){.welcome-world-journey .welcome-place-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.welcome-world-journey .welcome-place-grid{grid-template-columns:1fr}}
