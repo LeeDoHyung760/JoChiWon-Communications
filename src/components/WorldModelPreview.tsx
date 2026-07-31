@@ -14,14 +14,17 @@ export function WorldModelPreview({src,poster,name}:{src:string;poster:string;na
     viewer.poster=poster;
     viewer.alt=`${name} 3D 월드 모형`;
     viewer.cameraControls=true;
-    viewer.autoRotate=true;
+    const centralPlazaFront=name==='정부청사 중앙광장';
+    viewer.autoRotate=!centralPlazaFront;
     viewer.autoRotateDelay=1200;
     viewer.setAttribute('rotation-per-second','8deg');
     viewer.environmentImage='neutral';
     viewer.shadowIntensity=1;
     viewer.shadowSoftness=.8;
     viewer.loading='eager';
-    viewer.setAttribute('camera-orbit','42deg 62deg auto');
+    // The central plaza's official front is the open glass entrance looking
+    // through the hologram toward the three administrative Web UI panels.
+    viewer.setAttribute('camera-orbit',centralPlazaFront?'42deg 62deg auto':'42deg 62deg auto');
     viewer.setAttribute('field-of-view','28deg');
     viewer.setAttribute('interaction-prompt','auto');
     viewer.setAttribute('touch-action','pan-y');

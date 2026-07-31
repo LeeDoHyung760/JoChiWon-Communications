@@ -14,7 +14,7 @@ import { buildExperienceRecommendationProfile } from '../services/experienceReco
 import chungnyeongUrl from '../assets/characters/chungnyeong.glb?url'
 import girl1Url from '../assets/characters/girl_metaverse_animated.glb?url'
 import boy1Url from '../assets/characters/boy_metaverse.glb?url'
-import clothsUrl from '../assets/characters/cloths_rig.glb?url'
+import clothsUrl from '../assets/characters/men_total.glb?url'
 import womenUrl from '../assets/characters/women_total.glb?url'
 
 import type {
@@ -44,8 +44,8 @@ const interestPlaceMap:Record<string,string[]>={
 const modelOptions: Array<{id: CharacterModel; label: string; description: string}> = [
   {id: 'girl1', label: 'girl1', description: '3D 여성형 모델'},
   {id: 'boy1', label: 'boy1', description: '3D 남성형 모델'},
-  {id: 'cloths', label: '남성형 2', description: '확장형 3D 남성 모델'},
-  {id: 'women', label: '여성형 2', description: '신규 3D 여성형 모델'}
+  {id: 'women', label: '여성형 2', description: '신규 3D 여성형 모델'},
+  {id: 'cloths', label: '남성형 2', description: '확장형 3D 남성 모델'}
 ];
 
 const modelUrls: Record<Exclude<CharacterModel, 'custom'>, string> = {
@@ -57,9 +57,13 @@ const modelUrls: Record<Exclude<CharacterModel, 'custom'>, string> = {
 };
 
 function normalizeCharacterForModel(model:CharacterModel,character:UserProfile['character']):UserProfile['character']{
+  const legacyGarmentStyle=character?.outfitStyle==='outfit2'?'style2':'style1';
   const safeCharacter={
     hair:character?.hair||'hair-brown',
-    hairStyle:character?.hairStyle??'hair1',
+    hairStyle:(character?.hairStyle==='hair2'?'hair2':'hair1') as 'hair1'|'hair2',
+    topStyle:character?.topStyle??legacyGarmentStyle,
+    bottomStyle:character?.bottomStyle??legacyGarmentStyle,
+    shoesStyle:character?.shoesStyle??legacyGarmentStyle,
     face:character?.face||'face-smile',
     top:character?.top||'top-green',
     topLayer:character?.topLayer==='topLayer-original'?'top-layer-original':character?.topLayer||'top-layer-original',
@@ -143,14 +147,15 @@ export function CreateProfilePage({initial,initialStep=1,editMode=false,cancelLa
   };
 
   const part = (k: PartKind, id: string) => setP(current=>({...current, character: {...current.character, [k]: id}}));
-  const selectHairStyle = (hairStyle:'hair1'|'hair2'|'both') => setP(current=>({...current,character:{...current.character,hairStyle}}));
+  const selectHairStyle = (hairStyle:'hair1'|'hair2') => setP(current=>({...current,character:{...current.character,hairStyle}}));
+  const selectGarmentStyle = (kind:'topStyle'|'bottomStyle'|'shoesStyle',style:'style1'|'style2') => setP(current=>({...current,character:{...current.character,[kind]:style}}));
   const selectModel = (model: CharacterModel) => setP(current=>({
     ...current,
     model,
     character:model==='cloths'
-      ?{...current.character,hair:'hair-original',face:'face-original',top:'top-original',topLayer:'top-layer-original',bottom:'bottom-original',shoes:'shoes-original',accessory:'accessory-original'}
+      ?{...current.character,hair:'hair-original',hairStyle:'hair1',topStyle:'style1',bottomStyle:'style1',shoesStyle:'style1',face:'face-original',top:'top-original',topLayer:'top-layer-original',bottom:'bottom-original',shoes:'shoes-original',accessory:'accessory-none'}
       :model==='women'
-        ?{...current.character,hair:'hair-original',hairStyle:'hair1',face:'face-original',top:'top-original',topLayer:'top-layer-original',bottom:'bottom-original',shoes:'shoes-original',accessory:'accessory-none'}
+        ?{...current.character,hair:'hair-original',hairStyle:'hair1',topStyle:'style1',bottomStyle:'style1',shoesStyle:'style1',face:'face-original',top:'top-original',topLayer:'top-layer-original',bottom:'bottom-original',shoes:'shoes-original',accessory:'accessory-none'}
       :model==='girl1'&&current.model!=='girl1'
         ?{...current.character,hair:'hair-original',face:'face-original',top:'top-original',bottom:'bottom-original',shoes:'shoes-original',accessory:'accessory-none'}
       :model==='boy1'&&current.model!=='boy1'
@@ -166,6 +171,7 @@ export function CreateProfilePage({initial,initialStep=1,editMode=false,cancelLa
         character={p.character}
         part={part}
         selectHairStyle={selectHairStyle}
+        selectGarmentStyle={selectGarmentStyle}
         selectModel={selectModel}
         onSubmit={() => onComplete(profileForSave(p))}
         editMode={editMode}

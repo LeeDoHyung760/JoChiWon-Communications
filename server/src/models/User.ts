@@ -81,6 +81,10 @@ const userSchema = new Schema(
       character: {
         hair: { type: String, default: 'hair-original' },
         hairStyle: { type: String, enum: ['hair1', 'hair2', 'both'] },
+        topStyle: { type: String, enum: ['style1', 'style2'], default: 'style1' },
+        bottomStyle: { type: String, enum: ['style1', 'style2'], default: 'style1' },
+        shoesStyle: { type: String, enum: ['style1', 'style2'], default: 'style1' },
+        outfitStyle: { type: String, enum: ['outfit1', 'outfit2'], default: 'outfit1' },
         face: { type: String, default: 'face-original' },
         top: { type: String, default: 'top-original' },
         topLayer: String,
@@ -93,7 +97,7 @@ const userSchema = new Schema(
     lastPosition: {
       mapId: {
         type: String,
-        enum: ['town', 'bear-tree-park', 'bear-play-zone', 'garden', 'campus', 'government', 'jochwon-station', 'traditional-market', 'jochwon-park', 'college-street'],
+        enum: ['town', 'bear-tree-park', 'bear-play-zone', 'garden', 'campus', 'student-hall', 'project-room', 'government', 'government-central-plaza', 'government-policy-hall', 'government-observatory', 'sejong-smart-city', 'jochwon-station', 'traditional-market', 'jochwon-park', 'college-street'],
       },
       x: Number,
       z: Number,

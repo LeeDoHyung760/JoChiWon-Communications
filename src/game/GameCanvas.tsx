@@ -9,7 +9,7 @@ import { GreenhouseExperience } from '../components/GreenhouseExperience';
 import { ChungnyeongNotebook } from '../components/ChungnyeongNotebook';
 import { NatureDiscoveryGuide } from '../components/NatureDiscoveryGuide';
 import { BearHabitatDesignExperience } from '../components/BearHabitatDesignExperience';
-import { BEAR_PLAY_ZONE_RENDERER_OPTIONS,BEAR_TREE_PARK_RENDERER_OPTIONS,CAMPUS_RENDERER_OPTIONS,GARDEN_RENDERER_OPTIONS,GOVERNMENT_RENDERER_OPTIONS,LAKE_PARK_RENDERER_OPTIONS,LAKE_PARK_SPAWN,preloadBearTreeParkDownload,VillageMapRenderer,WORLD_RENDERER_LAYOUT_TOKEN } from './renderers/VillageMapRenderer';
+import { BEAR_PLAY_ZONE_RENDERER_OPTIONS,BEAR_TREE_PARK_RENDERER_OPTIONS,CAMPUS_RENDERER_OPTIONS,GARDEN_RENDERER_OPTIONS,GOVERNMENT_CENTRAL_PLAZA_RENDERER_OPTIONS,GOVERNMENT_OBSERVATORY_RENDERER_OPTIONS,GOVERNMENT_RENDERER_OPTIONS,LAKE_PARK_RENDERER_OPTIONS,LAKE_PARK_SPAWN,preloadBearTreeParkDownload,PROJECT_ROOM_RENDERER_OPTIONS,SEJONG_SMART_CITY_RENDERER_OPTIONS,STUDENT_HALL_RENDERER_OPTIONS,VillageMapRenderer,WORLD_RENDERER_LAYOUT_TOKEN } from './renderers/VillageMapRenderer';
 import type { MapId,RespawnPosition } from '../../shared/socket-events';
 import { buildExperienceRecommendationProfile,recordMapExperience } from '../services/experienceRecommendationProfile';
 import type { GameReturnState } from './gameReturnState';
@@ -20,18 +20,24 @@ const MAP_LOADING_COPY:Record<MapId,{place:string;title:string;description:strin
   'bear-play-zone':{place:'AI 탐험 연구소',title:'AI 탐험 연구소로 이동중...',description:'두 곰의 특성과 제한된 서식 자원 설계를 준비하고 있어요.',tasks:['연구소 입구 확인','두 곰 조사 카드 준비','동굴·먹이·물가 연결','돌발 상황 생성','의사결정 분석 준비']},
   garden:{place:'수목원',title:'수목원으로 이동중...',description:'정원과 온실의 식물 탐험을 준비하고 있어요.',tasks:['수목원 입구 확인','정원과 온실 불러오기','탐험 캐릭터 배치','식물도감 기록 연결','주변 탐험가 연결']},
   campus:{place:'공동캠퍼스',title:'공동캠퍼스로 이동중...',description:'관심사가 비슷한 이웃과 만날 캠퍼스를 준비하고 있어요.',tasks:['캠퍼스 입구 확인','공동캠퍼스 불러오기','캐릭터 배치','관심사·동아리 연결','다른 사용자 연결']},
+  'student-hall':{place:'학생회관',title:'학생회관으로 이동중...',description:'캠퍼스 이웃과 만날 학생회관 로비를 준비하고 있어요.',tasks:['학생회관 입구 확인','학생회관 불러오기','캐릭터 배치','로비 동선 연결','다른 사용자 연결']},
+  'project-room':{place:'프로젝트실',title:'프로젝트실로 이동중...',description:'함께 아이디어를 구체화할 프로젝트 공간을 준비하고 있어요.',tasks:['프로젝트실 입구 확인','프로젝트실 불러오기','캐릭터 배치','공동 작업 공간 연결','주변 사용자 연결']},
   government:{place:'정부청사',title:'정부청사로 이동중...',description:'함께 방문할 장소와 코스를 정할 공간을 준비하고 있어요.',tasks:['정부청사 입구 확인','정부청사 불러오기','캐릭터 배치','공동 계획 공간 연결','다른 사용자 연결']},
+  'government-central-plaza':{place:'중앙광장',title:'중앙광장으로 이동중...',description:'AI 세종 추천센터와 행정 안내 공간을 준비하고 있어요.',tasks:['중앙광장 입구 확인','중앙광장 GLB 불러오기','캐릭터 배치','AI 추천센터 연결','정부청사 귀환 포탈 연결']},
+  'government-policy-hall':{place:'정책 체험관',title:'정책 체험관으로 이동중...',description:'세종의 정책을 살펴보고 의견을 남길 공간을 준비하고 있어요.',tasks:['정책 체험관 입구 확인','행정 체험 공간 구성','캐릭터 배치','정책 안내 연결','정부청사 귀환 동선 연결']},
+  'government-observatory':{place:'전망대',title:'전망대로 이동중...',description:'세종의 전경을 한눈에 볼 전망 공간을 준비하고 있어요.',tasks:['전망대 입구 확인','전망 공간 구성','캐릭터 배치','전경 안내 연결','정부청사 귀환 동선 연결']},
+  'sejong-smart-city':{place:'세종 스마트시티 국가시범도시',title:'스마트시티로 이동중...',description:'AI와 데이터로 연결된 세종 5-1 생활권 미래 전시관을 준비하고 있어요.',tasks:['전시관 입구 확인','스마트시티 전시관 GLB 불러오기','캐릭터 배치','AI·모빌리티·에너지 전시 연결','정부청사 귀환 포탈 연결']},
   'jochwon-station':{place:'조치원역',title:'조치원역으로 이동중...',description:'세종 여행을 시작할 역 광장을 준비하고 있어요.',tasks:['도착 위치 확인','조치원역 광장 불러오기','캐릭터 배치','지역 이동 정보 연결','주변 사용자 연결']},
   'traditional-market':{place:'세종전통시장',title:'세종전통시장으로 이동중...',description:'먹거리와 골목 상점을 둘러볼 시장을 준비하고 있어요.',tasks:['시장 입구 확인','시장 골목 불러오기','캐릭터 배치','맛집·상점 정보 연결','주변 방문자 연결']},
   'jochwon-park':{place:'조치원공원',title:'조치원공원으로 이동중...',description:'천천히 산책하고 쉴 수 있는 공원을 준비하고 있어요.',tasks:['공원 입구 확인','산책로와 쉼터 불러오기','캐릭터 배치','공원 체험 연결','주변 산책자 연결']},
   'college-street':{place:'대학로',title:'대학로로 이동중...',description:'청년 문화와 개성 있는 가게가 모인 거리를 준비하고 있어요.',tasks:['거리 입구 확인','대학로 상점 불러오기','캐릭터 배치','문화·상점 정보 연결','주변 사용자 연결']},
 };
 
-const rendererOptionsFor=(mapId:MapId)=>mapId==='town'?LAKE_PARK_RENDERER_OPTIONS:mapId==='bear-tree-park'?BEAR_TREE_PARK_RENDERER_OPTIONS:mapId==='bear-play-zone'?BEAR_PLAY_ZONE_RENDERER_OPTIONS:mapId==='garden'?GARDEN_RENDERER_OPTIONS:mapId==='campus'?CAMPUS_RENDERER_OPTIONS:mapId==='government'?GOVERNMENT_RENDERER_OPTIONS:undefined;
+const rendererOptionsFor=(mapId:MapId)=>mapId==='town'?LAKE_PARK_RENDERER_OPTIONS:mapId==='bear-tree-park'?BEAR_TREE_PARK_RENDERER_OPTIONS:mapId==='bear-play-zone'?BEAR_PLAY_ZONE_RENDERER_OPTIONS:mapId==='garden'?GARDEN_RENDERER_OPTIONS:mapId==='campus'?CAMPUS_RENDERER_OPTIONS:mapId==='student-hall'?STUDENT_HALL_RENDERER_OPTIONS:mapId==='project-room'?PROJECT_ROOM_RENDERER_OPTIONS:mapId==='government'?GOVERNMENT_RENDERER_OPTIONS:mapId==='government-central-plaza'?GOVERNMENT_CENTRAL_PLAZA_RENDERER_OPTIONS:mapId==='government-observatory'?GOVERNMENT_OBSERVATORY_RENDERER_OPTIONS:mapId==='sejong-smart-city'?SEJONG_SMART_CITY_RENDERER_OPTIONS:undefined;
 
 export const GameCanvas=memo(function GameCanvas({profile,returnState}:{profile:UserProfile;returnState?:GameReturnState}){
   const [entrySpawn,setEntrySpawn]=useState<RespawnPosition|undefined>(()=>returnState);
-  const ref=useRef<HTMLDivElement>(null),[loading,setLoading]=useState(true),[loadingMapId,setLoadingMapId]=useState<MapId>('town'),[loadError,setLoadError]=useState('');
+  const ref=useRef<HTMLDivElement>(null),[loading,setLoading]=useState(true),[loadingMapId,setLoadingMapId]=useState<MapId>(()=>returnState?.mapId??'town'),[loadError,setLoadError]=useState('');
   const loadingCopy=MAP_LOADING_COPY[loadingMapId];
   useEffect(()=>{
     if(returnState){setEntrySpawn(returnState);return}
