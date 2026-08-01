@@ -7,6 +7,9 @@ import { GovernmentPlanningExperience } from '../components/GovernmentPlanningEx
 import { ProjectRoomInteractions } from '../components/ProjectRoomInteractions';
 import { GovernmentCentralPlazaWebUI } from '../components/GovernmentCentralPlazaWebUI';
 import { ObservatoryTelescopeInteraction } from '../components/ObservatoryTelescopeInteraction';
+import { FoodTruckExperience } from '../components/FoodTruckExperience';
+import { ArtsCenterPosterKiosk } from '../components/ArtsCenterPosterKiosk';
+import { ArtsCenterStageVideo } from '../components/ArtsCenterStageVideo';
 import type { GameReturnState } from '../game/gameReturnState';
 import { CAMPUS_FRIEND_NPCS } from '../data/campusNpc';
 import { PROJECT_ROOM_NPC } from '../data/projectRoomNpc';
@@ -48,6 +51,28 @@ export function GamePage({profile,returnState,onExit,onEditProfile,onOpenCommuni
  const [encounter,setEncounter]=useState<CharacterEncounter|null>(null),[nearbyNpcScreen,setNearbyNpcScreen]=useState<NpcScreenPosition|null>(null);
  const [pendingDirectTarget,setPendingDirectTarget]=useState<PlayerState|null>(null);
  useEffect(()=>{if(!notice)return;const timer=window.setTimeout(()=>setNotice(''),2000);return()=>window.clearTimeout(timer)},[notice]);
+ const saveRespawn=()=>{
+   if(normalizePlaceName(location)!=='세종호수공원'){window.alert('세종호수공원 안에서만 설정할 수 있어요.');return}
+   if(!window.confirm('현재 캐릭터 위치를 모든 사용자의 세종호수공원 리스폰 위치로 고정할까요?'))return;
+   let completed=false;
+   const timeout=window.setTimeout(()=>{
+    if(completed)return;
+    completed=true;
+    window.alert('리스폰 저장 응답이 없습니다. 변경된 서버 코드를 재시작한 뒤 다시 시도해 주세요.');
+   },5000);
+   socket.emit('saveCurrentPositionAsRespawn',result=>{
+    if(completed)return;
+    completed=true;window.clearTimeout(timeout);
+    if(!result.ok){window.alert(result.message);return}
+    socket.emit('getRespawnPosition',saved=>{
+     const verified=!!result.position&&saved.x===result.position.x&&saved.z===result.position.z;
+     const message=verified
+      ?`${result.message}\n\n다음 세종호수공원 입장부터 이 위치에서 시작합니다.`
+      :'서버 저장값을 다시 확인하지 못했습니다. 서버를 재시작한 뒤 다시 시도해 주세요.';
+     setNotice(message);window.alert(message);
+    });
+   });
+ };
  useEffect(()=>{const locked=guideApproaching||guideConversation||bearTutorialOpen||bearPhotoMode||campusHubOpen||aiProfileOpen||projectRoomPanelOpen||!!encounter,syncInputLock=()=>gameEvents.emit('game-input-lock',locked);syncInputLock();gameEvents.on('map-travel-complete',syncInputLock);return()=>{gameEvents.off('map-travel-complete',syncInputLock);if(locked)gameEvents.emit('game-input-lock',false)}},[guideApproaching,guideConversation,bearTutorialOpen,bearPhotoMode,campusHubOpen,aiProfileOpen,projectRoomPanelOpen,encounter]);
  useEffect(()=>{const arrived=()=>{setGuideApproaching(false);setGuideConversation(true)};gameEvents.on('guide-intro-arrived',arrived);return()=>{gameEvents.off('guide-intro-arrived',arrived)}},[]);
  useEffect(()=>{const overviewChanged=(active:boolean)=>setMapOverview(active);gameEvents.on('map-overview-changed',overviewChanged);return()=>{gameEvents.off('map-overview-changed',overviewChanged)}},[]);
@@ -82,7 +107,7 @@ export function GamePage({profile,returnState,onExit,onEditProfile,onOpenCommuni
  const discoveryLabel=location==='세종호수공원'?'첫 취향 발견':location==='AI 탐험 연구소'?'의사결정 발견':['베어트리파크','수목원'].includes(location)?'자연 성향 발견':location==='공동캠퍼스'?'협력 방식 발견':'세종 탐험';
  const tutorialOpen=guideApproaching||guideConversation||bearTutorialOpen;
  const localNpcs=location==='공동캠퍼스'?CAMPUS_FRIEND_NPCS:location==='학생회관'?STUDENT_HALL_NPCS:location==='프로젝트실'?[PROJECT_ROOM_NPC]:[];
- const chatAllowed=true,groupChatAllowed=true;
+ const chatAllowed=profile.chatEnabled??true,groupChatAllowed=profile.chatEnabled??true;
  const beginEncounter=(candidate:CharacterEncounter)=>{setEncounter(candidate);if(candidate.kind==='player')socket.emit('encounterFocus',{toId:candidate.target.id,active:true})},endEncounter=()=>{if(!encounter)return;if(encounter.kind==='player')socket.emit('encounterFocus',{toId:encounter.target.id,active:false});setEncounter(null);setActiveNpc(null);setPendingDirectTarget(null)},requestDirectChat=(player:PlayerState)=>{if(pendingDirectPlayerId)return;setPendingDirectPlayerId(player.id);setPendingDirectTarget(player);socket.emit('directChatRequest',player.id);setNotice(`${player.nickname}님에게 1:1 대화를 신청했어요.`);setSelected(null)},startNpcChat=(npc:NearbyNpc)=>{setActiveNpc(npc);setNpcText('');setNpcMessages([{id:`${npc.id}-hello`,sender:'npc',message:`안녕하세요! 저는 ${npc.nickname}예요. ${npc.status}. 무엇이 궁금하세요?`}])},npcReply=(npc:NearbyNpc,message:string)=>/프로젝트|아이디어/.test(message)?'좋아요! 관심 있는 주제부터 짧게 이야기해 보면 함께할 방법을 찾기 쉬워요.':/안녕|반가/.test(message)?'반가워요 👋 가까이 와서 말을 걸어줘서 고마워요!':/어디|장소|길/.test(message)?`${location}에서 둘러볼 만한 공간을 함께 찾아볼까요?`:'좋은 이야기네요. 조금 더 들려주세요!',sendNpc=()=>{const message=npcText.trim();if(!message||!activeNpc)return;setNpcMessages(old=>[...old,{id:crypto.randomUUID(),sender:'me',message},{id:crypto.randomUUID(),sender:'npc',message:npcReply(activeNpc,message)}]);setNpcText('')},playEncounterEmote=(emote:CharacterEmote)=>gameEvents.emit('character-emote-play',emote),send=()=>{if(!chatAllowed)return setNotice('대화는 수목원과 공동캠퍼스에서 시작할 수 있어요.');const message=text.trim();if(!message)return;if(activeGroup&&!groupChatAllowed)return setNotice('동아리 단체 채팅은 공동캠퍼스에서 이용할 수 있어요.');activeGroup?socket.emit('sendGroupChat',{groupId:activeGroup,message}):socket.emit('sendNearbyChat',message);setText('')},sendDirect=()=>{if(!chatAllowed)return setNotice('1:1 대화는 수목원과 공동캠퍼스에서 이용할 수 있어요.');const message=directText.trim();if(!message||!activeDirect)return;socket.emit('directMessage',{directRoomId:activeDirect,message});setDirectText('')},close=()=>{socket.disconnect();onExit()},openProfileEditor=()=>gameEvents.emit('game-return-state-requested',(state:GameReturnState)=>onEditProfile(state));
  useEffect(()=>{const interact=(event:KeyboardEvent)=>{const target=event.target as HTMLElement|null;if(event.repeat||target?.matches('input,textarea,select,[contenteditable=\"true\"]'))return;if(encounter&&event.code==='KeyE'){event.preventDefault();endEncounter();return}if(!encounter&&event.code==='KeyT'&&(nearbyNpc||nearbyPlayer)){event.preventDefault();beginEncounter(nearbyNpc?{kind:'npc',target:nearbyNpc}:{kind:'player',target:nearbyPlayer!})}};window.addEventListener('keydown',interact);return()=>window.removeEventListener('keydown',interact)},[encounter,nearbyNpc,nearbyPlayer]);
  const encounterMenuStyle=encounter?.kind==='npc'&&nearbyNpcScreen?.id===encounter.target.id?npcEncounterMenuStyle(nearbyNpcScreen):undefined;
@@ -95,6 +120,7 @@ export function GamePage({profile,returnState,onExit,onEditProfile,onOpenCommuni
  {location==='공동캠퍼스'&&!campusHubOpen&&visitedCampusBuildings.length>0&&<div className={`campus-fast-travel ${campusFastTravelOpen?'is-open':''}`}><button type="button" className="campus-fast-travel-toggle" onClick={()=>setCampusFastTravelOpen(value=>!value)}><MapPin size={15}/><span><small>방문한 건물</small><b>빠른 이동</b></span><i>{campusFastTravelOpen?'×':'›'}</i></button>{campusFastTravelOpen&&<section><header><small>FAST TRAVEL</small><b>방문한 건물로 이동</b><p>도착 후 건물 앞에서 E를 눌러 입장하세요.</p></header>{visitedCampusBuildings.map(id=><button type="button" key={id} onClick={()=>{gameEvents.emit('campus-building-fast-travel',id);setCampusFastTravelOpen(false);setNotice(`${CAMPUS_BUILDINGS[id].label} 앞으로 이동했어요.`)}}><span>{CAMPUS_BUILDINGS[id].icon}</span><div><b>{CAMPUS_BUILDINGS[id].label}</b><small>{CAMPUS_BUILDINGS[id].feature}</small></div><MapPin size={13}/></button>)}</section>}</div>}
  {nearbyPortal?.chargeSeconds&&!mapOverview&&!tutorialOpen&&<section className={`portal-charge-panel ${nearbyPortal.theme==='blue'?'is-blue':''} ${guideNearby||mapSignNearby?'with-nearby-actions':''}`}><span>✨</span><div><small>포탈 이동 준비</small><b>{normalizePlaceName(nearbyPortal.label)}(으)로 이동 중</b><div className="portal-charge-steps" style={{gridTemplateColumns:`repeat(${nearbyPortal.chargeSeconds}, minmax(0, 1fr))`}}>{Array.from({length:nearbyPortal.chargeSeconds},(_,index)=><div key={index}><span>{index+1}</span><i><b style={{width:`${Math.max(0,Math.min(1,portalProgress*nearbyPortal.chargeSeconds!-index))*100}%`}}/></i></div>)}</div><em>포탈 안에서 {nearbyPortal.chargeSeconds}초 동안 머물러 주세요</em></div></section>}
  {nearbyInteraction?.chargeSeconds&&!mapOverview&&!tutorialOpen&&<section className="portal-charge-panel"><span>✨</span><div><small>포탈 이동 준비</small><b>{normalizePlaceName(nearbyInteraction.label)}(으)로 이동 중</b><div className="portal-charge-steps" style={{gridTemplateColumns:`repeat(${nearbyInteraction.chargeSeconds}, minmax(0, 1fr))`}}>{Array.from({length:nearbyInteraction.chargeSeconds},(_,index)=><div key={index}><span>{index+1}</span><i><b style={{width:`${Math.max(0,Math.min(1,interactionProgress*nearbyInteraction.chargeSeconds!-index))*100}%`}}/></i></div>)}</div><em>포탈 안에서 {nearbyInteraction.chargeSeconds}초 동안 머물러 주세요</em></div></section>}
+ {normalizePlaceName(location)==='세종호수공원'&&!tutorialOpen&&<button type="button" className="respawn-save-button" onClick={saveRespawn}><MapPin size={14}/> 현재 위치를 리스폰으로 저장</button>}
  {guideConversation&&<LakeParkTutorial onClose={()=>{setGuideConversation(false);gameEvents.emit('guide-intro-dismissed')}}/>}
  {bearTutorialOpen&&<BearTreeParkTutorial step={bearTutorialStep} onPrevious={()=>setBearTutorialStep(step=>step-1)} onNext={()=>{setBearTutorialOpen(false);setNotice('폭포, 동굴, 큰 나무를 자유롭게 둘러보며 나의 여행 방식을 발견해 보세요!')}}/>}
  {selected&&<div className="modal-card profile-card"><button className="close" onClick={()=>setSelected(null)}><X/></button><CharacterPreview parts={selected.appearance}/><h2>{selected.nickname}</h2><span className="mbti">{chatAllowed?'공개 기록을 확인할 수 있어요':'이 공간에서는 기록만 볼 수 있어요'}</span>{location==='베어트리파크'&&<section className="nature-profile-record"><small>🌿 공개한 자연 탐험 기록</small>{publicNatureRecords.length?<div>{publicNatureRecords.map(record=>{const [label,...value]=record.split(':');return <p key={record}><b>{label}</b><span>{value.join(':').trim()}</span></p>})}</div>:<p className="nature-profile-empty">아직 공개한 자연 탐험 기록이 없어요.</p>}</section>}<MatchScoreBadge profile={profile} other={selected}/><button className="primary" onClick={()=>requestDirectChat(selected)}>{chatAllowed?'1:1 대화 신청':'대화 가능한 공간 안내'}</button></div>}
@@ -107,6 +133,9 @@ export function GamePage({profile,returnState,onExit,onEditProfile,onOpenCommuni
  {<ProjectRoomInteractions profile={profile} active={location==='프로젝트실'} onOpenChange={setProjectRoomPanelOpen} onNotice={setNotice}/>}
  {<GovernmentCentralPlazaWebUI profile={profile} active={location==='중앙광장'} onOpenChange={setProjectRoomPanelOpen} onNotice={setNotice}/>}
  {<ObservatoryTelescopeInteraction active={location==='전망대'}/>}
+ {<FoodTruckExperience/>}
+  {<ArtsCenterPosterKiosk/>}
+  {<ArtsCenterStageVideo/>}
  {campusHubOpen&&<CampusCommunicationHub profile={profile} players={players} initialTab={campusHubTab} onClose={()=>setCampusHubOpen(false)} onProfile={player=>{setCampusHubOpen(false);setSelected(player)}} onDirectChat={player=>{socket.emit('directChatRequest',player.id);setCampusHubOpen(false);setNotice(`${player.nickname}님에게 1대1 대화를 신청했어요.`)}} onClubChat={club=>{const inviteeIds=players.filter(player=>club.members.some(member=>member.name===player.nickname)).map(player=>player.id);socket.emit('createGroup',{name:club.name,inviteeIds});setCampusHubOpen(false);setNotice(`${club.name} 단체 채팅을 열었어요.`)}} onGovernment={()=>{setCampusHubOpen(false);gameEvents.emit('travel-to-map','government')}}/>}
  {aiProfileOpen&&<AiSejongProfile profile={profile} onClose={()=>setAiProfileOpen(false)} onEdit={()=>{setAiProfileOpen(false);openProfileEditor()}}/>}
  {notice&&<button className="notice" onClick={()=>setNotice('')}>{notice} ×</button>}</main>}

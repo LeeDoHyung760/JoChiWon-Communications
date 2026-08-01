@@ -94,10 +94,18 @@ const userSchema = new Schema(
       },
     },
 
+    experienceHarness: {
+      processedSessionIds: { type: [String], default: [], select: false },
+      performance: { scores: { type: Map, of: Number }, evidence: { type: [String], default: [] } },
+      food: { scores: { type: Map, of: Number }, evidence: { type: [String], default: [] } },
+      festival: { scores: { type: Map, of: Number }, evidence: { type: [String], default: [] } },
+      generatedProfile: { tags: { type: [String], default: [] }, summary: String, source: { type: String, enum: ['openai','fallback'] }, updatedAt: Date },
+    },
+
     lastPosition: {
       mapId: {
         type: String,
-        enum: ['town', 'bear-tree-park', 'bear-play-zone', 'garden', 'campus', 'student-hall', 'project-room', 'government', 'government-central-plaza', 'government-policy-hall', 'government-observatory', 'sejong-smart-city', 'jochwon-station', 'traditional-market', 'jochwon-park', 'college-street'],
+        enum: ['town', 'arts-center', 'festival-experience', 'food-experience', 'bear-tree-park', 'bear-play-zone', 'garden', 'campus', 'student-hall', 'project-room', 'government', 'government-central-plaza', 'government-policy-hall', 'government-observatory', 'sejong-smart-city', 'jochwon-station', 'traditional-market', 'jochwon-park', 'college-street'],
       },
       x: Number,
       z: Number,

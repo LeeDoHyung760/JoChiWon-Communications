@@ -7,7 +7,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     watch: {
-      ignored: ['**/*.blend', '**/*.blend1', '**/public/images/**'],
+      ignored: ['**/*.blend', '**/*.blend1'],
     },
     proxy: {
       '/api': {

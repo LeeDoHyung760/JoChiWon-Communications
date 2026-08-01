@@ -12,6 +12,9 @@ import governmentModelUrl from '../../assets/maps/sejong-gov.glb?url';
 import governmentCentralPlazaModelUrl from '../../assets/maps/government-central-plaza.glb?url';
 import observatoryModelUrl from '../../assets/maps/observatory-interior.glb?url';
 import sejongSmartCityModelUrl from '../../assets/maps/sejong-smartcity-exhibition.glb?url';
+import sejongArtsCenterModelUrl from '../../assets/maps/sejong-arts-center.glb?url';
+import festivalExperienceModelUrl from '../../assets/maps/festival-experience-map.glb?url';
+import foodExperienceModelUrl from '../../assets/maps/food-experience-map.glb?url';
 import bearCubModelUrl from '../../assets/characters/bear-cub.glb?url';
 import grizzlyBearModelUrl from '../../assets/characters/grizzly-bear.glb?url';
 import chungnyeongIdleUrl from '../../assets/characters/chungnyeong_idle.glb?url';
@@ -32,6 +35,7 @@ import { PROJECT_ROOM_NPC } from '../../data/projectRoomNpc';
 import { STUDENT_HALL_NPCS } from '../../data/studentHallNpc';
 import { PROJECT_ROOM_INTERACTIONS,type ProjectRoomInteractionId } from '../projectRoomInteractions';
 import { GOVERNMENT_CENTRAL_PLAZA_WEB_UI,type GovernmentCentralPlazaWebUiId } from '../governmentCentralPlazaWebUi';
+import { ARTS_CENTER_PERFORMANCES,artsCenterPerformanceImageUrl,type ArtsCenterPerformance } from '../artsCenterPerformances';
 
 const WORLD_WIDTH=2400;
 const WORLD_HEIGHT=1900;
@@ -100,11 +104,21 @@ export const GOVERNMENT_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1500,yaw:
 export const GOVERNMENT_CENTRAL_PLAZA_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1530,yaw:0};
 export const GOVERNMENT_OBSERVATORY_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1380,yaw:Math.PI};
 export const SEJONG_SMART_CITY_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1580,yaw:Math.PI};
+// Spawn on the authored lobby floor. z=370 is outside the building on the
+// black GLB background, where there is no walkable surface for the character.
+export const SEJONG_ARTS_CENTER_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:780,yaw:0};
+// Keep the lobby entrance as the lowest camera-follow point.
+const SEJONG_ARTS_CENTER_CAMERA_DOWN_LIMIT_Z=SEJONG_ARTS_CENTER_SPAWN.z;
+export const FESTIVAL_EXPERIENCE_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1530,yaw:Math.PI};
+export const FOOD_EXPERIENCE_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1193,yaw:Math.PI};
+// Change these x/z values to move the lake-park return portal in the festival map.
+export const FESTIVAL_LAKE_RETURN_PORTAL_POSITION={x:1200,z:1690} as const;
+export const FOOD_LAKE_RETURN_PORTAL_POSITION={x:980,z:1810} as const;
 export const BEAR_TREE_PORTAL_POSITION={x:2122,z:944} as const;
 const CAMPUS_PORTAL_POSITION={x:1178,z:122} as const;
 const LAKE_PARK_GUIDE={x:2045,z:1138,yaw:-.78} as const;
+const LAKE_WELCOME_SEEN_KEY='sejong-lake-tutorial-hidden-v2';
 const LAKE_GUIDE_INTRO_DURATION_MS=2600;
-const LAKE_WELCOME_SEEN_KEY='sejong-lake-tutorial-hidden-v1';
 const GUIDE_PATROL_POINTS=([
   [LAKE_PARK_GUIDE.x,LAKE_PARK_GUIDE.z],[2050,1150],[2000,1150],[2000,750],[1900,750],[1900,500],
   [1400,500],[1400,350],[1350,350],[1350,200],[350,200],[350,250],[300,250],[300,400],[350,400],
@@ -122,6 +136,7 @@ const GUIDE_PATROL_POINTS=([
 const GUIDE_PATROL_STOPS=new Set(['2045,1138','1900,500','1350,200','300,400','350,950','1250,900','1550,700','1950,950','1450,1250','900,1250','300,1600','850,1750','1950,1650','1800,1250','2050,1150']);
 type CharacterState={scene:THREE.Object3D;mixer?:THREE.AnimationMixer;action?:THREE.AnimationAction};
 type GroundSample={height:number;normal:THREE.Vector3};
+type ArtsCenterSeat={id:string;x:number;z:number;seatHeight:number;yaw:number};
 type RemoteGroundSample=GroundSample&{x:number;z:number};
 type GuidePosition={x:number;z:number;yaw:number};
 type GuidePatrolFrame=GuidePosition&{motion:Extract<MotionState,'idle'|'walk'>};
@@ -150,12 +165,18 @@ type LocalNpcState={
 };
 type PortalConfig={x:number;z:number;destination:PortalPosition['destination'];label:string;appearance?:'standing'|'white-circle'|'energy-rift';fixedPosition?:boolean;theme?:'mint'|'blue'|'orange';chargeSeconds?:number;sharedPosition?:boolean};
 type InteractionConfig={x:number;z:number;destination:WorldInteractionPosition['destination'];label:string;buttonLabel:string;fixedPosition?:boolean;chargeSeconds?:number};
-type LakeExperienceConfig={id:LakeExperienceId;x:number;z:number;label:string;description:string;color:number};
+type LakeExperienceConfig={id:LakeExperienceId;x:number;z:number;label:string;description:string;color:number;radius?:number};
 type CampusFeaturePortalConfig={id:CampusFeaturePortalId;x:number;z:number;label:string;description:string;color:number};
 type ResidentConfig={modelUrl:string;x:number;z:number;height:number;yaw:number;stationary?:boolean;patrol?:readonly {x:number;z:number}[];walkSpeed?:number};
 type WildlifeClueConfig={id:'bearA'|'bearB'|'cave'|'food'|'water';x:number;z:number;icon:string;label:string};
 type HabitatResourceId=Extract<WildlifeClueConfig['id'],'cave'|'food'|'water'>;
+type FoodTruckWindow={id:'local'|'street'|'dessert';label:string;x:number;z:number};
 type GreenhouseTarget={id:string;objects:THREE.Object3D[];bounds:THREE.Box3;center:THREE.Vector3;marker:THREE.Sprite;kind:'plant'|'memory-tree'};
+const normalizedModelObjectName=(name:string)=>name.toLowerCase().replace(/[^a-z0-9]/g,'');
+const artsCenterPosterIndex=(name:string)=>{
+  const normalized=normalizedModelObjectName(name),match=/^posterart(\d{3})?$/.exec(normalized);
+  if(!match)return -1;return match[1]?Number(match[1]):0;
+};
 export type WorldMapRendererOptions={
   modelUrl:string;
   mapName:string;
@@ -168,6 +189,7 @@ export type WorldMapRendererOptions={
   campusFeaturePortals?:CampusFeaturePortalConfig[];
   interaction?:InteractionConfig;
   lakeExperiences?:LakeExperienceConfig[];
+  lakeExperienceObjectNames?:Partial<Record<LakeExperienceId,string>>;
   resident?:ResidentConfig;
   residentDecor?:ResidentConfig[];
   wildlifeClues?:WildlifeClueConfig[];
@@ -182,8 +204,11 @@ export type WorldMapRendererOptions={
   cameraFov?:number;
   cameraTargetHeight?:number;
   cameraFollowBounds?:{minX?:number;maxX?:number;minZ?:number;maxZ?:number};
+  cameraDownScreenLimitZ?:number;
   characterHeight?:number;
+  characterGroundClearance?:number;
   mapScaleMultiplier?:number;
+  mapRotationY?:number;
   groundFillColor?:number;
   greenhouse?:boolean;
   performanceMode?:boolean;
@@ -200,12 +225,15 @@ export type WorldMapRendererOptions={
   simplifiedCollision?:boolean;
   collisionExcludePrefixes?:string[];
   hiddenObjectPrefixes?:string[];
+  groundObjectPrefixes?:string[];
   bearPhotoZone?:boolean;
   projectRoomInteractions?:boolean;
   governmentCentralPlazaWebUi?:boolean;
   observatoryTelescopeInteraction?:boolean;
+  artsCenterPosterWeb?:boolean;
+  foodTruckExperience?:boolean;
 };
-export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,cameraZoom:1.12,characterHeight:CHARACTER_HEIGHT,performanceMode:true,balancedTextureQuality:true,performancePixelRatio:1.1,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크',theme:'blue',chargeSeconds:3},fixedPortals:[{...CAMPUS_PORTAL_POSITION,destination:'campus',label:'공동캠퍼스',theme:'blue',chargeSeconds:3}],lakeExperiences:[{id:'central-plaza',x:1219,z:1462,label:'축제 부스',description:'끌리는 분위기로 축제 취향을 찾아요',color:0xffffff},{id:'activity-zone',x:603,z:452,label:'공연 부스',description:'충녕이와 나의 공연 스타일을 알아봐요',color:0xffffff},{id:'food-shop-zone',x:491,z:1556,label:'먹거리 부스',description:'맛과 공간 선택으로 여행 스타일을 찾아요',color:0xffffff},{id:'wind-hill',x:1908,z:549,label:'세종 추천 코스 게시판',description:'발견한 취향으로 코스를 살펴봐요',color:0xffffff}]};
+export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,cameraZoom:1.12,characterHeight:CHARACTER_HEIGHT,performanceMode:true,balancedTextureQuality:true,performancePixelRatio:1.1,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크',theme:'blue',chargeSeconds:3},fixedPortals:[{...CAMPUS_PORTAL_POSITION,destination:'campus',label:'공동캠퍼스',theme:'blue',chargeSeconds:3},{x:603,z:452,destination:'arts-center',label:'세종예술의전당',appearance:'standing',theme:'orange',fixedPosition:true,sharedPosition:false,chargeSeconds:3},{x:1219,z:1462,destination:'festival-experience',label:'축제 체험 맵',appearance:'standing',theme:'orange',fixedPosition:true,sharedPosition:false,chargeSeconds:3},{x:491,z:1556,destination:'food-experience',label:'먹거리 체험 맵',appearance:'standing',theme:'mint',fixedPosition:true,sharedPosition:false,chargeSeconds:3}],lakeExperiences:[{id:'wind-hill',x:1908,z:549,label:'세종 추천 코스 게시판',description:'발견한 취향으로 코스를 살펴봐요',color:0xffffff}]};
 export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:980,z:1580,destination:'town',label:'세종호수공원',theme:'blue',fixedPosition:true,chargeSeconds:3,sharedPosition:false},fixedPortals:[{x:682,z:735,destination:'garden',label:'세종수목원',appearance:'white-circle',fixedPosition:true,chargeSeconds:3}],interaction:{x:1616,z:601,destination:'bear-play-zone',label:'AI 탐험 연구소',buttonLabel:'자연 탐험 시작하기',fixedPosition:true,chargeSeconds:3},cameraZoom:1.12,characterHeight:CHARACTER_HEIGHT,groundFillColor:0xead9ad,performanceMode:true,balancedTextureQuality:true,performancePixelRatio:1.1,simplifiedCollision:true,bearPhotoZone:true};
 export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearPlayZoneModelUrl,mapName:'AI 탐험 연구소',spawn:BEAR_PLAY_ZONE_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'탐험 마치고 돌아가기',chargeSeconds:3},resident:{modelUrl:bearCubModelUrl,x:1125,z:1435,height:100,yaw:Math.PI,stationary:true},residentDecor:[{modelUrl:grizzlyBearModelUrl,x:1325,z:1410,height:155,yaw:-Math.PI/2,stationary:true}],wildlifeClues:[{id:'bearA',x:1325,z:1410,icon:'🐻',label:'불곰 조사'},{id:'bearB',x:1125,z:1435,icon:'🐻',label:'반달가슴곰 조사'}],cameraZoom:.86,characterHeight:140,groundFillColor:0xead9ad,performanceMode:true,balancedTextureQuality:true,performancePixelRatio:1.1};
 export const GARDEN_RENDERER_OPTIONS:WorldMapRendererOptions={
@@ -422,6 +450,101 @@ export const SEJONG_SMART_CITY_RENDERER_OPTIONS:WorldMapRendererOptions={
   performancePixelRatio:1,
   simplifiedCollision:true,
 };
+export const SEJONG_ARTS_CENTER_RENDERER_OPTIONS:WorldMapRendererOptions={
+  modelUrl:sejongArtsCenterModelUrl,
+  mapName:'세종예술의전당',
+  spawn:SEJONG_ARTS_CENTER_SPAWN,
+  portal:{x:1200,z:210,destination:'town',label:'세종호수공원으로 돌아가기',appearance:'white-circle',theme:'orange',chargeSeconds:3,fixedPosition:true,sharedPosition:false},
+  perspectiveCamera:true,
+  fixedCameraTarget:false,
+  centerInWorldCoordinates:true,
+  // Look inward from the entrance. The previous 40-degree azimuth placed the
+  // camera on the poster-wall side and looked out into the open GLB boundary.
+  cameraElevationDeg:29,
+  cameraAzimuthDeg:180,
+  cameraDistance:1300,
+  cameraFov:46,
+  cameraTargetHeight:75,
+  // Preserve the approved view direction and stop only downward screen follow.
+  cameraDownScreenLimitZ:SEJONG_ARTS_CENTER_CAMERA_DOWN_LIMIT_Z,
+  characterHeight:150,
+  // The model is normalized to a foot baseline of zero; retain only the
+  // standard small clearance that prevents z-fighting with the floor.
+  characterGroundClearance:4,
+  // Blender exports spaces as underscores. These names must match the GLB
+  // exactly or the spawn ground probe falls back to y=0 below the lobby.
+  groundObjectPrefixes:['Lobby_matte_stone_floor','Auditorium_floor','Audience_riser','Stage','Building_foundation'],
+  hiddenObjectPrefixes:['Luminous_gallery_cornice'],
+  groundFillColor:0x17151c,
+  groundingShadows:true,
+  performanceMode:true,
+  balancedTextureQuality:true,
+  performancePixelRatio:1,
+  // The auditorium has a raised threshold and stepped seating. Full collision
+  // keeps the avatar capsule from passing through their vertical faces.
+  simplifiedCollision:false,
+  artsCenterPosterWeb:true,
+};
+export const FESTIVAL_EXPERIENCE_RENDERER_OPTIONS:WorldMapRendererOptions={
+  modelUrl:festivalExperienceModelUrl,
+  mapName:'축제 체험 맵',
+  spawn:FESTIVAL_EXPERIENCE_SPAWN,
+  mapRotationY:Math.PI,
+  mapScaleMultiplier:1.2,
+  // Keep the character grounded on the authored festival floor layers. In
+  // particular, Festival_Lawn must win the downward ground probe instead of
+  // nearby flat props such as booth counters or stage pieces.
+  groundObjectPrefixes:['Festival_Lawn','Promenade','Island_Base'],
+  lakeExperiences:[
+    {id:'activity-zone',x:1200,z:520,label:'세종 축제 영상',description:'세종의 축제 현장을 영상으로 만나보세요. · 영상 보기 (E)',color:0x7c5de8,radius:260},
+    {id:'food-shop-zone',x:760,z:1080,label:'전통문화 체험 부스',description:'E를 눌러 축제 상세 팝업을 열어보세요.',color:0x3d9fc4,radius:170},
+    {id:'central-plaza',x:1640,z:1080,label:'문화 예술 전시 부스',description:'E를 눌러 축제 상세 팝업을 열어보세요.',color:0xe75b4f,radius:170},
+  ],
+  lakeExperienceObjectNames:{'activity-zone':'StageBack','food-shop-zone':'Blue_Experience_Tent_Roof','central-plaza':'Red_Experience_Tent_Roof'},
+  portal:{...FESTIVAL_LAKE_RETURN_PORTAL_POSITION,destination:'town',label:'세종호수공원으로 돌아가기',appearance:'white-circle',theme:'orange',chargeSeconds:3,fixedPosition:true,sharedPosition:false},
+  perspectiveCamera:true,
+  fixedCameraTarget:false,
+  centerInWorldCoordinates:true,
+  cameraElevationDeg:31,
+  cameraAzimuthDeg:180,
+  cameraDistance:1700,
+  cameraFov:46,
+  characterHeight:150,
+  // The avatar models are normalized to a zero-foot baseline, so only retain
+  // the small anti-z-fighting clearance used by the other grounded maps.
+  characterGroundClearance:4,
+  groundFillColor:0xbfd6c2,
+  groundingShadows:true,
+  performanceMode:true,
+  balancedTextureQuality:true,
+  performancePixelRatio:1,
+  simplifiedCollision:true,
+};
+export const FOOD_EXPERIENCE_RENDERER_OPTIONS:WorldMapRendererOptions={
+  modelUrl:foodExperienceModelUrl,
+  mapName:'먹거리 체험 맵',
+  spawn:FOOD_EXPERIENCE_SPAWN,
+  mapRotationY:Math.PI,
+  mapScaleMultiplier:1.6,
+  groundObjectPrefixes:['Map_island','Grass_island','Central_plaza','Plaza_paving_ring','North_walkway','South_walkway'],
+  portal:{...FOOD_LAKE_RETURN_PORTAL_POSITION,destination:'town',label:'세종호수공원으로 돌아가기',appearance:'white-circle',theme:'orange',chargeSeconds:3,fixedPosition:true,sharedPosition:false},
+  perspectiveCamera:true,
+  fixedCameraTarget:false,
+  centerInWorldCoordinates:true,
+  cameraElevationDeg:31,
+  cameraAzimuthDeg:180,
+  cameraDistance:1700,
+  cameraFov:46,
+  characterHeight:150,
+  characterGroundClearance:12,
+  groundFillColor:0xbfd6c2,
+  groundingShadows:true,
+  performanceMode:true,
+  balancedTextureQuality:true,
+  performancePixelRatio:1,
+  simplifiedCollision:true,
+  foodTruckExperience:true,
+};
 type LoadedModel=Awaited<ReturnType<GLTFLoader['loadAsync']>>;
 const modelAssetCache=new Map<string,Promise<LoadedModel>>();
 const loadModel=(url:string)=>{
@@ -572,12 +695,12 @@ const modelConfig:Record<Exclude<CharacterModel,'custom'>,{urls:Record<MotionSta
   chungnyeong:{urls:{idle:chungnyeongIdleUrl,walk:chungnyeongWalkUrl,run:chungnyeongRunUrl},clips:{idle:'NlaTrack',walk:'NlaTrack',run:'NlaTrack'}},
   girl1:{urls:{idle:girlUrl,walk:girlUrl,run:girlUrl},clips:{idle:'NlaTrack.002',walk:'NlaTrack.001',run:'NlaTrack'}},
   boy1:{urls:{idle:boyUrl,walk:boyUrl,run:boyUrl},clips:{idle:'NlaTrack',walk:'NlaTrack.002',run:'NlaTrack.001'}},
-  cloths:{urls:{idle:clothsUrl,walk:clothsUrl,run:clothsUrl},clips:{idle:'standing',walk:'walking',run:'walking'}},
+  cloths:{urls:{idle:clothsUrl,walk:clothsUrl,run:clothsUrl},clips:{idle:'standing',walk:'walking',run:'running'}},
   women:{urls:{idle:womenUrl,walk:womenUrl,run:womenUrl},clips:{idle:'standing',walk:'walking',run:'running'}}
 };
 const FEMALE_MOTION_DURATION:Record<'walk'|'run',number>={walk:2.375,run:1.292};
 const motionDurationByModel:Partial<Record<Exclude<CharacterModel,'custom'>,Record<'walk'|'run',number>>>={
-  cloths:{walk:1.167,run:1.167},
+  cloths:{walk:1.167,run:.667},
   women:{walk:1.167,run:.667},
 };
 
@@ -653,6 +776,7 @@ class WorldCharacter{
   private turnQuaternion=new THREE.Quaternion();
   private upVector=new THREE.Vector3(0,1,0);
   private height:number;
+  private seated=false;
 
   constructor(private scene:THREE.Scene,name:string,private model:CharacterModel,private parts:CharacterParts,height=CHARACTER_HEIGHT,private idleOnly=false){
     this.height=height;
@@ -679,7 +803,7 @@ class WorldCharacter{
         visual.updateMatrixWorld(true);
         const bounds=new THREE.Box3().setFromObject(visual),size=bounds.getSize(new THREE.Vector3()),scale=this.height/Math.max(size.y,.001);
         visual.scale.setScalar(scale);visual.position.y=-bounds.min.y*scale;
-        visual.traverse(object=>{if(object instanceof THREE.Mesh){object.castShadow=true;object.receiveShadow=false;object.frustumCulled=true}});
+        this.prepareVisual(visual);
         const mixer=gltf.animations.length?new THREE.AnimationMixer(visual):undefined,sourceClip=sourceAnimation(gltf,'idle'),clip=characterClip(sourceClip,model,'idle'),action=mixer&&clip?mixer.clipAction(clip):undefined;
         action?.play();this.root.add(visual);this.states.set('idle',{scene:visual,mixer,action});if(mixer)this.registerExtendedEmotes(gltf,mixer);this.setMotion('idle');return;
       }
@@ -690,7 +814,7 @@ class WorldCharacter{
         visual.updateMatrixWorld(true);
         const bounds=new THREE.Box3().setFromObject(visual),size=bounds.getSize(new THREE.Vector3()),scale=this.height/Math.max(size.y,.001);
         visual.scale.setScalar(scale);visual.position.y=-bounds.min.y*scale;
-        visual.traverse(object=>{if(object instanceof THREE.Mesh){object.castShadow=true;object.receiveShadow=false}});
+        this.prepareVisual(visual);
         const mixer=new THREE.AnimationMixer(visual);this.root.add(visual);
         for(const motion of ['idle','walk','run'] as MotionState[]){const sourceClip=sourceAnimation(gltf,motion);const clip=characterClip(sourceClip,model,motion);const action=clip?mixer.clipAction(clip):undefined;this.states.set(motion,{scene:visual,mixer,action})}
         this.registerExtendedEmotes(gltf,mixer);
@@ -709,7 +833,7 @@ class WorldCharacter{
         const bounds=new THREE.Box3().setFromObject(visual),size=bounds.getSize(new THREE.Vector3()),scale=this.height/Math.max(size.y,.001);
         visual.scale.setScalar(scale);
         visual.position.y=-bounds.min.y*scale;
-        visual.traverse(object=>{if(object instanceof THREE.Mesh){object.castShadow=true;object.receiveShadow=false;object.frustumCulled=true}});
+        this.prepareVisual(visual);
         const mixer=gltf.animations.length?new THREE.AnimationMixer(visual):undefined;
         const sourceClip=sourceAnimation(gltf,motion);
         const clip=characterClip(sourceClip,model,motion);
@@ -724,6 +848,14 @@ class WorldCharacter{
       }
       this.setMotion(this.active);
       }catch(error){console.error('[World character] GLB load error',{model,error});this.createFallback({hair:'',face:'',top:'',bottom:'',shoes:''})}
+  }
+
+  private prepareVisual(visual:THREE.Object3D){
+    visual.traverse(object=>{
+      if(!(object instanceof THREE.Mesh))return;
+      object.castShadow=true;object.receiveShadow=false;
+      object.frustumCulled=true;
+    });
   }
 
   private registerExtendedEmotes(gltf:LoadedModel,mixer:THREE.AnimationMixer){
@@ -794,6 +926,29 @@ class WorldCharacter{
     this.targetQuaternion.copy(this.turnQuaternion).multiply(this.tiltQuaternion);
     this.root.quaternion.slerp(this.targetQuaternion,1-Math.exp(-12*delta));
     this.states.get(this.active)?.mixer?.update(delta);
+    if(this.seated)this.applySeatedPose();
+  }
+
+  setSeated(seated:boolean){
+    if(this.seated===seated)return;
+    this.seated=seated;
+    if(!seated)this.setMotion('idle',0);
+  }
+
+  private applySeatedPose(){
+    const visual=this.states.get(this.active)?.scene;
+    if(!visual)return;
+    const bone=(...names:string[])=>names.map(name=>visual.getObjectByName(name)).find(Boolean);
+    const leftThigh=bone('mixamorigLeftUpLeg','L_Thigh'),rightThigh=bone('mixamorigRightUpLeg','R_Thigh');
+    const leftCalf=bone('mixamorigLeftLeg','L_Calf'),rightCalf=bone('mixamorigRightLeg','R_Calf');
+    const leftArm=bone('mixamorigLeftArm','L_Upperarm'),rightArm=bone('mixamorigRightArm','R_Upperarm');
+    // Apply after the mixer so every supported rig keeps a stable chair pose.
+    leftThigh?.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-1.28));
+    rightThigh?.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-1.28));
+    leftCalf?.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),1.28));
+    rightCalf?.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),1.28));
+    leftArm?.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),-.16));
+    rightArm?.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),.16));
   }
 
   showAllForWarmup(){
@@ -838,6 +993,7 @@ export class VillageMapRenderer{
   private qualityElapsed=0;
   private qualityFrameTime=0;
   private qualityFrames=0;
+  private get characterGroundClearance(){return this.options.characterGroundClearance??CHARACTER_GROUND_CLEARANCE}
   private renderInterval=RENDER_INTERVAL;
   private mapMeshes:THREE.Mesh[]=[];
   private mapMeshBounds=new Map<THREE.Mesh,THREE.Box3>();
@@ -850,6 +1006,13 @@ export class VillageMapRenderer{
   private guideNpcPosition=new THREE.Vector3();
   private guideNpcNormal=new THREE.Vector3(0,1,0);
   private localNpcs:LocalNpcState[]=[];
+  private foodTruckWindows:FoodTruckWindow[]=[];
+  private nearbyFoodTruckId?:FoodTruckWindow['id'];
+  private foodTruckScreens=new Map<FoodTruckWindow['id'],THREE.Mesh>();
+  private foodTruckPlazaCenter?:THREE.Vector3;
+  private foodTruckKioskId?:FoodTruckWindow['id'];
+  private foodTruckKioskView?:{target:THREE.Vector3;camera:THREE.Vector3};
+  private foodTruckKioskTransition?:{target:THREE.Vector3;camera:THREE.Vector3;fov:number;elapsed:number};
   private localNpcNearbyId?:string;
   private focusedLocalNpcId?:string;
   private talkingLocalNpcId?:string;
@@ -899,6 +1062,21 @@ export class VillageMapRenderer{
   private governmentWebUiTextures:THREE.CanvasTexture[]=[];
   private governmentWebUiTransition?:{target:THREE.Vector3;camera:THREE.Vector3;fov:number;elapsed:number};
   private lastGovernmentWebUiRect?:{left:number;top:number;width:number;height:number};
+  private artsCenterPosterScreens:THREE.Mesh[]=[];
+  private artsCenterPosterTextures:THREE.CanvasTexture[]=[];
+  private artsCenterPosterNearby?:THREE.Mesh;
+  private artsCenterPosterActive?:THREE.Mesh;
+  private artsCenterPosterWebReady=false;
+  private lastArtsCenterPosterScreenRect?:{left:number;top:number;width:number;height:number};
+  private artsCenterPosterFocusView?:{target:THREE.Vector3;camera:THREE.Vector3};
+  private artsCenterPosterFocusTransition?:{target:THREE.Vector3;camera:THREE.Vector3;elapsed:number};
+  private artsCenterSeats:ArtsCenterSeat[]=[];
+  private artsCenterSeatMeshes:THREE.Mesh[]=[];
+  private artsCenterSeatByMesh=new Map<THREE.Mesh,ArtsCenterSeat>();
+  private artsCenterSeatNearby?:ArtsCenterSeat;
+  private artsCenterActiveSeat?:ArtsCenterSeat;
+  private artsCenterStageBackdrop?:THREE.Mesh;
+  private lastArtsCenterStageScreenRect?:{left:number;top:number;width:number;height:number};
   private observatoryTelescopeNearby=false;
   private observatoryTelescopeActive=false;
   private observatoryTelescopePosition?:{x:number;z:number;radius:number};
@@ -1033,6 +1211,10 @@ export class VillageMapRenderer{
     if(options.governmentCentralPlazaWebUi)gameEvents.on('government-webui-close',this.exitGovernmentWebUi);
     if(options.observatoryTelescopeInteraction)gameEvents.on('observatory-telescope-enter',this.enterObservatoryTelescope);
     if(options.observatoryTelescopeInteraction)gameEvents.on('observatory-telescope-exit',this.exitObservatoryTelescope);
+    if(options.artsCenterPosterWeb)gameEvents.on('arts-center-seat-toggle',this.toggleArtsCenterSeat);
+    if(options.artsCenterPosterWeb)gameEvents.on('arts-center-poster-focus-close',this.exitArtsCenterPosterFocus);
+    if(options.foodTruckExperience)gameEvents.on('food-truck-kiosk-activate',this.enterFoodTruckKiosk);
+    if(options.foodTruckExperience)gameEvents.on('food-truck-kiosk-close',this.exitFoodTruckKiosk);
     window.addEventListener('keydown',this.onWorldPortalKeyDown);
     this.ready=this.loadVillage();
   }
@@ -1043,7 +1225,25 @@ export class VillageMapRenderer{
       if(this.destroyed)return;
       // Cached GLTF scenes are mutable. Always transform a fresh clone so a
       // renderer recreated after HMR or navigation cannot scale the map twice.
-      const model=cloneSkeleton(gltf.scene);model.updateMatrixWorld(true);
+      const model=cloneSkeleton(gltf.scene);
+      model.rotation.y=this.options.mapRotationY??0;
+      model.updateMatrixWorld(true);
+      let hasArtsCenterPosterScreens=false;
+      model.traverse(object=>{if(artsCenterPosterIndex(object.name)>=0)hasArtsCenterPosterScreens=true});
+      if(hasArtsCenterPosterScreens){
+        const posterTitleNames=new Set([
+          'signartsgala','signdancelight','signnightconcert',
+          'signsejongorchestra','signspringfestival',
+        ]);
+        model.traverse(object=>{
+          const normalizedName=normalizedModelObjectName(object.name);
+          const isPosterScreen=normalizedName.startsWith('posterart')||normalizedName.startsWith('posterframe');
+          const isPosterText=posterTitleNames.has(normalizedName)||normalizedName.startsWith('signsejongartscenter');
+          if(isPosterScreen)object.scale.multiplyScalar(2);
+          if(isPosterText)object.visible=false;
+        });
+        model.updateMatrixWorld(true);
+      }
       if(this.options.geometrySimplificationRatio)await simplifyMapGeometry(model,this.options.geometrySimplificationRatio,this.options.groundGeometrySimplificationRatio);
       sharpenObjectTextures(model,this.options.performanceMode,this.options.balancedTextureQuality);
       if(this.options.prioritizeGroundTextures)prioritizeGroundTextureQuality(model);
@@ -1052,12 +1252,19 @@ export class VillageMapRenderer{
       const mapCenterZ=this.options.centerInWorldCoordinates?WORLD_HEIGHT/(2*GROUND_PROJECTION):WORLD_HEIGHT/2;
       model.position.set(WORLD_WIDTH/2-center.x*scale,-bounds.min.y*scale,mapCenterZ-center.z*depthScale);model.scale.set(scale,scale,depthScale);
       model.updateMatrixWorld(true);
+      Object.entries(this.options.lakeExperienceObjectNames??{}).forEach(([id,objectName])=>{
+        const object=objectName?model.getObjectByName(objectName):undefined;
+        if(!object)return;
+        const objectCenter=new THREE.Box3().setFromObject(object).getCenter(new THREE.Vector3());
+        this.lakeExperiencePositions.set(id as LakeExperienceId,{x:objectCenter.x,z:this.sceneToWorldZ(objectCenter.z)});
+      });
       this.mapBounds.setFromObject(model);
       const groundMesh=this.options.groundingShadows?largestFlatMesh(model):undefined;
       model.traverse(object=>{if(object instanceof THREE.Mesh){const hidden=this.options.hiddenObjectPrefixes?.some(prefix=>object.name.startsWith(prefix));if(hidden)object.visible=false;object.castShadow=!hidden&&(this.options.groundingShadows?object!==groundMesh:false);object.receiveShadow=this.options.groundingShadows||!this.options.performanceMode;const collisionExcluded=this.options.collisionExcludePrefixes?.some(prefix=>object.name.startsWith(prefix));if(!collisionExcluded&&!hidden){this.mapMeshes.push(object);this.mapMeshBounds.set(object,new THREE.Box3().setFromObject(object))}}});
       if(this.mapMeshes.length>1)this.mapMeshes.forEach(mesh=>{const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];materials.forEach(material=>this.classifyMaterial(material))});
       this.scene.add(model);
       this.mapModel=model;
+      if(this.options.foodTruckExperience)this.setupFoodTruckWindows(model);
       if(this.options.projectRoomInteractions){
         this.setupProjectRoomScreens(model);
         this.setupProjectRoomHologram(model);
@@ -1065,6 +1272,11 @@ export class VillageMapRenderer{
       }
       if(this.options.governmentCentralPlazaWebUi)this.setupGovernmentWebUi(model);
       if(this.options.observatoryTelescopeInteraction)this.setupObservatoryTelescope(model);
+      if(hasArtsCenterPosterScreens){
+        this.setupArtsCenterPosterWeb(model);
+        this.setupArtsCenterSeats(model);
+        this.parent.addEventListener('pointerdown',this.onArtsCenterPosterPointerDown);
+      }
       if(this.options.bearPhotoZone){
         localStorage.removeItem('bear-photo-zone-position');
         const photoStage=model.getObjectByName(BEAR_PHOTO_STAGE_NAME);
@@ -1191,7 +1403,7 @@ export class VillageMapRenderer{
       });
       const residentReady=this.options.resident?this.createResident(this.options.resident):Promise.resolve();
       const residentDecorReady=Promise.all((this.options.residentDecor??[]).map((config,index)=>this.createResidentDecor(config,index)));
-      const startPosition=new THREE.Vector3(this.localX,this.localGround+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(this.localZ));
+      const startPosition=new THREE.Vector3(this.localX,this.localGround+this.characterGroundClearance,this.worldToSceneZ(this.localZ));
       this.localCharacter.update(startPosition,this.localNormal,this.options.spawn.yaw,'idle',0);
       await Promise.all([this.localCharacter.ready,this.guideNpc?.ready,...this.localNpcs.map(npc=>npc.character.ready),residentReady,residentDecorReady]);
       if(this.destroyed)return;
@@ -1335,6 +1547,246 @@ export class VillageMapRenderer{
     this.applyMemoryTreeStageVisuals();
   };
 
+  private createArtsCenterPosterTexture(performance:ArtsCenterPerformance,index:number){
+    const canvas=document.createElement('canvas');canvas.width=720;canvas.height=1080;
+    const context=canvas.getContext('2d')!;
+    const roundedRect=(x:number,y:number,width:number,height:number,radius:number)=>{context.beginPath();context.roundRect(x,y,width,height,radius);context.fill()};
+    const wrappedText=(text:string,x:number,y:number,maxWidth:number,lineHeight:number,maxLines=3)=>{
+      const words=text.split(' '),lines:string[]=[];let line='';
+      words.forEach(word=>{const next=line?`${line} ${word}`:word;if(context.measureText(next).width>maxWidth&&line){lines.push(line);line=word}else line=next});if(line)lines.push(line);
+      lines.slice(0,maxLines).forEach((value,lineIndex)=>context.fillText(value,x,y+lineIndex*lineHeight));
+    };
+    context.fillStyle='#ffffff';context.fillRect(0,0,720,1080);
+    context.fillStyle=performance.color;context.fillRect(0,0,720,610);
+    context.fillStyle=performance.accent;context.font='800 21px "Noto Sans KR", "Malgun Gothic", sans-serif';context.fillText('세종예술의전당 공식 공연',44,58);
+    context.textAlign='right';context.font='700 17px Arial, sans-serif';context.fillText(`SEJONG · 0${index+1}`,676,57);context.textAlign='left';
+    // Each screen gets its own poster-like visual language.
+    if(index===0){
+      context.fillStyle='rgba(255,255,255,.78)';for(let i=0;i<24;i++){context.beginPath();context.arc(80+(i*83)%600,120+(i*67)%330,12+(i%4)*7,0,Math.PI*2);context.fill()}
+      context.fillStyle=performance.accent;context.font='900 96px "Noto Serif KR",serif';context.fillText('西便制',188,355);context.font='800 28px "Noto Sans KR",sans-serif';context.fillText('소리로 이어지는 삶의 노래',190,410);
+    }else if(index===1){
+      context.fillStyle=performance.accent;context.font='900 115px "Noto Sans KR",sans-serif';context.fillText('렁',86,310);context.fillText('스',246,430);
+      context.fillStyle='#36a58c';context.beginPath();context.arc(505,230,72,0,Math.PI*2);context.fill();context.fillRect(455,305,105,105);
+      context.fillStyle='#ffffff';context.beginPath();context.arc(560,410,48,0,Math.PI*2);context.fill();
+    }else if(index===2){
+      context.fillStyle='#15392f';context.font='900 116px Arial,sans-serif';context.fillText('19:00',120,280);context.font='900 54px "Noto Sans KR",sans-serif';context.fillText('야민락 콘서트',118,355);
+      context.strokeStyle=performance.accent;context.lineWidth=5;context.beginPath();context.moveTo(84,435);context.lineTo(636,435);context.stroke();
+      context.fillStyle='rgba(21,57,47,.75)';context.font='700 22px "Noto Sans KR",sans-serif';context.fillText('음악으로 쉬어가는 세종의 저녁',155,490);
+    }else if(index===3){
+      context.fillStyle=performance.accent;context.font='900 130px "Noto Serif KR",serif';context.fillText('樂',236,300);
+      context.lineWidth=8;context.strokeStyle=performance.accent;context.beginPath();context.arc(360,310,185,.15,Math.PI*1.82);context.stroke();
+      context.font='800 31px "Noto Sans KR",sans-serif';context.fillText('연희 · 판',286,500);
+    }else{
+      const gradient=context.createRadialGradient(360,290,30,360,290,260);gradient.addColorStop(0,'#ffffff');gradient.addColorStop(1,performance.color);context.fillStyle=gradient;context.fillRect(0,80,720,500);
+      context.strokeStyle=performance.accent;context.lineWidth=12;for(let i=0;i<4;i++){context.beginPath();context.arc(360,300,80+i*46,0,Math.PI*2);context.stroke()}
+      context.fillStyle=performance.accent;context.font='900 43px "Noto Sans KR",sans-serif';context.fillText('WEDNESDAY OFF',155,315);
+    }
+    context.fillStyle=performance.accent;roundedRect(44,520,235,56,28);context.fillStyle='#ffffff';context.font='800 23px "Noto Sans KR",sans-serif';context.fillText(performance.category,70,557);
+    context.fillStyle='#9c7843';context.font='700 18px "Noto Sans KR",sans-serif';context.fillText('세종예술의전당 공식 공연',44,660);
+    context.fillStyle='#1e302c';context.font='900 38px "Noto Sans KR", "Malgun Gothic", sans-serif';wrappedText(performance.title,44,720,630,48,2);
+    context.fillStyle='#64726e';context.font='500 23px "Noto Sans KR", "Malgun Gothic", sans-serif';wrappedText(performance.description,44,820,630,34,2);
+    context.fillStyle='#89938f';context.font='700 18px "Noto Sans KR",sans-serif';context.fillText('일정',44,914);context.fillText('장소',44,954);
+    context.fillStyle='#31433e';context.font='700 20px "Noto Sans KR",sans-serif';context.fillText(performance.date,122,914);context.fillText(performance.venue,122,954);
+    context.fillStyle='#f8fbfa';roundedRect(44,988,632,62,18);context.strokeStyle='#cbd8d4';context.lineWidth=2;context.stroke();
+    context.textAlign='center';context.fillStyle='#54746b';context.font='800 21px "Noto Sans KR",sans-serif';context.fillText('♡  관심 있어요',360,1028);context.textAlign='left';
+    const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=textureAnisotropy;texture.needsUpdate=true;
+    // Use the same editable performance image on the in-world Poster_art
+    // surface and on the focused HTML card. This keeps both views identical.
+    const posterImage=new Image();
+    posterImage.onload=()=>{
+      const sourceRatio=posterImage.width/posterImage.height,targetRatio=720/610;
+      let sx=0,sy=0,sw=posterImage.width,sh=posterImage.height;
+      if(sourceRatio>targetRatio){sw=posterImage.height*targetRatio;sx=(posterImage.width-sw)/2}
+      else{sh=posterImage.width/targetRatio;sy=(posterImage.height-sh)/2}
+      context.fillStyle='#ffffff';context.fillRect(0,0,720,1080);
+      context.drawImage(posterImage,sx,sy,sw,sh,0,0,720,610);
+      context.fillStyle=performance.accent;roundedRect(44,520,235,56,28);
+      context.fillStyle='#ffffff';context.font='800 23px "Noto Sans KR",sans-serif';context.fillText(performance.category,70,557);
+      context.fillStyle='#9c7843';context.font='700 18px "Noto Sans KR",sans-serif';context.fillText('세종예술의전당 공식 공연',44,660);
+      context.fillStyle='#1e302c';context.font='900 38px "Noto Sans KR", "Malgun Gothic", sans-serif';wrappedText(performance.title,44,720,630,48,2);
+      context.fillStyle='#64726e';context.font='500 23px "Noto Sans KR", "Malgun Gothic", sans-serif';wrappedText(performance.description,44,820,630,34,2);
+      context.fillStyle='#89938f';context.font='700 18px "Noto Sans KR",sans-serif';context.fillText('일정',44,900);context.fillText('장소',44,938);
+      context.fillStyle='#31433e';context.font='700 20px "Noto Sans KR",sans-serif';context.fillText(performance.date,122,900);context.fillText(performance.venue,122,938);
+      context.fillStyle='#f8fbfa';roundedRect(44,960,632,60,18);context.strokeStyle='#cbd8d4';context.lineWidth=2;context.stroke();
+      context.textAlign='center';context.fillStyle='#54746b';context.font='800 21px "Noto Sans KR",sans-serif';context.fillText('▶  영상 보기',360,999);
+      context.fillStyle='#899792';context.font='700 15px "Noto Sans KR",sans-serif';context.fillText('공식 공연 정보 보기  →',360,1057);context.textAlign='left';
+      texture.needsUpdate=true;
+    };
+    posterImage.src=artsCenterPerformanceImageUrl(performance);
+    this.artsCenterPosterTextures.push(texture);return texture;
+  }
+
+  private createArtsCenterPosterKeyTexture(){
+    const canvas=document.createElement('canvas');canvas.width=640;canvas.height=160;
+    const context=canvas.getContext('2d')!;
+    context.clearRect(0,0,640,160);
+    context.fillStyle='rgba(9,48,41,.96)';context.beginPath();context.roundRect(5,5,630,150,52);context.fill();
+    context.strokeStyle='rgba(206,240,230,.95)';context.lineWidth=8;context.stroke();
+    context.fillStyle='#ffffff';context.beginPath();context.roundRect(42,31,98,98,25);context.fill();
+    context.fillStyle='#123f36';context.textAlign='center';context.textBaseline='middle';context.font='900 58px Arial,sans-serif';context.fillText('E',91,82);
+    context.fillStyle='#ffffff';context.textAlign='left';context.font='900 43px "Noto Sans KR","Malgun Gothic",sans-serif';context.fillText('자세히 보기',174,84);
+    const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=textureAnisotropy;texture.needsUpdate=true;
+    this.artsCenterPosterTextures.push(texture);return texture;
+  }
+
+  private setupArtsCenterPosterWeb(model:THREE.Object3D){
+    const screensByIndex=new Map<number,THREE.Mesh>();
+    model.traverse(object=>{const index=artsCenterPosterIndex(object.name);if(index>=0&&index<ARTS_CENTER_PERFORMANCES.length&&object instanceof THREE.Mesh)screensByIndex.set(index,object)});
+    const screens=ARTS_CENTER_PERFORMANCES.map((performance,index)=>{
+      const poster=screensByIndex.get(index);if(!poster)return undefined;
+      // The GLB poster mesh uses an atlas UV that also covers its side faces.
+      // Applying a full web card to that mesh tears the card into vertical strips,
+      // so render the card on a dedicated plane just in front of the poster instead.
+      const screen=new THREE.Mesh(
+        new THREE.PlaneGeometry(1.38,2.48),
+        new THREE.MeshBasicMaterial({
+          map:this.createArtsCenterPosterTexture(performance,index),
+          side:THREE.DoubleSide,
+          toneMapped:false,
+          polygonOffset:true,
+          polygonOffsetFactor:-2,
+          polygonOffsetUnits:-2,
+        }),
+      );
+      screen.name=`arts-center-web-poster-${index}`;
+      screen.position.set(0,0,.032);
+      screen.renderOrder=5;
+      screen.userData.artsCenterPerformanceIndex=index;screen.userData.artsCenterPerformanceTitle=performance.title;
+      poster.add(screen);
+      return screen;
+    }).filter((screen):screen is THREE.Mesh<THREE.PlaneGeometry,THREE.MeshBasicMaterial>=>screen!==undefined);
+    this.artsCenterPosterScreens=screens;
+  }
+
+  private setupArtsCenterSeats(model:THREE.Object3D){
+    const seats:ArtsCenterSeat[]=[],seatPartsBySuffix=new Map<string,THREE.Mesh[]>();
+    let auditoriumFloor:THREE.Mesh|undefined;
+    model.traverse(object=>{
+      if(!(object instanceof THREE.Mesh))return;
+      const normalized=normalizedModelObjectName(object.name);
+      if(normalized==='auditoriumfloor')auditoriumFloor=object;
+      if(normalized.startsWith('audienceriser')){
+        object.visible=false;
+        this.mapMeshes=this.mapMeshes.filter(mesh=>mesh!==object);
+        this.mapMeshBounds.delete(object);
+        return;
+      }
+      const partMatch=/^seat(?:cushion|back|frame)(\d*)$/.exec(normalized);
+      if(!partMatch)return;
+      const suffix=partMatch[1]||'000';
+      const parts=seatPartsBySuffix.get(suffix)??[];parts.push(object);seatPartsBySuffix.set(suffix,parts);
+    });
+    // Remove the stepped row offsets: every complete chair stands directly on
+    // the same Auditorium_floor top surface while retaining its own shape.
+    if(auditoriumFloor){
+      model.updateMatrixWorld(true);
+      const floorTop=new THREE.Box3().setFromObject(auditoriumFloor).max.y;
+      seatPartsBySuffix.forEach(parts=>{
+        const bounds=parts.reduce((box,part)=>box.union(new THREE.Box3().setFromObject(part)),new THREE.Box3());
+        const worldOffset=floorTop-bounds.min.y;
+        parts.forEach(part=>{
+          const parent=part.parent;if(!parent)return;
+          const worldPosition=part.getWorldPosition(new THREE.Vector3());
+          worldPosition.y+=worldOffset;
+          part.position.copy(parent.worldToLocal(worldPosition));
+        });
+      });
+      model.updateMatrixWorld(true);
+    }
+    seatPartsBySuffix.forEach(parts=>{
+      const cushion=parts.find(part=>normalizedModelObjectName(part.name).startsWith('seatcushion'));if(!cushion)return;
+      const bounds=new THREE.Box3().setFromObject(cushion),center=bounds.getCenter(new THREE.Vector3());
+      const seat:ArtsCenterSeat={id:cushion.name,x:center.x,z:this.sceneToWorldZ(center.z),seatHeight:bounds.max.y,yaw:0};
+      seats.push(seat);this.artsCenterSeatMeshes.push(cushion);this.artsCenterSeatByMesh.set(cushion,seat);
+      parts.forEach(part=>this.mapMeshBounds.set(part,new THREE.Box3().setFromObject(part)));
+    });
+    this.artsCenterSeats=seats;
+    let backdrop=model.getObjectByName('Stage_backdrop')??model.getObjectByName('Stage backdrop');
+    if(!backdrop)model.traverse(object=>{if(!backdrop&&object.name.replaceAll(' ','_').startsWith('Stage_backdrop'))backdrop=object});
+    if(backdrop instanceof THREE.Mesh)this.artsCenterStageBackdrop=backdrop;
+    else backdrop?.traverse(object=>{if(!this.artsCenterStageBackdrop&&object instanceof THREE.Mesh)this.artsCenterStageBackdrop=object});
+  }
+
+  private updateArtsCenterSeatProximity(x:number,z:number){
+    if(!this.artsCenterSeats.length||this.artsCenterActiveSeat)return;
+    const nearest=this.artsCenterSeats.map(seat=>({seat,distance:Math.hypot(x-seat.x,z-seat.z)})).sort((a,b)=>a.distance-b.distance)[0];
+    const nearby=nearest&&nearest.distance<92?nearest.seat:undefined;
+    if(nearby?.id===this.artsCenterSeatNearby?.id)return;
+    this.artsCenterSeatNearby=nearby;
+    gameEvents.emit('arts-center-seat-proximity-changed',nearby?{id:nearby.id}:null);
+  }
+
+  private toggleArtsCenterSeat=()=>{
+    if(this.artsCenterActiveSeat){
+      const seat=this.artsCenterActiveSeat;
+      this.artsCenterActiveSeat=undefined;this.localCharacter.setSeated(false);
+      // Stand in the aisle in front of the chair instead of inside its frame.
+      this.pendingTeleport={x:seat.x,z:seat.z+72};
+      this.artsCenterSeatNearby=undefined;
+      this.lastArtsCenterStageScreenRect=undefined;
+      gameEvents.emit('arts-center-stage-screen-rect',null);
+      gameEvents.emit('arts-center-seat-proximity-changed',null);
+      return;
+    }
+    const seat=this.artsCenterSeatNearby;if(!seat)return;
+    this.sitInArtsCenterSeat(seat);
+  };
+
+  private sitInArtsCenterSeat(seat:ArtsCenterSeat){
+    this.artsCenterActiveSeat=seat;this.artsCenterSeatNearby=seat;this.localCharacter.setSeated(true);
+    gameEvents.emit('arts-center-seat-proximity-changed',{id:seat.id,seated:true});
+  }
+
+  private enterArtsCenterPosterFocus(){
+    const screen=this.artsCenterPosterNearby;if(!screen)return;
+    screen.updateWorldMatrix(true,false);
+    const bounds=new THREE.Box3().setFromObject(screen),center=bounds.getCenter(new THREE.Vector3());
+    const size=bounds.getSize(new THREE.Vector3());
+    const screenNormal=new THREE.Vector3(0,0,1).transformDirection(screen.matrixWorld).normalize();
+    const currentCameraDirection=this.camera.position.clone().sub(center);
+    if(screenNormal.dot(currentCameraDirection)<0)screenNormal.negate();
+    const focusFov=30;
+    const distance=Math.max(250,(size.y*.5)/(Math.tan(THREE.MathUtils.degToRad(focusFov*.5))*.82));
+    const target=center.clone();
+    const camera=center.clone().addScaledVector(screenNormal,distance);
+    this.artsCenterPosterActive=screen;this.artsCenterPosterFocusView={target,camera};
+    this.artsCenterPosterWebReady=false;
+    this.artsCenterPosterFocusTransition={target:this.cameraTarget.clone(),camera:this.camera.position.clone(),elapsed:0};
+    this.setProjectRoomCharactersVisible(false);
+    this.renderer.domElement.style.cursor='pointer';
+    gameEvents.emit('game-input-lock',true);
+    gameEvents.emit('arts-center-poster-focus-mode-changed',{active:true,index:screen.userData.artsCenterPerformanceIndex as number,ready:false});
+  }
+
+  private exitArtsCenterPosterFocus=()=>{
+    if(!this.artsCenterPosterActive)return;
+    this.artsCenterPosterActive=undefined;this.artsCenterPosterFocusView=undefined;this.artsCenterPosterFocusTransition=undefined;
+    this.artsCenterPosterWebReady=false;
+    this.lastArtsCenterPosterScreenRect=undefined;
+    this.setProjectRoomCharactersVisible(true);
+    this.renderer.domElement.style.cursor='';
+    gameEvents.emit('game-input-lock',false);
+    gameEvents.emit('arts-center-poster-screen-rect',null);
+    gameEvents.emit('arts-center-poster-focus-mode-changed',{active:false,index:0,ready:false});
+  };
+
+  private onArtsCenterPosterPointerDown=(event:PointerEvent)=>{
+    if(!this.mapReady||this.renderer.domElement.style.display==='none'||this.artsCenterPosterActive||!this.artsCenterPosterScreens.length)return;
+    const rect=this.renderer.domElement.getBoundingClientRect();
+    const pointer=new THREE.Vector2((event.clientX-rect.left)/rect.width*2-1,-((event.clientY-rect.top)/rect.height)*2+1);
+    this.raycaster.setFromCamera(pointer,this.camera);
+    const seatHit=this.raycaster.intersectObjects(this.artsCenterSeatMeshes,false)[0];
+    if(seatHit){
+      const seat=this.artsCenterSeatByMesh.get(seatHit.object as THREE.Mesh);if(!seat)return;
+      event.preventDefault();event.stopPropagation();this.sitInArtsCenterSeat(seat);return;
+    }
+    const hit=this.raycaster.intersectObjects(this.artsCenterPosterScreens,false)[0];
+    if(!hit)return;
+    event.preventDefault();event.stopPropagation();
+    this.artsCenterPosterNearby=hit.object as THREE.Mesh;
+    this.enterArtsCenterPosterFocus();
+  };
+
   private onGreenhousePointerDown=(event:PointerEvent)=>{
     if(!this.mapReady||this.renderer.domElement.style.display==='none')return;
     const rect=this.renderer.domElement.getBoundingClientRect(),pointer=new THREE.Vector2((event.clientX-rect.left)/rect.width*2-1,-((event.clientY-rect.top)/rect.height)*2+1);
@@ -1358,6 +1810,8 @@ export class VillageMapRenderer{
     if(!visible&&this.mapSignNearby){this.mapSignNearby=false;gameEvents.emit('map-sign-proximity-changed',false)}
     if(!visible&&this.portalNearby){this.portalNearby=false;this.activePortal=undefined;this.resetPortalCharge();gameEvents.emit('world-portal-proximity-changed',null)}
     if(!visible&&this.interactionNearby){this.interactionNearby=false;this.resetInteractionCharge();gameEvents.emit('world-interaction-proximity-changed',null)}
+    if(!visible&&this.nearbyFoodTruckId){this.nearbyFoodTruckId=undefined;gameEvents.emit('food-truck-proximity-changed',null)}
+    if(!visible&&this.foodTruckKioskId)this.exitFoodTruckKiosk();
     if(!visible&&this.campusFeaturePortalNearby){this.campusFeaturePortalNearby=undefined;gameEvents.emit('campus-feature-portal-proximity-changed',null)}
     if(!visible&&this.projectRoomInteractionNearby){this.projectRoomInteractionNearby=undefined;this.projectRoomInteractionOutlines.forEach(outline=>{outline.visible=false});gameEvents.emit('project-room-interaction-proximity-changed',null)}
     if(!visible&&this.governmentWebUiNearby){this.governmentWebUiNearby=undefined;this.governmentWebUiOutlines.forEach(outline=>{outline.visible=false});gameEvents.emit('government-webui-proximity-changed',null)}
@@ -1664,6 +2118,9 @@ export class VillageMapRenderer{
   }
   private onWorldPortalKeyDown=(event:KeyboardEvent)=>{
     const focused=document.activeElement as HTMLElement|null;
+    if(this.artsCenterPosterActive&&event.key==='Escape'){
+      event.preventDefault();this.exitArtsCenterPosterFocus();return;
+    }
     if(this.observatoryTelescopeActive&&event.key==='Escape'){
       event.preventDefault();
       this.exitObservatoryTelescope();
@@ -1679,6 +2136,7 @@ export class VillageMapRenderer{
       this.exitProjectRoomKiosk();
       return;
     }
+    if(this.foodTruckKioskId&&event.key==='Escape'){event.preventDefault();this.exitFoodTruckKiosk();return}
     if(event.repeat||this.inputLocked||this.renderer.domElement.style.display==='none'||this.overviewActive||this.bearPhotoMode||(focused&&['INPUT','TEXTAREA','SELECT'].includes(focused.tagName)))return;
     if((event.code==='KeyT'||event.key.toLowerCase()==='t')&&this.pendingHabitatResource){
       event.preventDefault();
@@ -1686,6 +2144,9 @@ export class VillageMapRenderer{
       return;
     }
     if(event.code!=='KeyE')return;
+    if(this.artsCenterActiveSeat||this.artsCenterSeatNearby){
+      event.preventDefault();this.toggleArtsCenterSeat();return;
+    }
     if(this.observatoryTelescopeNearby){
       event.preventDefault();
       this.enterObservatoryTelescope();
@@ -1792,6 +2253,24 @@ export class VillageMapRenderer{
     const top=canvasBounds.top+(1-Math.max(...corners.map(point=>point.y)))*.5*canvasBounds.height;
     const bottom=canvasBounds.top+(1-Math.min(...corners.map(point=>point.y)))*.5*canvasBounds.height;
     return {left,top,width:right-left,height:bottom-top};
+  }
+  private syncArtsCenterPosterScreenRect(){
+    if(!this.artsCenterPosterActive)return;
+    const rect=this.projectedMeshScreenRect(this.artsCenterPosterActive);
+    if(!rect)return;
+    const previous=this.lastArtsCenterPosterScreenRect;
+    if(previous&&Math.abs(previous.left-rect.left)<.5&&Math.abs(previous.top-rect.top)<.5&&Math.abs(previous.width-rect.width)<.5&&Math.abs(previous.height-rect.height)<.5)return;
+    this.lastArtsCenterPosterScreenRect=rect;
+    gameEvents.emit('arts-center-poster-screen-rect',rect);
+  }
+  private syncArtsCenterStageScreenRect(){
+    if(!this.artsCenterActiveSeat||!this.artsCenterStageBackdrop)return;
+    const rect=this.projectedMeshScreenRect(this.artsCenterStageBackdrop);
+    if(!rect||rect.width<2||rect.height<2)return;
+    const previous=this.lastArtsCenterStageScreenRect;
+    if(previous&&Math.abs(previous.left-rect.left)<.5&&Math.abs(previous.top-rect.top)<.5&&Math.abs(previous.width-rect.width)<.5&&Math.abs(previous.height-rect.height)<.5)return;
+    this.lastArtsCenterStageScreenRect=rect;
+    gameEvents.emit('arts-center-stage-screen-rect',rect);
   }
   private projectedMeshScreenQuad(mesh:THREE.Mesh){
     mesh.geometry.computeBoundingBox();
@@ -2738,6 +3217,86 @@ export class VillageMapRenderer{
 
   private materialForHit(hit:THREE.Intersection){const mesh=hit.object as THREE.Mesh,materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];return materials[hit.face?.materialIndex??0]??materials[0]}
 
+  private setupFoodTruckWindows(model:THREE.Object3D){
+    const configs=[
+      {id:'local' as const,name:'Local_food_truck_service_window',label:'로컬푸드 트럭',title:'세종 로컬푸드',items:['조치원 복숭아','싱싱장터 채소','세종 한우']},
+      {id:'street' as const,name:'Street_food_truck_service_window',label:'길거리 음식 트럭',title:'세종 길거리 음식',items:['왕천파닭','세종 칼국수','들깨수제비']},
+      {id:'dessert' as const,name:'Dessert_truck_service_window',label:'디저트 트럭',title:'세종 디저트',items:['복숭아 아이스크림','로컬 베이커리','로스터리 커피']},
+    ];
+    const plazaObject=model.getObjectByName('Central_plaza');
+    this.foodTruckPlazaCenter=plazaObject
+      ?new THREE.Box3().setFromObject(plazaObject).getCenter(new THREE.Vector3())
+      :new THREE.Vector3(FOOD_EXPERIENCE_SPAWN.x,0,this.worldToSceneZ(FOOD_EXPERIENCE_SPAWN.z));
+    const plaza={x:this.foodTruckPlazaCenter.x,z:this.sceneToWorldZ(this.foodTruckPlazaCenter.z)},approachDistance=190;
+    this.foodTruckWindows=configs.flatMap(config=>{
+      const object=model.getObjectByName(config.name);if(!object)return [];
+      const screen=object instanceof THREE.Mesh?object:object.children.find(child=>child instanceof THREE.Mesh) as THREE.Mesh|undefined;
+      if(screen)this.foodTruckScreens.set(config.id,screen);
+      const center=new THREE.Box3().setFromObject(object).getCenter(new THREE.Vector3());
+      const windowZ=this.sceneToWorldZ(center.z),dx=plaza.x-center.x,dz=plaza.z-windowZ,length=Math.hypot(dx,dz)||1;
+      return [{id:config.id,label:config.label,x:center.x+dx/length*approachDistance,z:windowZ+dz/length*approachDistance}];
+    });
+    if(import.meta.env.DEV)console.info('[food truck windows]',this.foodTruckWindows);
+  }
+
+  private applyFoodTruckScreen(object:THREE.Object3D,title:string,items:string[],id:FoodTruckWindow['id']){
+    const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=512;
+    const context=canvas.getContext('2d')!,accent=id==='local'?'#68e0b4':id==='street'?'#ff9b65':'#ffc36f';
+    context.fillStyle='#102d2a';context.fillRect(0,0,canvas.width,canvas.height);
+    context.fillStyle=accent;context.fillRect(0,0,18,canvas.height);
+    context.fillStyle='#effff9';context.font='900 58px "Noto Sans KR",sans-serif';context.fillText(title,65,92);
+    context.fillStyle='#8ecfba';context.font='800 23px "Noto Sans KR",sans-serif';context.fillText('SEJONG FOOD MENU · 가까이에서 E',68,135);
+    items.forEach((item,index)=>{
+      const y=184+index*93;context.fillStyle=index%2?'#173a35':'#19423b';context.beginPath();context.roundRect(55,y,914,70,16);context.fill();
+      context.fillStyle=accent;context.font='900 28px "Noto Sans KR",sans-serif';context.fillText(String(index+1).padStart(2,'0'),78,y+45);
+      context.fillStyle='#fff';context.font='800 30px "Noto Sans KR",sans-serif';context.fillText(item,145,y+45);
+    });
+    const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.flipY=false;texture.minFilter=THREE.LinearFilter;texture.magFilter=THREE.LinearFilter;texture.needsUpdate=true;
+    object.traverse(child=>{
+      if(!(child instanceof THREE.Mesh))return;
+      const source=Array.isArray(child.material)?child.material[0]:child.material,material=source.clone();
+      if('map' in material)material.map=texture;
+      if(material instanceof THREE.MeshStandardMaterial){material.color.set(0xffffff);material.emissive.set(0xffffff);material.emissiveIntensity=.65;material.emissiveMap=texture;material.roughness=.55}
+      material.needsUpdate=true;child.material=material;
+    });
+  }
+
+  private updateFoodTruckProximity(x:number,z:number){
+    if(!this.foodTruckWindows.length)return;
+    const closest=this.foodTruckWindows.map(window=>({...window,distance:Math.hypot(x-window.x,z-window.z)})).sort((a,b)=>a.distance-b.distance)[0];
+    const same=closest?.id===this.nearbyFoodTruckId,nearby=closest&&closest.distance<(same?135:100)?closest:undefined;
+    if(nearby?.id===this.nearbyFoodTruckId)return;
+    this.nearbyFoodTruckId=nearby?.id;
+    gameEvents.emit('food-truck-proximity-changed',nearby?{id:nearby.id,label:nearby.label}:null);
+  }
+
+  private enterFoodTruckKiosk=(id?:FoodTruckWindow['id'])=>{
+    const next=id??this.nearbyFoodTruckId,screen=next?this.foodTruckScreens.get(next):undefined;if(!next||!screen)return;
+    screen.geometry.computeBoundingBox();
+    const center=new THREE.Box3().setFromObject(screen).getCenter(new THREE.Vector3()),localSize=screen.geometry.boundingBox?.getSize(new THREE.Vector3())??new THREE.Vector3(1,1,.01);
+    const normalAxis=localSize.x<=localSize.y&&localSize.x<=localSize.z?new THREE.Vector3(1,0,0):localSize.y<=localSize.z?new THREE.Vector3(0,1,0):new THREE.Vector3(0,0,1);
+    const normal=normalAxis.applyQuaternion(screen.getWorldQuaternion(new THREE.Quaternion())).normalize();
+    // The service-window meshes are authored on the trucks' outward-facing
+    // sides. Camera placement toward Central_plaza therefore lands behind the
+    // truck and shows its blank body panel instead of the serving window.
+    const plazaCenter=this.foodTruckPlazaCenter??new THREE.Vector3(FOOD_EXPERIENCE_SPAWN.x,center.y,this.worldToSceneZ(FOOD_EXPERIENCE_SPAWN.z));
+    const plazaDirection=plazaCenter.clone().sub(center);plazaDirection.y=0;
+    if(normal.dot(plazaDirection)>0)normal.negate();
+    this.foodTruckKioskId=next;this.foodTruckKioskView={target:center,camera:center.clone().addScaledVector(normal,430)};
+    this.foodTruckKioskTransition={target:this.cameraTarget.clone(),camera:this.camera.position.clone(),fov:this.camera instanceof THREE.PerspectiveCamera?this.camera.fov:46,elapsed:0};
+    this.localCharacter.root.visible=false;this.remotes.forEach(character=>{character.root.visible=false});
+    gameEvents.emit('food-truck-kiosk-mode-changed',next);gameEvents.emit('game-input-lock',true);
+  };
+  private exitFoodTruckKiosk=()=>{
+    if(!this.foodTruckKioskId)return;this.foodTruckKioskId=undefined;this.foodTruckKioskView=undefined;this.foodTruckKioskTransition=undefined;
+    this.localCharacter.root.visible=true;this.remotes.forEach(character=>{character.root.visible=true});
+    gameEvents.emit('food-truck-kiosk-screen-rect',null);gameEvents.emit('food-truck-kiosk-mode-changed',null);gameEvents.emit('game-input-lock',false);
+  };
+
+  private isGroundSurface(hit:THREE.Intersection){
+    return !/^Seat (?:cushion|frame|back)(?:\.\d+)?$/.test(hit.object.name);
+  }
+
   private groundMeshesAt(worldX:number,worldZ:number){
     const sceneZ=this.worldToSceneZ(worldZ);
     return this.mapMeshes.filter(mesh=>{
@@ -2746,12 +3305,17 @@ export class VillageMapRenderer{
     });
   }
 
+  private walkableMeshesAt(worldX:number,worldZ:number){
+    const candidates=this.groundMeshesAt(worldX,worldZ),prefixes=this.options.groundObjectPrefixes;
+    return prefixes?.length?candidates.filter(mesh=>prefixes.some(prefix=>mesh.name.startsWith(prefix))):candidates;
+  }
+
   private sampleExperienceGround(worldX:number,worldZ:number,preferHighest=false):GroundSample|undefined{
     if(!this.mapMeshes.length)return {height:this.localGround,normal:new THREE.Vector3(0,1,0)};
     this.raycaster.near=0;this.raycaster.far=Infinity;
     this.raycaster.set(new THREE.Vector3(worldX,1200,this.worldToSceneZ(worldZ)),new THREE.Vector3(0,-1,0));
-    return this.raycaster.intersectObjects(this.groundMeshesAt(worldX,worldZ),false).flatMap(hit=>{
-      if(!hit.face)return [];
+    return this.raycaster.intersectObjects(this.walkableMeshesAt(worldX,worldZ),false).flatMap(hit=>{
+      if(!hit.face||!this.isGroundSurface(hit))return [];
       const normal=hit.face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld));
       return normal.y>=MIN_WALKABLE_NORMAL&&!this.blockedMaterials.has(this.materialForHit(hit))?[{height:hit.point.y,normal}]:[];
     }).sort((a,b)=>preferHighest?b.height-a.height:a.height-b.height)[0];
@@ -2759,12 +3323,16 @@ export class VillageMapRenderer{
 
   private sampleGround(worldX:number,worldZ:number,currentHeight:number,initial=false,maxStepHeight=MAX_STEP_HEIGHT):GroundSample|undefined{
     if(!this.mapMeshes.length)return {height:currentHeight,normal:new THREE.Vector3(0,1,0)};
-    const offsets=initial?[[0,0],[COLLISION_RADIUS,0],[-COLLISION_RADIUS,0],[0,COLLISION_RADIUS],[0,-COLLISION_RADIUS]]:[[0,0]],samples:GroundSample[]=[];
+    // Probe the whole character footprint while moving, not only its center.
+    // Otherwise the center can cross a ledge while the shoes/capsule still
+    // overlap its vertical face, which visually sinks a foot into the step.
+    const footprintRadius=COLLISION_RADIUS*.82;
+    const offsets=[[0,0],[footprintRadius,0],[-footprintRadius,0],[0,footprintRadius],[0,-footprintRadius]],samples:GroundSample[]=[];
     for(const [index,[offsetX,offsetZ]] of offsets.entries()){
       this.raycaster.near=0;this.raycaster.far=Infinity;
       this.raycaster.set(new THREE.Vector3(worldX+offsetX,1200,this.worldToSceneZ(worldZ+offsetZ)),new THREE.Vector3(0,-1,0));
-      const candidates=this.raycaster.intersectObjects(this.groundMeshesAt(worldX+offsetX,worldZ+offsetZ),false).flatMap(hit=>{
-        if(!hit.face)return [];
+      const candidates=this.raycaster.intersectObjects(this.walkableMeshesAt(worldX+offsetX,worldZ+offsetZ),false).flatMap(hit=>{
+        if(!hit.face||!this.isGroundSurface(hit))return [];
         const normal=hit.face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld));
         return normal.y>=MIN_WALKABLE_NORMAL&&!this.blockedMaterials.has(this.materialForHit(hit))?[{height:hit.point.y,normal}]:[];
       });
@@ -2772,7 +3340,7 @@ export class VillageMapRenderer{
       if(!viable.length){if(index===0)return;continue}
       samples.push(viable[0]);
     }
-    if(samples.length<(initial?3:1))return;
+    if(samples.length<(initial?3:offsets.length))return;
     const height=Math.max(...samples.map(sample=>sample.height));
     if(samples.some(sample=>Math.abs(sample.height-height)>MAX_STEP_HEIGHT))return;
     const normal=samples.reduce((sum,sample)=>sum.add(sample.normal),new THREE.Vector3()).normalize();
@@ -2783,7 +3351,7 @@ export class VillageMapRenderer{
     if(!this.mapMeshes.length)return {height:this.localGround,normal:new THREE.Vector3(0,1,0)};
     this.raycaster.near=0;this.raycaster.far=Infinity;
     this.raycaster.set(new THREE.Vector3(worldX,1200,this.worldToSceneZ(worldZ)),new THREE.Vector3(0,-1,0));
-    const hit=this.raycaster.intersectObjects(this.groundMeshesAt(worldX,worldZ),false).sort((a,b)=>b.point.y-a.point.y)[0];
+    const hit=this.raycaster.intersectObjects(this.walkableMeshesAt(worldX,worldZ),false).filter(hit=>this.isGroundSurface(hit)).sort((a,b)=>b.point.y-a.point.y)[0];
     return hit?{height:hit.point.y+.15,normal:new THREE.Vector3(0,1,0)}:undefined;
   }
 
@@ -2795,7 +3363,7 @@ export class VillageMapRenderer{
 
   private findSafeSpawn(preferredX:number,preferredZ:number){
     const offsets:Array<[number,number]>=[[0,0]];
-    for(const radius of [55,90,130,180]){
+    for(const radius of [55,90,130,180,240,320]){
       for(let index=0;index<16;index++){
         const angle=index/16*Math.PI*2;
         offsets.push([Math.cos(angle)*radius,Math.sin(angle)*radius]);
@@ -2806,33 +3374,44 @@ export class VillageMapRenderer{
       const z=Math.max(20,Math.min(this.movementWorldHeight()-20,preferredZ+offsetZ));
       // Choose the walkable surface closest to the map's base level instead of
       // treating a tree canopy or roof as the spawn floor.
-      const ground=this.sampleGround(x,z,0,false,1200);
-      if(ground&&this.spawnSpaceClear(x,z,ground.height))return {x,z,ground};
+      // Authored ground lists intentionally exclude furniture and roofs. At
+      // spawn time choose their highest surface (for example Central plaza)
+      // instead of the lower map-island base closest to height zero.
+      const ground=this.sampleGround(x,z,0,!!this.options.groundObjectPrefixes?.length,1200);
+      // Railings, boat hulls and tree canopies can all be hit by the ground
+      // ray. Only an upward-facing surface is safe for an upright avatar.
+      if(ground&&ground.normal.y>=.72&&this.spawnSpaceClear(x,z,ground.height))return {x,z,ground};
     }
-    const fallback=this.sampleGround(preferredX,preferredZ,0,true);
-    return fallback?{x:preferredX,z:preferredZ,ground:fallback}:undefined;
+    return undefined;
   }
 
   private bodyPathClearFrom(startX:number,startZ:number,startGround:number,worldX:number,worldZ:number){
     if(!this.mapMeshes.length)return true;
     const characterHeight=this.options.characterHeight??CHARACTER_HEIGHT;
-    const start=new THREE.Vector3(startX,startGround+CHARACTER_GROUND_CLEARANCE+characterHeight*.4,this.worldToSceneZ(startZ));
+    const groundClearance=this.characterGroundClearance;
+    const start=new THREE.Vector3(startX,startGround+groundClearance,this.worldToSceneZ(startZ));
     const end=new THREE.Vector3(worldX,start.y,this.worldToSceneZ(worldZ)),direction=end.sub(start),distance=direction.length();
     if(distance<.001)return true;
     const pathBounds=new THREE.Box3().setFromPoints([start,start.clone().add(direction)]).expandByScalar(COLLISION_RADIUS);
     const nearbyMeshes=this.mapMeshes.filter(mesh=>this.mapMeshBounds.get(mesh)?.intersectsBox(pathBounds)??true);
     const normalizedDirection=direction.normalize();
     const side=new THREE.Vector3(-normalizedDirection.z,0,normalizedDirection.x).multiplyScalar(COLLISION_RADIUS*.8);
-    return [-1,0,1].every(offset=>{
-      this.bodyRaycaster.near=2;this.bodyRaycaster.far=distance+COLLISION_RADIUS;
-      this.bodyRaycaster.set(start.clone().addScaledVector(side,offset),normalizedDirection);
-      const blockingHit=this.bodyRaycaster.intersectObjects(nearbyMeshes,false).find(hit=>{
-        if(!hit.face)return false;
-        const normal=hit.face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld));
-        return Math.abs(normal.y)<.55;
-      });
-      return !blockingHit;
-    });
+    // Cast a small capsule-like grid. The old single waist-height row missed
+    // thresholds and low steps, allowing the legs to enter them before the
+    // center-point ground ray noticed the height change.
+    return [characterHeight*.14,characterHeight*.46,characterHeight*.78].every(height=>
+      [-1,0,1].every(offset=>{
+        this.bodyRaycaster.near=2;this.bodyRaycaster.far=distance+COLLISION_RADIUS;
+        const rayOrigin=start.clone().addScaledVector(side,offset);rayOrigin.y+=height;
+        this.bodyRaycaster.set(rayOrigin,normalizedDirection);
+        const blockingHit=this.bodyRaycaster.intersectObjects(nearbyMeshes,false).find(hit=>{
+          if(!hit.face)return false;
+          const normal=hit.face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld));
+          return Math.abs(normal.y)<.55;
+        });
+        return !blockingHit;
+      })
+    );
   }
 
   private bodyPathClear(worldX:number,worldZ:number){
@@ -2851,20 +3430,33 @@ export class VillageMapRenderer{
     this.updateGuideNpc(delta);
     this.updateLocalNpcs(delta);
     this.updatePortals();
+    this.updateFoodTruckProximity(this.localX,this.localZ);
     this.updateLakeExperienceCircles();
     this.updateProjectRoomHologram();
     if(this.overviewActive){this.showMapOverview();this.renderAccumulator+=delta;if(this.renderAccumulator>=this.renderInterval){this.renderAccumulator%=this.renderInterval;this.render()}return {x:this.localX,z:this.localZ,groundHeight:this.localGround}}
+    if(this.artsCenterActiveSeat){
+      const seat=this.artsCenterActiveSeat,characterHeight=this.options.characterHeight??CHARACTER_HEIGHT;
+      this.localX=seat.x;this.localZ=seat.z;
+      const position=this.localRenderPosition.set(seat.x,seat.seatHeight-characterHeight*.53,this.worldToSceneZ(seat.z));
+      const cameraGround=this.followTarget.set(seat.x,seat.seatHeight,this.worldToSceneZ(seat.z));
+      this.localCharacter.update(position,this.localNormal,seat.yaw,'idle',delta);
+      this.followCharacter(cameraGround,delta);this.syncArtsCenterStageScreenRect();this.adjustQuality(delta);this.renderAccumulator+=delta;
+      if(this.renderAccumulator>=this.renderInterval){this.renderAccumulator%=this.renderInterval;this.render()}
+      return {x:seat.x,z:seat.z,groundHeight:this.localGround};
+    }
     const positionChanged=Math.hypot(proposedX-this.localX,proposedZ-this.localZ)>.001;
     // Jumping may clear a low obstacle, but must not make roofs count as
     // reachable ground. A larger downward allowance lets a character already
     // stranded on a roof step back onto the real terrain.
     const canCrossBody=jumpHeight>8,reachableHeight=MAX_STEP_HEIGHT;
     const pathClear=(x:number,z:number)=>canCrossBody||this.options.simplifiedCollision||this.bodyPathClear(x,z);
-    let nextX=proposedX,nextZ=proposedZ,sample=positionChanged?(pathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround,false,reachableHeight):undefined):{height:this.localGround,normal:this.localNormal};
-    if(!sample){nextZ=this.localZ;sample=pathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround,false,reachableHeight):undefined}
-    if(!sample){nextX=this.localX;nextZ=proposedZ;sample=pathClear(nextX,nextZ)?this.sampleGround(nextX,nextZ,this.localGround,false,reachableHeight):undefined}
+    const walkable=(ground:GroundSample|undefined)=>ground&&ground.normal.y>=.55?ground:undefined;
+    let nextX=proposedX,nextZ=proposedZ,sample=positionChanged?(pathClear(nextX,nextZ)?walkable(this.sampleGround(nextX,nextZ,this.localGround,false,reachableHeight)):undefined):{height:this.localGround,normal:this.localNormal};
+    if(!sample){nextZ=this.localZ;sample=pathClear(nextX,nextZ)?walkable(this.sampleGround(nextX,nextZ,this.localGround,false,reachableHeight)):undefined}
+    if(!sample){nextX=this.localX;nextZ=proposedZ;sample=pathClear(nextX,nextZ)?walkable(this.sampleGround(nextX,nextZ,this.localGround,false,reachableHeight)):undefined}
     if(!sample){nextX=this.localX;nextZ=this.localZ;sample={height:this.localGround,normal:this.localNormal}}
     this.localX=nextX;this.localZ=nextZ;this.localGround=sample.height;this.localNormal.copy(sample.normal);
+    if(this.artsCenterPosterScreens.length)this.updateArtsCenterSeatProximity(nextX,nextZ)
     const closestLocalNpc=this.localNpcs.map(npc=>({npc,distance:Math.hypot(nextX-npc.x,nextZ-npc.z)})).sort((a,b)=>a.distance-b.distance)[0];
     const sameLocalNpc=closestLocalNpc?.npc.config.id===this.localNpcNearbyId;
     const nearbyLocalNpc=closestLocalNpc&&closestLocalNpc.distance<(sameLocalNpc?220:180)?closestLocalNpc.npc:undefined;
@@ -2878,7 +3470,7 @@ export class VillageMapRenderer{
       const projected=nearbyLocalNpc.position.clone().project(this.camera);
       const localProjected=new THREE.Vector3(
         nextX,
-        sample.height+CHARACTER_GROUND_CLEARANCE,
+        sample.height+this.characterGroundClearance,
         this.worldToSceneZ(nextZ),
       ).project(this.camera);
       const rect=this.renderer.domElement.getBoundingClientRect();
@@ -3023,13 +3615,14 @@ export class VillageMapRenderer{
     if(this.options.lakeExperiences?.length){
       const closest=this.options.lakeExperiences.map(config=>{const position=this.lakeExperiencePositions.get(config.id)??config;return {config,distance:Math.hypot(nextX-position.x,nextZ-position.z)}}).sort((a,b)=>a.distance-b.distance)[0];
       const same=closest?.config.id===this.lakeExperienceNearby;
-      const nearby=closest&&closest.distance<(same?LAKE_EXPERIENCE_EXIT_DISTANCE:LAKE_EXPERIENCE_OPEN_DISTANCE)?closest.config:undefined;
+      const openDistance=closest?.config.radius??LAKE_EXPERIENCE_OPEN_DISTANCE;
+      const nearby=closest&&closest.distance<(same?openDistance+40:openDistance)?closest.config:undefined;
       if(nearby?.id!==this.lakeExperienceNearby){
         this.lakeExperienceNearby=nearby?.id;
         gameEvents.emit('lake-experience-proximity-changed',nearby?{id:nearby.id,label:nearby.label,description:nearby.description}:null);
       }
     }
-    const groundPosition=this.followTarget.set(nextX,sample.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(nextZ));
+    const groundPosition=this.followTarget.set(nextX,sample.height+this.characterGroundClearance,this.worldToSceneZ(nextZ));
     const position=this.localRenderPosition.copy(groundPosition);position.y+=jumpHeight;
     if(emote)this.localCharacter.playEmote(emote,emote==='talking');else this.localCharacter.stopEmote();
     this.localCharacter.update(position,sample.normal,yaw,motion,delta);
@@ -3044,7 +3637,7 @@ export class VillageMapRenderer{
     const ground=sampled?{...sampled,x:worldX,z:worldZ}:previousGround??{height:0,normal:new THREE.Vector3(0,1,0),x:worldX,z:worldZ};
     if(needsGroundSample)this.remoteGrounds.set(id,ground);
     if(emote)character.playEmote(emote,emote==='talking');else character.stopEmote();
-    character.update(this.remoteRenderPosition.set(worldX,ground.height+CHARACTER_GROUND_CLEARANCE+jumpHeight,this.worldToSceneZ(worldZ)),ground.normal,yaw,motion,delta);
+    character.update(this.remoteRenderPosition.set(worldX,ground.height+this.characterGroundClearance+jumpHeight,this.worldToSceneZ(worldZ)),ground.normal,yaw,motion,delta);
   }
 
   removeRemoteCharacter(id:string){this.remotes.get(id)?.destroy();this.remotes.delete(id);this.remoteGrounds.delete(id)}
@@ -3065,11 +3658,33 @@ export class VillageMapRenderer{
       if(followBounds.minZ!==undefined)target.z=Math.max(target.z,this.worldToSceneZ(followBounds.minZ));
       if(followBounds.maxZ!==undefined)target.z=Math.min(target.z,this.worldToSceneZ(followBounds.maxZ));
     }
+    if(this.options.cameraDownScreenLimitZ!==undefined){
+      target.z=Math.max(target.z,this.worldToSceneZ(this.options.cameraDownScreenLimitZ));
+    }
     target.y+=this.options.cameraTargetHeight??0;
     target.z-=(this.options.cameraScreenOffsetY??0)/GROUND_PROJECTION;
     if(immediate)this.cameraTarget.copy(target);else this.cameraTarget.lerp(target,1-Math.exp(-5*delta));
     const elevation=THREE.MathUtils.degToRad(this.options.cameraElevationDeg??33);
     if(this.camera instanceof THREE.PerspectiveCamera){
+      if(this.artsCenterPosterActive&&this.artsCenterPosterFocusView){
+        const view=this.artsCenterPosterFocusView,transition=this.artsCenterPosterFocusTransition;
+        if(transition){
+          transition.elapsed=Math.min(.65,transition.elapsed+delta);
+          const progress=transition.elapsed/.65,eased=progress*progress*(3-2*progress);
+          this.cameraTarget.lerpVectors(transition.target,view.target,eased);
+          this.camera.position.lerpVectors(transition.camera,view.camera,eased);
+          this.camera.fov=THREE.MathUtils.lerp(this.options.cameraFov??46,30,eased);
+          if(progress>=1)this.artsCenterPosterFocusTransition=undefined;
+        }else{
+          this.cameraTarget.copy(view.target);this.camera.position.copy(view.camera);this.camera.fov=30;
+        }
+        this.camera.aspect=this.width/Math.max(1,this.height);this.camera.lookAt(this.cameraTarget);this.camera.updateProjectionMatrix();this.syncArtsCenterPosterScreenRect();
+        if(!this.artsCenterPosterFocusTransition&&!this.artsCenterPosterWebReady){
+          this.artsCenterPosterWebReady=true;
+          gameEvents.emit('arts-center-poster-focus-mode-changed',{active:true,index:this.artsCenterPosterActive.userData.artsCenterPerformanceIndex as number,ready:true});
+        }
+        return;
+      }
       if(this.observatoryTelescopeActive){
         const view=this.observatoryTelescopeView,transition=this.observatoryTelescopeTransition;
         if(!view)return;
@@ -3129,6 +3744,13 @@ export class VillageMapRenderer{
         this.syncProjectRoomKioskScreenRect();
         return;
       }
+      if(this.foodTruckKioskId&&this.foodTruckKioskView){
+        const view=this.foodTruckKioskView,transition=this.foodTruckKioskTransition;
+        if(transition){transition.elapsed=Math.min(.65,transition.elapsed+delta);const p=transition.elapsed/.65,e=p*p*(3-2*p);this.cameraTarget.lerpVectors(transition.target,view.target,e);this.camera.position.lerpVectors(transition.camera,view.camera,e);this.camera.fov=THREE.MathUtils.lerp(transition.fov,34,p);if(p>=1)this.foodTruckKioskTransition=undefined}else{this.cameraTarget.copy(view.target);this.camera.position.copy(view.camera);this.camera.fov=34}
+        this.camera.aspect=this.width/Math.max(1,this.height);this.camera.lookAt(this.cameraTarget);this.camera.updateProjectionMatrix();
+        const screen=this.foodTruckScreens.get(this.foodTruckKioskId),rect=screen?this.projectedMeshScreenRect(screen):undefined;if(rect)gameEvents.emit('food-truck-kiosk-screen-rect',rect);
+        return;
+      }
       if(this.options.fixedCameraTarget&&!this.mapBounds.isEmpty())this.mapBounds.getCenter(this.cameraTarget);
       const distance=this.options.cameraDistance??CAMERA_DISTANCE;
       const azimuth=THREE.MathUtils.degToRad(this.options.cameraAzimuthDeg??0);
@@ -3186,6 +3808,8 @@ export class VillageMapRenderer{
 
   destroy(){
     if(this.destroyed)return;
+    if(this.artsCenterPosterActive){gameEvents.emit('game-input-lock',false);gameEvents.emit('arts-center-poster-screen-rect',null);gameEvents.emit('arts-center-poster-focus-mode-changed',{active:false,index:0,ready:false})}
+    if(this.artsCenterStageBackdrop)gameEvents.emit('arts-center-stage-screen-rect',null);
     this.destroyed=true;
     if(this.guideNearby)gameEvents.emit('guide-proximity-changed',false);
     if(this.portalNearby)gameEvents.emit('world-portal-proximity-changed',null);
@@ -3210,6 +3834,7 @@ export class VillageMapRenderer{
       gameEvents.off('greenhouse-progress-changed',this.onGreenhouseProgressChanged);
       this.parent.removeEventListener('pointerdown',this.onGreenhousePointerDown);
     }
+    if(this.artsCenterPosterScreens.length)this.parent.removeEventListener('pointerdown',this.onArtsCenterPosterPointerDown);
     if(this.options.campusFeaturePortals){
       gameEvents.off('campus-building-fast-travel',this.onCampusBuildingFastTravel);
     }
@@ -3220,10 +3845,15 @@ export class VillageMapRenderer{
     if(this.options.projectRoomInteractions)gameEvents.off('project-room-focus-changed',this.onProjectRoomFocusChanged);
     if(this.options.projectRoomInteractions)gameEvents.off('project-room-kiosk-activate',this.enterProjectRoomKiosk);
     if(this.options.projectRoomInteractions)window.removeEventListener('pointerdown',this.onProjectRoomKioskPointerDown,true);
+    if(this.options.foodTruckExperience)gameEvents.off('food-truck-kiosk-activate',this.enterFoodTruckKiosk);
+    if(this.options.foodTruckExperience)gameEvents.off('food-truck-kiosk-close',this.exitFoodTruckKiosk);
     if(this.options.governmentCentralPlazaWebUi)gameEvents.off('government-webui-open',this.enterGovernmentWebUi);
     if(this.options.governmentCentralPlazaWebUi)gameEvents.off('government-webui-close',this.exitGovernmentWebUi);
     if(this.options.observatoryTelescopeInteraction)gameEvents.off('observatory-telescope-enter',this.enterObservatoryTelescope);
     if(this.options.observatoryTelescopeInteraction)gameEvents.off('observatory-telescope-exit',this.exitObservatoryTelescope);
+    if(this.options.artsCenterPosterWeb)gameEvents.off('arts-center-seat-toggle',this.toggleArtsCenterSeat);
+    if(this.options.artsCenterPosterWeb)gameEvents.off('arts-center-poster-focus-close',this.exitArtsCenterPosterFocus);
+    if(this.artsCenterSeatNearby||this.artsCenterActiveSeat)gameEvents.emit('arts-center-seat-proximity-changed',null);
     window.removeEventListener('keydown',this.onWorldPortalKeyDown);
     this.projectRoomInteractionOutlines.forEach(outline=>{outline.geometry.dispose();(outline.material as THREE.Material).dispose()});
     this.projectRoomInteractionOutlines.clear();
@@ -3233,6 +3863,7 @@ export class VillageMapRenderer{
     this.governmentWebUiOutlines.forEach(outline=>{outline.geometry.dispose();(outline.material as THREE.Material).dispose()});
     this.governmentWebUiOutlines.clear();this.governmentWebUiPositions.clear();this.governmentWebUiViews.clear();this.governmentWebUiScreens.clear();
     this.governmentWebUiTextures.forEach(texture=>texture.dispose());this.governmentWebUiTextures=[];
+    this.artsCenterPosterTextures.forEach(texture=>texture.dispose());this.artsCenterPosterTextures=[];this.artsCenterPosterScreens=[];this.artsCenterSeats=[];this.artsCenterStageBackdrop=undefined;
     if(this.observatoryTelescopeOutline){this.observatoryTelescopeOutline.geometry.dispose();(this.observatoryTelescopeOutline.material as THREE.Material).dispose();this.observatoryTelescopeOutline=undefined}
     this.localCharacter?.destroy();this.guideNpc?.destroy();this.localNpcs.forEach(npc=>npc.character.destroy());this.localNpcs=[];this.remotes.forEach(character=>character.destroy());this.remotes.clear();this.remoteGrounds.clear();
     this.scene.traverse(object=>{if(object instanceof THREE.Mesh||object instanceof THREE.Points){object.geometry.dispose();const materials=Array.isArray(object.material)?object.material:[object.material];materials.forEach(material=>material.dispose())}if(object instanceof THREE.Sprite){object.material.map?.dispose();object.material.dispose()}});

@@ -6,6 +6,25 @@ import { env } from './env.js';
 
 let embeddedMongo: MongoMemoryServerInstance | undefined;
 
+const startEmbeddedMongo = async (): Promise<string> => {
+  const dbPath = localDatabasePath();
+  await mkdir(dbPath, { recursive: true });
+
+  console.log(
+    `[Database] Starting embedded local MongoDB at ${dbPath}`,
+  );
+
+  const { MongoMemoryServer } = await import('mongodb-memory-server');
+  embeddedMongo = await MongoMemoryServer.create({
+    instance: {
+      dbName: 'jochwon',
+      dbPath,
+      storageEngine: 'wiredTiger',
+    },
+  });
+  return embeddedMongo.getUri('jochwon');
+};
+
 const localDatabasePath = () => {
   const serverRoot =
     path.basename(process.cwd()) === 'server'
@@ -24,27 +43,27 @@ export const connectDatabase = async (): Promise<void> => {
         throw new Error('MONGODB_URI is required in production');
       }
 
-      const dbPath = localDatabasePath();
-      await mkdir(dbPath, { recursive: true });
-
-      console.log(
-        `[Database] MONGODB_URI not set; starting embedded local MongoDB at ${dbPath}`,
-      );
-
-      const { MongoMemoryServer } = await import('mongodb-memory-server');
-      embeddedMongo = await MongoMemoryServer.create({
-        instance: {
-          dbName: 'jochwon',
-          dbPath,
-          storageEngine: 'wiredTiger',
-        },
-      });
-      uri = embeddedMongo.getUri('jochwon');
+      uri = await startEmbeddedMongo();
     }
 
-    await mongoose.connect(uri, {
-      dbName: env.MONGODB_DB_NAME,
-    });
+    try {
+      await mongoose.connect(uri, {
+        dbName: env.MONGODB_DB_NAME,
+        serverSelectionTimeoutMS: 8_000,
+      });
+    } catch (error) {
+      if (embeddedMongo || env.NODE_ENV === 'production') throw error;
+
+      console.warn(
+        '[Database] External MongoDB unavailable; using embedded local MongoDB for development',
+      );
+      await mongoose.disconnect().catch(() => undefined);
+      uri = await startEmbeddedMongo();
+      await mongoose.connect(uri, {
+        dbName: env.MONGODB_DB_NAME,
+        serverSelectionTimeoutMS: 8_000,
+      });
+    }
 
     console.log(
       `[Database] MongoDB connected (${embeddedMongo ? 'embedded local' : 'external'}, database: ${mongoose.connection.name})`,

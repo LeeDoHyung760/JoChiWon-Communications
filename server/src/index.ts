@@ -25,6 +25,8 @@ import { authenticatedUserIdFromCookie } from './middleware/authenticatedUser.js
 import { UserModel } from './models/User.js';
 import { profileRouter } from './routes/profile.js';
 import { jointCampusRecommendationsRouter } from './routes/jointCampusRecommendations.js';
+import { loadOrSeedWorldRespawnPosition } from './models/WorldRespawnPosition.js';
+import { FIXED_LAKE_RESPAWN } from '../../shared/socket-events.js';
 
 const app = express();
 app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }));
@@ -55,11 +57,12 @@ setSocketServer(io);
 io.use(async (socket, next) => {
   const userId = authenticatedUserIdFromCookie(socket.request.headers.cookie);
   if (!userId) return next();
-  const user = await UserModel.findById(userId).select('ageGroup profile.chatEnabled').lean().catch(() => null);
+  const user = await UserModel.findById(userId).select('ageGroup profile.chatEnabled profile.recordVisibility').lean().catch(() => null);
   if (user) {
     socket.data.userId = String(user._id);
     socket.data.ageGroup = user.ageGroup;
     socket.data.chatEnabled = user.profile?.chatEnabled !== false;
+    socket.data.recordVisibility = user.profile?.recordVisibility === 'private' ? 'private' : 'public';
   }
   return next();
 });
@@ -86,6 +89,7 @@ process.once('SIGTERM', () => void shutdown('SIGTERM'));
 
 const startServer = async (): Promise<void> => {
   await connectDatabase();
+  roomStore.setRespawnPosition(await loadOrSeedWorldRespawnPosition(FIXED_LAKE_RESPAWN));
   roomStore.replaceCampusFeaturePortalPositions(await seedCampusFeaturePortalPositions(roomStore.allCampusFeaturePortalPositions()));
   let campusPortalSignature=JSON.stringify(roomStore.allCampusFeaturePortalPositions().sort((a,b)=>a.portal.localeCompare(b.portal)));
   campusPortalSyncTimer=setInterval(()=>{void loadCampusFeaturePortalPositions().then(positions=>{

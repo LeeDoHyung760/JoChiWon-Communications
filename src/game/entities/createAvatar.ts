@@ -27,7 +27,7 @@ const animationClipByState:{[K in Exclude<CharacterModel,'custom'>]:Record<Motio
   chungnyeong:{idle:'NlaTrack',walk:'NlaTrack',run:'NlaTrack'},
   girl1:{idle:'NlaTrack.002',walk:'NlaTrack.001',run:'NlaTrack'},
   boy1:{idle:'NlaTrack',walk:'NlaTrack.002',run:'NlaTrack.001'},
-  cloths:{idle:'standing',walk:'walking',run:'walking'},
+  cloths:{idle:'standing',walk:'walking',run:'running'},
   women:{idle:'standing',walk:'walking',run:'running'}
 };
 const femaleMotionDuration:Record<'walk'|'run',number>={walk:2.375,run:1.292};
@@ -35,7 +35,7 @@ const motionDurationByModel:{[K in Exclude<CharacterModel,'custom'>]:Record<'wal
   chungnyeong:{...femaleMotionDuration},
   girl1:{...femaleMotionDuration},
   boy1:{...femaleMotionDuration},
-  cloths:{walk:1.167,run:1.167},
+  cloths:{walk:1.167,run:.667},
   women:{walk:1.167,run:.667},
 };
 export const CHARACTER_MODEL_FILES={idle:'chungnyeong_idle.glb',walk:'chungnyeong_walk.glb',run:'chungnyeong_run.glb'} as const;

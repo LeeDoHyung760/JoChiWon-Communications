@@ -39,7 +39,8 @@ export function CharacterDesignStep({
   selectModel,
   onSubmit,
   editMode,
-  onBack
+  onBack,
+  onHome
 }: {
   model: CharacterModel;
   character: UserProfile['character'];
@@ -50,12 +51,14 @@ export function CharacterDesignStep({
   onSubmit: () => void;
   editMode: boolean;
   onBack?: () => void;
+  onHome?: () => void;
 }) {
   const modelFaces: Record<CharacterModel, string> = {chungnyeong: '🧑🏻‍🌾', girl1: '👧🏻', boy1: '👦🏻', cloths: '🧑🏻', women: '👩🏻', custom: '＋'};
 
   return (
     <main className="character-design-page">
       <section className="character-design-card">
+        {onHome&&<button type="button" className="onboarding-home-button" onClick={onHome}>홈으로</button>}
         <header className="character-design-heading">
           <span className="character-design-sparkle" aria-hidden="true">✧</span>
           <div>

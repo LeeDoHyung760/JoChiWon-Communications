@@ -15,7 +15,8 @@ export function WorldModelPreview({src,poster,name}:{src:string;poster:string;na
     viewer.alt=`${name} 3D 월드 모형`;
     viewer.cameraControls=true;
     const centralPlazaFront=name==='정부청사 중앙광장';
-    viewer.autoRotate=!centralPlazaFront;
+    const artsCenterFront=name==='세종예술의전당';
+    viewer.autoRotate=!centralPlazaFront&&!artsCenterFront;
     viewer.autoRotateDelay=1200;
     viewer.setAttribute('rotation-per-second','8deg');
     viewer.environmentImage='neutral';
@@ -24,7 +25,7 @@ export function WorldModelPreview({src,poster,name}:{src:string;poster:string;na
     viewer.loading='eager';
     // The central plaza's official front is the open glass entrance looking
     // through the hologram toward the three administrative Web UI panels.
-    viewer.setAttribute('camera-orbit',centralPlazaFront?'42deg 62deg auto':'42deg 62deg auto');
+    viewer.setAttribute('camera-orbit',artsCenterFront?'180deg 62deg auto':'42deg 62deg auto');
     viewer.setAttribute('field-of-view','28deg');
     viewer.setAttribute('interaction-prompt','auto');
     viewer.setAttribute('touch-action','pan-y');

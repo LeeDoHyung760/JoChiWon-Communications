@@ -33,6 +33,28 @@ const interestOptions = [
   {id:'공방',emoji:'🎨',copy:'로컬 상점과 체험'},
   {id:'스마트도시',emoji:'🏙️',copy:'미래 도시와 기술'},
 ];
+const residenceOptions = [
+  '세종특별자치시',
+  '서울특별시',
+  '부산광역시',
+  '대구광역시',
+  '인천광역시',
+  '광주광역시',
+  '대전광역시',
+  '울산광역시',
+  '경기도',
+  '강원특별자치도',
+  '충청북도',
+  '충청남도',
+  '전북특별자치도',
+  '전라남도',
+  '경상북도',
+  '경상남도',
+  '제주특별자치도',
+  '해외',
+];
+const sejongVisitOptions = ['처음이에요', '1~2번 방문', '여러 번 방문', '세종에 살고 있어요'];
+const mbtiOptions = ['', 'ISTJ', 'ISFJ', 'INFJ', 'INTJ', 'ISTP', 'ISFP', 'INFP', 'INTP', 'ESTP', 'ESFP', 'ENFP', 'ENTP', 'ESTJ', 'ESFJ', 'ENFJ', 'ENTJ'];
 const journeySteps = [
   {number:'하나',emoji:'🌱',title:'관심 주제로 시작해요',copy:'첫 공간과 이야깃거리를 안내하는 가벼운 출발점이에요'},
   {number:'둘',emoji:'📷',title:'체험하며 기록을 쌓아요',copy:'저장한 콘텐츠와 식물·곰 관찰이 나다운 취향이 돼요'},
@@ -176,18 +198,20 @@ export function CreateProfilePage({initial,initialStep=1,editMode=false,cancelLa
         onSubmit={() => onComplete(profileForSave(p))}
         editMode={editMode}
         onBack={() => setStep(1)}
+        onHome={!editMode?onCancel:undefined}
       />
     );
   }
 
-  const canContinue=p.nickname.trim().length>=2&&p.interests.length>0;
+  const canContinue=p.nickname.trim().length>=2&&Boolean(p.residence)&&Boolean(p.sejongVisitExperience);
   const experienceRecordCount=buildExperienceRecommendationProfile(p).experienceRecords.length;
   return (
     <main className={`profile-design-page ${editMode?'is-edit-mode':''}`}>
       <section className="profile-design-card">
+        {!editMode&&onCancel&&<button type="button" className="onboarding-home-button" onClick={onCancel}>홈으로</button>}
         <header className="profile-design-heading">
           <span className="profile-design-sparkle" aria-hidden="true">✧</span>
-          <div><h1>{editMode?'회원 정보 변경':'세종에서 만날 나를 소개해 주세요'}</h1><p>{editMode?'프로필과 관심 정보를 확인하고 변경해보세요':'관심 주제는 첫 대화와 체험을 열고, 이후의 탐험 기록은 이웃과 장소 추천으로 이어져요.'}</p></div>
+          <div><h1>{editMode?'회원 정보 변경':'세종에서 만날 나를 소개해 주세요'}</h1><p>{editMode?'프로필 정보를 확인하고 변경해보세요':'간단한 기본 정보를 알려주시면 세종에서의 만남과 체험을 더 편하게 시작할 수 있어요.'}</p></div>
           {editMode?<div className="profile-design-header-actions"><button type="button" className="profile-design-withdraw" onClick={()=>{if(window.confirm('세종한바퀴에서 탈퇴할까요? 저장된 프로필과 체험 기록이 삭제됩니다.'))onWithdraw?.()}}>탈퇴</button><button type="button" className="profile-design-logout" onClick={onLogout}>로그아웃</button><button type="button" className="profile-design-close" onClick={onCancel}>{cancelLabel}</button></div>:<span className="profile-design-step">캐릭터 설정 · 1/2</span>}
         </header>
 
@@ -214,15 +238,14 @@ export function CreateProfilePage({initial,initialStep=1,editMode=false,cancelLa
           </aside>
 
           <div className="profile-design-form">
-            <p className="profile-design-notice">여기서 고른 관심 주제는 첫 공간과 대화를 안내하는 데만 활용해요. 이후에는 맵에서 직접 남긴 선택과 탐험 기록이 이웃 연결과 세종 장소 추천의 중심이 됩니다.</p>
+            <p className="profile-design-notice">입력한 기본 정보는 세종에서의 만남과 체험을 편리하게 안내하는 데 활용돼요. MBTI는 선택 사항이며, 모든 정보는 회원 정보에서 언제든 변경할 수 있어요.</p>
             <label className="profile-nickname-field">닉네임 <small>다른 이웃에게 보여요</small><input maxLength={10} value={p.nickname} onChange={e=>setP({...p,nickname:e.target.value})} placeholder="2~10자로 입력해주세요" /></label>
 
-            <fieldset className="profile-choice-fieldset"><legend>관심 주제 <small>최대 3개</small></legend><div className="profile-interest-grid">{interestOptions.map(option=><button type="button" key={option.id} className={p.interests.includes(option.id)?'selected':''} onClick={()=>toggle('interests',option.id)}><span>{option.emoji}</span><strong>{option.id}</strong><small>{option.copy}</small></button>)}</div></fieldset>
-
-            <section className="profile-core-journey" aria-label="세종한바퀴 이용 흐름">
-              <div><small>세종에서 이렇게 이어져요</small></div>
-              <div className="profile-core-journey-grid">{journeySteps.map(step=><article key={step.number}><span>{step.emoji}</span><div><small>{step.number}</small><strong>{step.title}</strong><p>{step.copy}</p></div></article>)}</div>
-            </section>
+            <div className="profile-basic-fields">
+              <label>거주지역 <small>필수</small><select value={p.residence??''} onChange={e=>setP({...p,residence:e.target.value})}><option value="">거주지역을 선택해 주세요</option>{residenceOptions.map(option=><option key={option}>{option}</option>)}</select></label>
+              <label>세종 방문 경험 <small>필수</small><select value={p.sejongVisitExperience??''} onChange={e=>setP({...p,sejongVisitExperience:e.target.value})}><option value="">방문 경험을 선택해 주세요</option>{sejongVisitOptions.map(option=><option key={option}>{option}</option>)}</select></label>
+              <label>MBTI <small>선택</small><select value={p.mbti} onChange={e=>setP({...p,mbti:e.target.value})}>{mbtiOptions.map(option=><option key={option||'none'} value={option}>{option||'선택하지 않음'}</option>)}</select></label>
+            </div>
 
             <fieldset className="profile-choice-fieldset profile-privacy-fieldset">
               <legend>공개 및 대화 설정 <small>언제든 변경 가능</small></legend>

@@ -1,0 +1,9 @@
+.food-truck-kiosk-active-marker{display:none}
+.game-page:has(.food-truck-kiosk-active-marker) .game-layout>:not(.game-canvas):not(.food-truck-overlay){display:none!important}
+.food-truck-overlay.is-kiosk{padding:0;background:transparent;backdrop-filter:none;pointer-events:none}
+.food-truck-overlay.is-kiosk .food-truck-menu{box-sizing:border-box;max-height:none;overflow:hidden;padding:12px;border-radius:5px;box-shadow:none;pointer-events:auto}
+.food-truck-overlay.is-kiosk .food-truck-menu>header{gap:7px;padding-right:28px}
+.food-truck-overlay.is-kiosk .food-truck-menu>header>span{width:30px;height:30px;border-radius:8px;font-size:15px}
+.food-truck-overlay.is-kiosk .food-truck-menu header small{font-size:5px}.food-truck-overlay.is-kiosk .food-truck-menu h2{margin:1px 0;font-size:12px}.food-truck-overlay.is-kiosk .food-truck-menu header p{font-size:5px}
+.food-truck-overlay.is-kiosk .food-truck-close{right:6px;top:6px;width:23px;height:23px}.food-truck-overlay.is-kiosk .food-truck-close svg{width:13px}
+.food-truck-overlay.is-kiosk .food-truck-menu-grid{margin-top:8px;gap:5px}.food-truck-overlay.is-kiosk .food-truck-menu-grid article{border-radius:7px;box-shadow:none}.food-truck-overlay.is-kiosk .food-truck-menu-grid img,.food-truck-overlay.is-kiosk .food-truck-fallback{height:48%}.food-truck-overlay.is-kiosk .food-truck-menu-grid section{padding:5px}.food-truck-overlay.is-kiosk .food-truck-menu-grid small{font-size:4px}.food-truck-overlay.is-kiosk .food-truck-menu-grid h3{margin:1px 0;font-size:7px}.food-truck-overlay.is-kiosk .food-truck-menu-grid p{min-height:0;font-size:4px}.food-truck-overlay.is-kiosk .food-truck-menu-grid em{display:none}.food-truck-overlay.is-kiosk .food-truck-menu>footer{display:none}
