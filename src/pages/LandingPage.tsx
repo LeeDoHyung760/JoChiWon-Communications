@@ -23,6 +23,12 @@ import observatoryWorldUrl from '../assets/maps/observatory-interior.glb?url';
 import observatoryPreview from '../assets/maps/observatory-preview.png';
 import sejongSmartCityWorldUrl from '../assets/maps/sejong-smartcity-exhibition.glb?url';
 import sejongSmartCityPreview from '../assets/maps/sejong-smartcity-exhibition-preview.png';
+import sejongArtsCenterWorldUrl from '../assets/maps/sejong-arts-center.glb?url';
+import sejongArtsCenterPreview from '../assets/maps/sejong-arts-center-preview.png';
+import festivalExperienceWorldUrl from '../assets/maps/festival-experience-map.glb?url';
+import festivalExperiencePreview from '../assets/maps/festival-experience-map-preview.png';
+import foodExperienceWorldUrl from '../assets/maps/food-experience-map.glb?url';
+import foodExperiencePreview from '../assets/maps/food-experience-map-preview.png';
 import type { MapId } from '../../shared/socket-events';
 import './LandingPage.css';
 
@@ -39,6 +45,9 @@ const places:WorldPlace[]=[
 
 const guideWorlds:WorldPlace[]=[
   {name:'세종호수공원',description:'세종의 축제와 먹거리, 공연을 체험하며 나의 여행 취향을 발견하는 시작 월드예요.',people:'취향 발견',emoji:'🎪',image:lakeMapPreview,modelUrl:lakeWorldUrl,modelSize:'3.2MB',accent:'#2f72c7',mapId:'town',points:['축제 부스에서 선호 분위기 선택','공연·먹거리 부스에서 여행 스타일 분석','추천 코스 게시판 저장과 반응']},
+  {name:'세종예술의전당',description:'세종호수공원의 공연 공간에서 이어지는 별도 실내 공연장으로, 밝은 예술 로비와 어두운 객석·무대를 둘러볼 수 있어요.',people:'공연 문화',emoji:'🎭',image:sejongArtsCenterPreview,modelUrl:sejongArtsCenterWorldUrl,modelSize:'7.1MB',accent:'#a84875',mapId:'arts-center',points:['공연 포스터가 전시된 밝은 예술 로비','객석과 조명이 갖춰진 공연 무대','세종호수공원으로 돌아가는 별도 포털']},
+  {name:'축제 체험 맵',description:'세종호수공원의 축제 부스에서 이어지는 야외 축제 공간으로, 공연 무대와 체험 부스, 휴게 공간을 둘러볼 수 있어요.',people:'축제 체험',emoji:'🎪',image:festivalExperiencePreview,modelUrl:festivalExperienceWorldUrl,modelSize:'4.0MB',accent:'#7c4b9d',mapId:'festival-experience',points:['조명과 악기가 설치된 야외 공연 무대','양쪽 체험 부스와 피크닉 테이블','세종호수공원 축제 부스로 돌아가는 포털']},
+  {name:'먹거리 체험 맵',description:'세종호수공원의 먹거리 부스에서 이어지는 야외 광장으로, 푸드트럭과 테이블 사이를 걸으며 공간을 둘러볼 수 있어요.',people:'먹거리 체험',emoji:'🍜',image:foodExperiencePreview,modelUrl:foodExperienceWorldUrl,modelSize:'3.3MB',accent:'#d47a32',mapId:'food-experience',points:['서로 다른 메뉴의 푸드트럭 세 대','파라솔 테이블과 수변 휴게 공간','세종호수공원 먹거리 부스로 돌아가는 포털']},
   {name:'베어트리파크',description:'숲길과 곰 생태 공간을 탐색하고 행동 선택을 나만의 자연 여행 기록으로 남겨요.',people:'자연 탐험',emoji:'🐻',image:bearTreeMapPreview,modelUrl:bearTreeWorldUrl,modelSize:'13.9MB',accent:'#299467',mapId:'bear-tree-park',points:['숲길과 곰 생태 공간 탐색','아기곰 포토존과 생태 관찰','수목원으로 이어지는 이동 포털']},
   {name:'AI 탐험 연구소',description:'곰의 흔적을 조사하고 관찰 결과를 모아 자연 탐험 프로필을 완성하는 체험 월드예요.',people:'생태 조사',emoji:'🔎',image:bearLabMapPreview,modelUrl:bearLabWorldUrl,modelSize:'5.8MB',accent:'#bd7b35',mapId:'bear-play-zone',points:['불곰과 반달가슴곰 단서 조사','관찰 미션과 생태 퀴즈 수행','베어트리 자연 체험 기록 완성']},
   {name:'국립세종수목원',description:'온실 속 식물을 직접 찾아 촬영하고 식물도감과 대표 식물을 만드는 기록 월드예요.',people:'식물 기록',emoji:'🌱',image:gardenMapPreview,modelUrl:gardenWorldUrl,modelSize:'8.2MB',accent:'#36a168',mapId:'garden',points:['온실별 대표 식물 발견과 촬영','식물도감·사진·메모 기록','대표 식물 선택과 취향 분석']},

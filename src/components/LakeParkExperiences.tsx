@@ -1,4 +1,4 @@
-import { useEffect,useMemo,useState } from 'react';
+import { useEffect,useMemo,useRef,useState } from 'react';
 import { Bookmark,Check,Heart,Route,Sparkles,ThumbsUp,Users,X } from 'lucide-react';
 import type { LakeExperienceId,PlayerState } from '../../shared/socket-events';
 import { gameEvents } from '../game/events';
@@ -14,11 +14,25 @@ type BoothCompletion={activity:boolean;food:boolean;festival:boolean};
 type FestivalCard={id:string;category:'축제'|'공연';emoji:string;image:string;source:string;title:string;description:string;schedule:string;venue:string;status:string;tags:string[];tone:string};
 type ApiFestival={id:string;name:string;startDate:string;endDate:string;status:string;venue:string;description:string;organizer?:string;image?:string;source:string};
 type LakeInterestProfile={savedContentIds:string[];activities:string[];foodPlaceInterests:FoodPlaceInterest[];festivalTheme:string;likedCourseTitles:string[];tasteAnswers:LakeTasteAnswers;tasteInsights:LakeTasteInsights;updatedAt:number};
+type FestivalTentId='blue'|'red';
+type FestivalTentRecord={totalViewMs:number;interested:boolean;completed:boolean;openCount:number;lastOpenedAt?:number;lastClosedAt?:number};
+type FestivalTentRecords=Record<FestivalTentId,FestivalTentRecord>;
 
 const LAKE_INTEREST_KEY='sejong-lake-interest-profile-v1';
 const LAKE_JOURNEY_STEP_KEY='sejong-lake-journey-step-v1';
 const LAKE_BOOTH_COMPLETION_KEY='sejong-lake-booth-completion-v1';
 const LAKE_COMPLETION_DISMISSED_KEY='sejong-lake-taste-completion-dismissed-v1';
+const FESTIVAL_TENT_RECORD_KEY='sejong-festival-tent-engagement-v1';
+const FESTIVAL_STAGE_VIDEO_RECORD_KEY='sejong-festival-stage-video-v1';
+const FESTIVAL_TENT_REQUIRED_MS=8000;
+// Replace videoUrl with an official MP4 URL or a file placed under public/videos.
+const FESTIVAL_STAGE_VIDEO={title:'세종 축제 영상',description:'세종의 축제 현장을 영상으로 만나보세요.',buttonLabel:'영상 보기 (E)',videoUrl:'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',poster:'/images/festivals/nakhwa-2026.jpg'};
+const festivalTentDetails:Record<FestivalTentId,{eyebrow:string;title:string;description:string;image:string;schedule:string;venue:string;tags:string[]}>= {
+  blue:{eyebrow:'BLUE EXPERIENCE TENT',title:'2026 세종 전통문화 체험',description:'전통 놀이와 공예, 한글 문화 프로그램을 직접 만나보는 참여형 축제 부스입니다.',image:'/images/festivals/dano-2026.jpg',schedule:'2026년 축제 기간 상시 운영',venue:'전통문화 체험 부스',tags:['전통놀이','공예','한글문화']},
+  red:{eyebrow:'RED EXPERIENCE TENT',title:'2026 세종 문화예술 전시',description:'세종의 축제와 지역 예술가의 작품을 사진과 이야기로 감상하는 문화예술 전시 부스입니다.',image:'/images/festivals/hangeul-2026.jpg',schedule:'2026년 축제 기간 상시 운영',venue:'문화 예술 전시 부스',tags:['문화예술','전시','세종축제']},
+};
+const emptyFestivalTentRecords=():FestivalTentRecords=>({blue:{totalViewMs:0,interested:false,completed:false,openCount:0},red:{totalViewMs:0,interested:false,completed:false,openCount:0}});
+function readFestivalTentRecords(){try{return {...emptyFestivalTentRecords(),...JSON.parse(localStorage.getItem(FESTIVAL_TENT_RECORD_KEY)??'{}')} as FestivalTentRecords}catch{return emptyFestivalTentRecords()}}
 const activities=[
   {id:'lunch-concert',emoji:'🎸',label:'12시 런치 콘서트',mood:'자유로운 라이브',description:'이한결 트리오의 대중음악을 가까이에서 즐기는 로비 콘서트',schedule:'2026. 7. 29. 12:00',venue:'세종예술의전당 로비',image:'/images/performances/lunch-concert-2026.jpg',detailUrl:'https://www.sjac.or.kr/base/nrr/performance/read?menuLevel=2&menuNo=77&performanceNo=667'},
   {id:'seopyeonje-musical',emoji:'🎭',label:'뮤지컬 〈서편제〉',mood:'전통과 감동',description:'우리 소리와 현대적인 음악이 어우러지는 창작 뮤지컬',schedule:'2026. 7. 30. ~ 8. 1.',venue:'세종예술의전당',image:'/images/performances/seopyeonje-2026.jpg',detailUrl:'https://www.sjac.or.kr/base/nrr/performance/read?menuLevel=2&menuNo=77&performanceNo=650'},
@@ -34,6 +48,11 @@ const fallbackFestivalContents:FestivalCard[]=[
   {id:'kings-birthday-book-festival',category:'축제' as const,emoji:'📚',image:'/images/festivals/king-book-2026.jpg',source:'세종특별자치시·문화관광재단 제공',title:'세종대왕 나신 날 × 세종 책사랑 축제',description:'세종대왕 나신 날을 기념하며 한글과 책, 공연과 가족 체험을 함께 만나는 축제예요.',schedule:'2026. 5. 15. ~ 5. 16.',venue:'세종호수공원·중앙공원 일원',status:'행사 종료',tags:['세종대왕','책'],tone:'violet'},
   {id:'dano-festival',category:'공연' as const,emoji:'🎭',image:'/images/festivals/dano-2026.jpg',source:'대한민국 구석구석 제공',title:'2026 세종단오제',description:'단오의 세시풍속과 전통·현대 공연, 체험을 함께 즐기는 지역문화축제예요.',schedule:'2026. 6. 13.',venue:'세종특별자치시 일원',status:'행사 종료',tags:['단오','전통문화'],tone:'green'},
   {id:'street-hangeul-festival',category:'공연' as const,emoji:'🎤',image:'/images/festivals/street-hangeul-2026.jpg',source:'한글문화도시 세종 관련 행사 사진',title:'2026 거리 한글문화 한마당',description:'거리 공연과 시민 참여 프로그램으로 생활 속 한글문화를 만나는 순회형 한마당이에요.',schedule:'2026년 회차별 진행',venue:'세종시 주요 거리·생활권 일원',status:'일정 확인 중',tags:['한글','거리공연'],tone:'blue'},
+];
+const festivalCultureExperiences=[
+  {id:'mask',emoji:'🎭',title:'전통 탈·놀이 체험',description:'세종의 전통 놀이와 탈 문화를 직접 체험해 보세요.',image:'/images/festivals/dano-2026.jpg'},
+  {id:'craft',emoji:'🪭',title:'전통 공예 만들기',description:'축제의 색을 담은 나만의 전통 공예품을 만들어요.',image:'/images/festivals/spring-flower-2026.jpg'},
+  {id:'hangeul',emoji:'📜',title:'한글 문화 체험',description:'세종대왕과 한글 이야기를 놀이와 전시로 만나보세요.',image:'/images/festivals/king-book-2026.jpg'},
 ];
 const foodShopContents=[
   {id:'jochwon-peach',emoji:'🍑',name:'조치원 복숭아',group:'지역 먹거리' as const,category:'local-food',tags:['복숭아','지역특산물','제철과일'],description:'세종 조치원의 대표 특산물인 달콤한 복숭아입니다.',location:'조치원읍 일원',action:'먹어보고 싶어요',imagePosition:'0% 0%'},
@@ -153,6 +172,15 @@ export function LakeParkExperiences(){
   const [journeyCompleteDismissed,setJourneyCompleteDismissed]=useState(()=>localStorage.getItem(LAKE_COMPLETION_DISMISSED_KEY)==='true');
   const [journeyNotice,setJourneyNotice]=useState('');
   const [coach,setCoach]=useState<{domain:LakeTasteDomain;step:number}|null>(null);
+  const [festivalCultureSelections,setFestivalCultureSelections]=useState<string[]>([]);
+  const [festivalTentRecords,setFestivalTentRecords]=useState<FestivalTentRecords>(readFestivalTentRecords);
+  const [festivalTentElapsedMs,setFestivalTentElapsedMs]=useState(0);
+  const [festivalStageProgress,setFestivalStageProgress]=useState(0);
+  const festivalStageVideoRef=useRef<HTMLVideoElement|null>(null);
+  const festivalStageLastSecond=useRef(-1);
+  const isFestivalExperience=location==='축제 체험 맵';
+  const supportsExperienceWeb=location==='세종호수공원'||isFestivalExperience;
+  const activeFestivalTentId:FestivalTentId|undefined=isFestivalExperience&&active==='food-shop-zone'?'blue':isFestivalExperience&&active==='central-plaza'?'red':undefined;
 
   const savedContents=useMemo(()=>festivals.filter(content=>profile.savedContentIds.includes(content.id)),[festivals,profile.savedContentIds]);
   const selectedFoodShops=profile.foodPlaceInterests;
@@ -175,7 +203,28 @@ export function LakeParkExperiences(){
   },[]);
   useEffect(()=>{localStorage.setItem(LAKE_INTEREST_KEY,JSON.stringify(profile));window.dispatchEvent(new CustomEvent('sejong-lake-interest-updated',{detail:profile}))},[profile]);
   useEffect(()=>{localStorage.setItem(LAKE_BOOTH_COMPLETION_KEY,JSON.stringify(completedBooths))},[completedBooths]);
-  useEffect(()=>{if(location!=='세종호수공원'){setActive(null);setNearby(null)}},[location]);
+  useEffect(()=>{localStorage.setItem(FESTIVAL_TENT_RECORD_KEY,JSON.stringify(festivalTentRecords))},[festivalTentRecords]);
+  useEffect(()=>{
+    if(!isFestivalExperience)return;
+    const saved=readFestivalTentRecords();
+    let stageCompleted=false,stageProgress=0;
+    try{const stage=JSON.parse(localStorage.getItem(FESTIVAL_STAGE_VIDEO_RECORD_KEY)??'{}') as {completed?:boolean;maxProgress?:number};stageCompleted=!!stage.completed;stageProgress=stage.maxProgress??0}catch{/* Start with an empty stage record. */}
+    setFestivalTentRecords(saved);
+    setFestivalStageProgress(stageProgress);
+    setCompletedBooths(current=>({...current,activity:current.activity||stageCompleted,food:current.food||saved.blue.completed,festival:current.festival||saved.red.completed}));
+  },[isFestivalExperience]);
+  useEffect(()=>{
+    if(!activeFestivalTentId){setFestivalTentElapsedMs(0);return}
+    const tentId=activeFestivalTentId,startedAt=Date.now(),previous=readFestivalTentRecords()[tentId];let awarded=previous.completed;
+    setFestivalTentRecords(current=>({...current,[tentId]:{...current[tentId],openCount:current[tentId].openCount+1,lastOpenedAt:startedAt}}));
+    const update=()=>{
+      const total=previous.totalViewMs+Date.now()-startedAt;setFestivalTentElapsedMs(total);
+      if(total>=FESTIVAL_TENT_REQUIRED_MS&&!awarded){awarded=true;setCompletedBooths(current=>({...current,[tentId==='blue'?'food':'festival']:true}));setFestivalTentRecords(current=>({...current,[tentId]:{...current[tentId],totalViewMs:total,completed:true}}))}
+    };
+    update();const timer=window.setInterval(update,250);
+    return()=>{window.clearInterval(timer);const closedAt=Date.now(),total=previous.totalViewMs+closedAt-startedAt;setFestivalTentRecords(current=>({...current,[tentId]:{...current[tentId],totalViewMs:Math.max(current[tentId].totalViewMs,total),completed:current[tentId].completed||total>=FESTIVAL_TENT_REQUIRED_MS,lastClosedAt:closedAt}}))};
+  },[activeFestivalTentId]);
+  useEffect(()=>{if(!supportsExperienceWeb){setActive(null);setNearby(null)}},[supportsExperienceWeb]);
   useEffect(()=>{
     gameEvents.emit('lake-booth-completion-changed',{
       'activity-zone':completedBooths.activity,
@@ -183,7 +232,7 @@ export function LakeParkExperiences(){
       'central-plaza':completedBooths.festival,
     });
   },[completedBooths]);
-  useEffect(()=>{if(allBoothsCompleted&&!journeyCompleteDismissed)setShowJourneyComplete(true)},[allBoothsCompleted,journeyCompleteDismissed]);
+  useEffect(()=>{if(allBoothsCompleted&&!journeyCompleteDismissed&&!isFestivalExperience)setShowJourneyComplete(true)},[allBoothsCompleted,journeyCompleteDismissed,isFestivalExperience]);
   useEffect(()=>{
     const controller=new AbortController();
     fetch(`${API_BASE_URL}/festivals`,{signal:controller.signal}).then(response=>{
@@ -224,7 +273,18 @@ export function LakeParkExperiences(){
   const openExperience=(id:LakeExperienceId)=>{
     socket.emit('enterLakeExperience',id);setActive(id);
   };
-  const experienceName=(id:LakeExperienceId)=>id==='central-plaza'?'축제 부스':id==='activity-zone'?'공연 부스':id==='food-shop-zone'?'먹거리·상점 부스':'세종 추천 코스 게시판';
+  useEffect(()=>{
+    const openWithE=(event:KeyboardEvent)=>{
+      const target=event.target as HTMLElement|null;
+      if(event.repeat||event.code!=='KeyE'||active||!nearby||target?.matches('input,textarea,select,[contenteditable="true"]'))return;
+      event.preventDefault();openExperience(nearby.id);
+    };
+    window.addEventListener('keydown',openWithE);
+    return()=>window.removeEventListener('keydown',openWithE);
+  },[active,nearby]);
+  const experienceName=(id:LakeExperienceId)=>isFestivalExperience
+    ?id==='central-plaza'?'문화 예술 전시 부스':id==='activity-zone'?'축제 공연장':id==='food-shop-zone'?'전통문화 체험 부스':'축제 안내'
+    :id==='central-plaza'?'축제 부스':id==='activity-zone'?'공연 부스':id==='food-shop-zone'?'먹거리·상점 부스':'세종 추천 코스 게시판';
   const toggleContent=(id:string)=>setProfile(current=>{
     const removing=current.savedContentIds.includes(id);
     if(!removing&&current.savedContentIds.length>=2){setFestivalLimitNotice(true);window.setTimeout(()=>setFestivalLimitNotice(false),2200);return current}
@@ -265,30 +325,66 @@ export function LakeParkExperiences(){
   const showCompletionNotice=(message:string)=>{setCompletionNotice(message);window.setTimeout(()=>setCompletionNotice(''),3500)};
   const completeActivitySelection=()=>{if(!profile.activities.length)return;startTasteInterview('performance')};
   const completeFestivalSelection=()=>{if(!savedContents.length)return;setSelectedFestival(null);startTasteInterview('festival')};
+  const toggleFestivalCulture=(id:string)=>setFestivalCultureSelections(current=>current.includes(id)?current.filter(item=>item!==id):[...current,id]);
+  const completeFestivalCulture=()=>{if(!festivalCultureSelections.length)return;setCompletedBooths(current=>({...current,food:true}));setActive(null)};
+  const toggleFestivalTentInterest=(id:FestivalTentId)=>setFestivalTentRecords(current=>({...current,[id]:{...current[id],interested:!current[id].interested}}));
+  const recordFestivalStageVideoEvent=(type:'play'|'pause'|'ended'|'timeupdate',video:HTMLVideoElement)=>{
+    const currentTime=Number.isFinite(video.currentTime)?video.currentTime:0,duration=Number.isFinite(video.duration)?video.duration:0,progress=duration>0?currentTime/duration:0;
+    try{
+      const saved=JSON.parse(localStorage.getItem(FESTIVAL_STAGE_VIDEO_RECORD_KEY)??'{}') as {events?:unknown[];maxProgress?:number;completed?:boolean};
+      const events=Array.isArray(saved.events)?saved.events.slice(-199):[];
+      events.push({type,recordedAt:Date.now(),currentTime,duration,progress});
+      localStorage.setItem(FESTIVAL_STAGE_VIDEO_RECORD_KEY,JSON.stringify({events,maxProgress:Math.max(saved.maxProgress??0,progress),completed:!!saved.completed||progress>=.7}));
+    }catch{/* A blocked localStorage must not interrupt video playback. */}
+    setFestivalStageProgress(progress);
+    if(progress>=.7)setCompletedBooths(current=>current.activity?current:{...current,activity:true});
+  };
+  const onFestivalStageTimeUpdate=()=>{
+    const video=festivalStageVideoRef.current;if(!video)return;
+    const second=Math.floor(video.currentTime);if(second===festivalStageLastSecond.current)return;
+    festivalStageLastSecond.current=second;recordFestivalStageVideoEvent('timeupdate',video);
+  };
 
-  if(location!=='세종호수공원')return null;
+  if(!supportsExperienceWeb)return null;
   return <>
-    <aside className={`lake-journey-guide ${allBoothsCompleted?'step-3':''}`}>
+    {isFestivalExperience&&<>
+      <header className="festival-experience-map-title"><small>2026 SEJONG FESTIVAL</small><b>세종 축제 체험 지도</b></header>
+      <aside className="festival-experience-passport">
+        <header><span>🎟️</span><div><small>축제 스탬프 여행권</small><b>{completedCount}/3개 부스 완료</b></div></header>
+        <div>{([['공연장',completedBooths.activity,'🎵'],['전통문화',completedBooths.food,'🎭'],['예술 전시',completedBooths.festival,'🎨']] as const).map(([label,done,icon])=><span className={done?'done':''} key={label}><i>{done?'✓':icon}</i><small>{label}</small></span>)}</div>
+      </aside>
+      {allBoothsCompleted&&<aside className="festival-experience-complete"><span>🎉</span><div><b>축제 스탬프 3개 완료!</b><small>모든 부스를 둘러봤어요.</small></div></aside>}
+    </>}
+    {!isFestivalExperience&&<aside className={`lake-journey-guide ${allBoothsCompleted?'step-3':''}`}>
       <header><span>🧭</span><div><small>호수공원 취향 여정</small><b>{allBoothsCompleted?'호수공원 체험 완료!':`자유 체험 ${completedCount} / 3`}</b></div></header>
       <div className="lake-journey-steps">{([['공연',completedBooths.activity],['먹거리',completedBooths.food],['축제',completedBooths.festival]] as const).map(([label,done],index)=><div key={label} className={done?'done':'current'}><i>{done?<Check size={11}/>:index+1}</i><span>{label}</span></div>)}</div>
       <p>{allBoothsCompleted?'충녕이가 세 가지 취향 분석을 마쳤어요. 다음 공간의 안내가 내 취향에 맞게 달라집니다.':'부스에서 선택하고 충녕이의 짧은 질문에 답해 보세요.'}</p>
       {allBoothsCompleted&&<button type="button" onClick={()=>setShowJourneyComplete(true)}>내 취향 결과 보기 →</button>}
-    </aside>
-    {journeyNotice&&<div className="lake-journey-notice" role="status">{journeyNotice}</div>}
-    {foodSavedNotice&&<aside className="food-saved-map-notice" role="status"><span><Check size={22}/></span><div><b>내 세종 맛 {selectedFoodShops.length}개 저장 완료!</b><p>선택한 취향이 맞춤 코스에 반영됩니다.</p></div><button type="button" onClick={()=>setFoodSavedNotice(false)} aria-label="저장 알림 닫기"><X size={16}/></button></aside>}
-    {completionNotice&&<aside className="food-saved-map-notice" role="status"><span><Check size={22}/></span><div><b>{completionNotice}</b><p>선택한 취향이 맞춤 코스에 반영됩니다.</p></div><button type="button" onClick={()=>setCompletionNotice('')} aria-label="저장 알림 닫기"><X size={16}/></button></aside>}
+    </aside>}
+    {!isFestivalExperience&&journeyNotice&&<div className="lake-journey-notice" role="status">{journeyNotice}</div>}
+    {!isFestivalExperience&&foodSavedNotice&&<aside className="food-saved-map-notice" role="status"><span><Check size={22}/></span><div><b>내 세종 맛 {selectedFoodShops.length}개 저장 완료!</b><p>선택한 취향이 맞춤 코스에 반영됩니다.</p></div><button type="button" onClick={()=>setFoodSavedNotice(false)} aria-label="저장 알림 닫기"><X size={16}/></button></aside>}
+    {!isFestivalExperience&&completionNotice&&<aside className="food-saved-map-notice" role="status"><span><Check size={22}/></span><div><b>{completionNotice}</b><p>선택한 취향이 맞춤 코스에 반영됩니다.</p></div><button type="button" onClick={()=>setCompletionNotice('')} aria-label="저장 알림 닫기"><X size={16}/></button></aside>}
 
     {nearby&&!active&&<button type="button" className={`lake-experience-enter is-${nearby.id}`} onClick={()=>openExperience(nearby.id)}>
-      <span>{nearby.id==='central-plaza'?'🎪':nearby.id==='activity-zone'?'🎤':nearby.id==='food-shop-zone'?'🍑':'🗺️'}</span><div><small>{nearby.id==='food-shop-zone'?'세종 맛 발견소':'세종의 축제와 문화를 알아보는 공간'}</small><b>{nearby.id==='food-shop-zone'?'먹거리·상점 둘러보기':`${experienceName(nearby.id)} 둘러보기`}</b><em>{nearby.id==='food-shop-zone'?'세종의 맛과 장소를 골라보세요':nearby.description}</em></div><Sparkles size={18}/>
+      <span>{nearby.id==='central-plaza'?'🎪':nearby.id==='activity-zone'?'🎤':nearby.id==='food-shop-zone'?(isFestivalExperience?'🎭':'🍑'):'🗺️'}</span><div><small>{isFestivalExperience?'2026 세종 축제 체험':nearby.id==='food-shop-zone'?'세종 맛 발견소':'세종의 축제와 문화를 알아보는 공간'}</small><b>{isFestivalExperience?`${experienceName(nearby.id)} 둘러보기`:nearby.id==='food-shop-zone'?'먹거리·상점 둘러보기':`${experienceName(nearby.id)} 둘러보기`}</b><em>{isFestivalExperience?nearby.description:nearby.id==='food-shop-zone'?'세종의 맛과 장소를 골라보세요':nearby.description}</em></div><Sparkles size={18}/>
+      <kbd>E</kbd>
     </button>}
 
     {(active==='central-plaza'||active==='activity-zone'||active==='food-shop-zone')&&<div className="lake-experience-overlay festival-plaza-overlay" role="dialog" aria-modal="true" aria-labelledby="festival-title">
-      <section className="festival-plaza-panel">
+      <section className={`festival-plaza-panel ${isFestivalExperience?'is-festival-map':''}`}>
         <button type="button" className="lake-experience-close" onClick={()=>setActive(null)} aria-label="부스 닫기"><X size={18}/></button>
-        <header className="festival-plaza-header"><div className="festival-plaza-title"><span>{active==='activity-zone'?'🎤':active==='food-shop-zone'?'🍑':'🎪'}</span><div><small>충녕이가 알아가는 나의 취향</small><h2 id="festival-title">{active==='food-shop-zone'?'세종 맛 발견소':experienceName(active)}</h2><p>{active==='central-plaza'?'끌리는 축제를 고르면 충녕이가 좋아하는 분위기를 분석해요.':active==='activity-zone'?'끌리는 공연과 짧은 답변으로 나만의 공연 취향을 찾아요.':'장소를 고른 뒤 충녕이가 나의 여행 미식 스타일을 알아가요.'}</p></div></div><div className="festival-live"><Users size={15}/><span><b>{onlineCount}명</b>이 지금 각자의 취향을 찾고 있어요</span></div></header>
+        <header className="festival-plaza-header"><div className="festival-plaza-title"><span>{active==='activity-zone'?'🎤':active==='food-shop-zone'?(isFestivalExperience?'🎭':'🍑'):'🎪'}</span><div><small>{isFestivalExperience?'2026 세종 축제 체험':'충녕이가 알아가는 나의 취향'}</small><h2 id="festival-title">{isFestivalExperience?experienceName(active):active==='food-shop-zone'?'세종 맛 발견소':experienceName(active)}</h2><p>{isFestivalExperience?(active==='central-plaza'?'2026 세종의 축제와 문화 예술 전시를 한눈에 살펴보세요.':active==='activity-zone'?'세종의 밤을 밝히는 축제 공연과 무대를 만나보세요.':'전통 놀이와 공예, 한글 문화를 직접 체험해 보세요.'):active==='central-plaza'?'끌리는 축제를 고르면 충녕이가 좋아하는 분위기를 분석해요.':active==='activity-zone'?'끌리는 공연과 짧은 답변으로 나만의 공연 취향을 찾아요.':'장소를 고른 뒤 충녕이가 나의 여행 미식 스타일을 알아가요.'}</p></div></div><div className="festival-live"><Users size={15}/><span><b>{onlineCount}명</b>이 지금 각자의 취향을 찾고 있어요</span></div></header>
+        {isFestivalExperience&&active==='activity-zone'&&<section className="festival-stage-video-detail">
+          <video ref={festivalStageVideoRef} controls playsInline preload="metadata" poster={FESTIVAL_STAGE_VIDEO.poster} src={FESTIVAL_STAGE_VIDEO.videoUrl} onPlay={event=>recordFestivalStageVideoEvent('play',event.currentTarget)} onPause={event=>recordFestivalStageVideoEvent('pause',event.currentTarget)} onEnded={event=>recordFestivalStageVideoEvent('ended',event.currentTarget)} onTimeUpdate={onFestivalStageTimeUpdate}/>
+          <div><small>STAGE VIDEO · 2026 SEJONG FESTIVAL</small><h3>{FESTIVAL_STAGE_VIDEO.title}</h3><p>{FESTIVAL_STAGE_VIDEO.description}</p><div className="festival-detail-progress"><i><em style={{width:`${Math.min(100,festivalStageProgress*100)}%`}}/></i><span>{completedBooths.activity?'공연장 체험 완료 · 스탬프 지급':'영상을 70% 이상 시청하면 스탬프를 받아요.'}</span></div></div>
+        </section>}
+        {activeFestivalTentId&&(()=>{const detail=festivalTentDetails[activeFestivalTentId],record=festivalTentRecords[activeFestivalTentId],progress=Math.min(100,festivalTentElapsedMs/FESTIVAL_TENT_REQUIRED_MS*100);return <section className="festival-tent-detail">
+          <img src={detail.image} alt={`${detail.title} 대표 이미지`}/><div><small>{detail.eyebrow}</small><h3>{detail.title}</h3><p>{detail.description}</p><dl><div><dt>운영 일정</dt><dd>{detail.schedule}</dd></div><div><dt>체험 장소</dt><dd>{detail.venue}</dd></div></dl><div className="festival-detail-tags">{detail.tags.map(tag=><span key={tag}>#{tag}</span>)}</div><div className="festival-detail-progress"><i><em style={{width:`${progress}%`}}/></i><span>{record.completed?'부스 체험 완료 · 스탬프 1개 지급':`상세 확인 ${Math.min(8,Math.floor(festivalTentElapsedMs/1000))}/8초`}</span></div><button type="button" className={record.interested?'is-saved':''} onClick={()=>toggleFestivalTentInterest(activeFestivalTentId)}>{record.interested?<><Check size={15}/> 관심 저장됨</>:<><Bookmark size={15}/> 관심 축제로 저장</>}</button></div>
+        </section>})()}
         {active==='central-plaza'&&<><div className="booth-selection-progress"><div><b>설명보다 분위기에 끌리는 축제를 1~2개 골라보세요.</b><small>{festivalDataSource==='api'?'공식 연계 자료':'저장된 축제 자료'}</small></div><strong>현재 선택 {savedContents.length} / 2</strong></div>{festivalLimitNotice&&<div className="performance-limit-notice" role="status">축제는 최대 2개까지 선택할 수 있어요.</div>}<div className="festival-card-grid">{festivals.map(content=>{const saved=profile.savedContentIds.includes(content.id);return <article className={`festival-card tone-${content.tone} ${saved?'is-saved':''}`} key={content.id} role="button" tabIndex={0} onClick={()=>setSelectedFestival(content)} onKeyDown={event=>{if(event.key==='Enter')setSelectedFestival(content)}}><div className="festival-card-visual"><span>{content.emoji}</span><img src={content.image} alt={`${content.title} 축제 사진`}/><small>{content.status}</small></div><div className="festival-card-copy"><small>세종의 실제 축제 · 자세히 보기</small><h3>{content.title}</h3><p>{content.description}</p><dl><div><dt>시기</dt><dd>{content.schedule}</dd></div><div><dt>장소</dt><dd>{content.venue}</dd></div></dl><div>{content.tags.map(tag=><span key={tag}>#{tag}</span>)}</div><em>사진·정보 출처: {content.source}</em></div><button type="button" className="festival-save-button" onClick={event=>{event.stopPropagation();toggleContent(content.id)}}>{saved?<><Check size={14}/> 끌려요</>:<><Heart size={14}/> 이 분위기가 좋아요</>}</button></article>})}</div><footer className="festival-plaza-footer"><div><Heart size={16}/><span><b>{savedContents.length}개</b>의 축제 분위기를 골랐어요.</span></div><button type="button" disabled={!savedContents.length} onClick={completeFestivalSelection}><Sparkles size={15}/> 충녕이와 취향 분석하기</button></footer></>}
         {active==='activity-zone'&&<><section className="lake-activity-section performance-choice-section"><div className="performance-poster-heading"><div><small>세종의 실제 공연</small><h3>어떤 공연 분위기가 가장 끌리나요?</h3><p>장르를 고민하기보다 먼저 마음이 가는 포스터를 최대 2개 골라보세요.</p></div><strong>{profile.activities.length}<span>/2 선택</span></strong></div>{performanceLimitNotice&&<div className="performance-limit-notice" role="status">공연 취향은 최대 2개까지 선택할 수 있어요.</div>}<div className="performance-poster-grid">{activities.map(activity=>{const selected=profile.activities.includes(activity.id);return <article key={activity.id} className={selected?'active':''} role="button" tabIndex={0} onClick={()=>toggleActivity(activity.id)} onKeyDown={event=>{if(event.key==='Enter')toggleActivity(activity.id)}}><div className="performance-poster-image"><img src={activity.image} alt={`${activity.label} 공식 포스터`}/><span>{activity.emoji} {activity.mood}</span></div><div className="performance-poster-copy"><small>세종예술의전당 공식 공연</small><h3>{activity.label}</h3><p>{activity.description}</p><dl><div><dt>일정</dt><dd>{activity.schedule}</dd></div><div><dt>장소</dt><dd>{activity.venue}</dd></div></dl><button type="button" className={selected?'active':''} onClick={event=>{event.stopPropagation();toggleActivity(activity.id)}}>{selected?<><Check size={15}/> 이게 끌려요</>:<><Heart size={15}/> 마음에 들어요</>}</button><a href={activity.detailUrl} target="_blank" rel="noreferrer" onClick={event=>event.stopPropagation()}>공식 공연 정보 보기 ↗</a></div></article>})}</div></section><footer className="festival-plaza-footer performance-footer"><div><Sparkles size={16}/><span><b>{profile.activities.length}개</b>의 공연 분위기를 골랐어요.</span></div><button type="button" disabled={!profile.activities.length} onClick={completeActivitySelection}><Sparkles size={15}/> 충녕이와 취향 분석하기</button></footer></>}
-        {active==='food-shop-zone'&&<><div className="booth-selection-progress"><div><b>여행 중 실제로 끌리는 맛과 공간을 1~3개 골라보세요.</b><small>선택의 공통점을 충녕이가 찾아드려요.</small></div><strong>현재 선택 {selectedFoodShops.length} / 3</strong></div>{foodLimitNotice&&<div className="performance-limit-notice" role="status">먹거리·장소는 최대 3개까지 선택할 수 있어요.</div>}<nav className="festival-category-tabs food-category-tabs" aria-label="먹거리와 상점 분류">{foodCategories.map(category=><button type="button" key={category} className={foodCategory===category?'active':''} onClick={()=>setFoodCategory(category)}>{category}</button>)}</nav><div className="food-discovery-grid">{visibleFoodShops.map(item=>{const saved=selectedFoodShops.some(interest=>interest.id===item.id),image=foodShopImages[item.id];return <article className={saved?'active':''} key={item.id} role="button" tabIndex={0} onClick={()=>setSelectedFoodShop(item)} onKeyDown={event=>{if(event.key==='Enter')setSelectedFoodShop(item)}}><div className={`food-card-image ${image?'has-photo':'no-photo'}`} role="img" aria-label={`${item.name} 대표 이미지`} style={image?{backgroundImage:`url('${image}')`}:undefined}><span>{item.emoji}</span></div><div className="food-card-copy"><small>{item.group} · 자세히 보기</small><h3>{item.name}</h3><p>{item.description}</p><em>{item.location}</em><div>{item.tags.map(tag=><span key={tag}>#{tag}</span>)}</div></div><button type="button" onClick={event=>{event.stopPropagation();toggleFoodShop(item.id)}}>{saved?<><Check size={14}/> 이게 끌려요</>:<><Heart size={14}/> 마음에 들어요</>}</button></article>})}</div><section className={`food-selection-summary ${foodSelectionComplete?'is-complete':''}`}><div className="food-selection-title"><span><Heart size={18} fill="currentColor"/></span><div><small>내가 발견한 세종의 맛</small><h3>마음이 간 세종 맛 <b>{selectedFoodShops.length}</b>개</h3></div></div>{selectedFoodShops.length?<div className="food-selection-chips">{selectedFoodShops.map(item=>{const content=foodShopContents.find(candidate=>candidate.id===item.id);return <button type="button" key={item.id} onClick={()=>toggleFoodShop(item.id)}>{content?.emoji} {item.name}<X size={12}/></button>})}</div>:<p>마음에 드는 카드를 골라 나만의 세종 맛을 만들어 보세요.</p>}<button type="button" className="food-complete-button" disabled={!selectedFoodShops.length} onClick={completeFoodSelection}><Sparkles size={17}/>충녕이와 취향 분석하기</button></section></>}
+        {active==='food-shop-zone'&&!isFestivalExperience&&<><div className="booth-selection-progress"><div><b>여행 중 실제로 끌리는 맛과 공간을 1~3개 골라보세요.</b><small>선택의 공통점을 충녕이가 찾아드려요.</small></div><strong>현재 선택 {selectedFoodShops.length} / 3</strong></div>{foodLimitNotice&&<div className="performance-limit-notice" role="status">먹거리·장소는 최대 3개까지 선택할 수 있어요.</div>}<nav className="festival-category-tabs food-category-tabs" aria-label="먹거리와 상점 분류">{foodCategories.map(category=><button type="button" key={category} className={foodCategory===category?'active':''} onClick={()=>setFoodCategory(category)}>{category}</button>)}</nav><div className="food-discovery-grid">{visibleFoodShops.map(item=>{const saved=selectedFoodShops.some(interest=>interest.id===item.id),image=foodShopImages[item.id];return <article className={saved?'active':''} key={item.id} role="button" tabIndex={0} onClick={()=>setSelectedFoodShop(item)} onKeyDown={event=>{if(event.key==='Enter')setSelectedFoodShop(item)}}><div className={`food-card-image ${image?'has-photo':'no-photo'}`} role="img" aria-label={`${item.name} 대표 이미지`} style={image?{backgroundImage:`url('${image}')`}:undefined}><span>{item.emoji}</span></div><div className="food-card-copy"><small>{item.group} · 자세히 보기</small><h3>{item.name}</h3><p>{item.description}</p><em>{item.location}</em><div>{item.tags.map(tag=><span key={tag}>#{tag}</span>)}</div></div><button type="button" onClick={event=>{event.stopPropagation();toggleFoodShop(item.id)}}>{saved?<><Check size={14}/> 이게 끌려요</>:<><Heart size={14}/> 마음에 들어요</>}</button></article>})}</div><section className={`food-selection-summary ${foodSelectionComplete?'is-complete':''}`}><div className="food-selection-title"><span><Heart size={18} fill="currentColor"/></span><div><small>내가 발견한 세종의 맛</small><h3>마음이 간 세종 맛 <b>{selectedFoodShops.length}</b>개</h3></div></div>{selectedFoodShops.length?<div className="food-selection-chips">{selectedFoodShops.map(item=>{const content=foodShopContents.find(candidate=>candidate.id===item.id);return <button type="button" key={item.id} onClick={()=>toggleFoodShop(item.id)}>{content?.emoji} {item.name}<X size={12}/></button>})}</div>:<p>마음에 드는 카드를 골라 나만의 세종 맛을 만들어 보세요.</p>}<button type="button" className="food-complete-button" disabled={!selectedFoodShops.length} onClick={completeFoodSelection}><Sparkles size={17}/>충녕이와 취향 분석하기</button></section></>}
+        {active==='food-shop-zone'&&isFestivalExperience&&<><div className="booth-selection-progress"><div><b>마음에 드는 전통문화 체험을 골라보세요.</b><small>직접 참여하고 축제 스탬프를 완성할 수 있어요.</small></div><strong>현재 선택 {festivalCultureSelections.length}</strong></div><div className="festival-card-grid festival-culture-grid">{festivalCultureExperiences.map(item=>{const selected=festivalCultureSelections.includes(item.id);return <article className={`festival-card ${selected?'is-saved':''}`} key={item.id} role="button" tabIndex={0} onClick={()=>toggleFestivalCulture(item.id)}><div className="festival-card-visual"><span>{item.emoji}</span><img src={item.image} alt=""/><small>{selected?'체험 선택':'전통문화'}</small></div><div className="festival-card-copy"><small>2026 세종 축제 체험</small><h3>{item.title}</h3><p>{item.description}</p></div><button type="button" className="festival-save-button">{selected?<><Check size={14}/> 선택 완료</>:<>체험 선택</>}</button></article>})}</div><footer className="festival-plaza-footer"><div><Sparkles size={16}/><span><b>{festivalCultureSelections.length}개</b>의 체험을 골랐어요.</span></div><button type="button" disabled={!festivalCultureSelections.length} onClick={completeFestivalCulture}><Check size={15}/> 체험 완료하고 스탬프 받기</button></footer></>}
       </section>
       {selectedFestival&&<section className="festival-detail-modal" role="dialog" aria-modal="true" aria-labelledby="festival-detail-title"><button type="button" className="festival-detail-close" onClick={()=>setSelectedFestival(null)} aria-label="축제 상세 닫기"><X size={18}/></button><div className="festival-detail-image"><img src={selectedFestival.image} alt={`${selectedFestival.title} 대표 사진`}/><small>{selectedFestival.status}</small></div><div className="festival-detail-copy"><small>세종 공식 축제</small><h2 id="festival-detail-title">{selectedFestival.title}</h2><p>{selectedFestival.description}</p><dl><div><dt>개최 시기</dt><dd>{selectedFestival.schedule}</dd></div><div><dt>개최 장소</dt><dd>{selectedFestival.venue}</dd></div></dl><h3>주요 키워드</h3><div className="festival-detail-tags">{selectedFestival.tags.map(tag=><span key={tag}>#{tag}</span>)}</div><footer><button type="button" onClick={()=>toggleContent(selectedFestival.id)}>{profile.savedContentIds.includes(selectedFestival.id)?<><Check size={14}/> 관심 축제 저장됨</>:<><Bookmark size={14}/> 관심 축제로 저장</>}</button></footer><em>사진·정보 출처: {selectedFestival.source}</em></div></section>}
       {selectedFoodShop&&<section className="food-detail-modal" role="dialog" aria-modal="true" aria-labelledby="food-detail-title"><button type="button" className="festival-detail-close" onClick={()=>setSelectedFoodShop(null)} aria-label="먹거리 상세 닫기"><X size={18}/></button><div className={`food-detail-image ${foodShopImages[selectedFoodShop.id]?'has-photo':'no-photo'}`} style={foodShopImages[selectedFoodShop.id]?{backgroundImage:`url('${foodShopImages[selectedFoodShop.id]}')`}:undefined}><span>{selectedFoodShop.emoji}</span>{foodShopPhotoSource[selectedFoodShop.id]&&<small>사진 출처: {foodShopPhotoSource[selectedFoodShop.id]}</small>}</div><div className="food-detail-copy"><small>세종 먹거리와 장소 · {selectedFoodShop.group}</small><h2 id="food-detail-title">{selectedFoodShop.name}</h2><p>{selectedFoodShop.description}</p><dl><div><dt>분류</dt><dd>{selectedFoodShop.group}</dd></div><div><dt>위치</dt><dd>{selectedFoodShop.location}</dd></div></dl><h3>이곳의 특징</h3><div className="festival-detail-tags">{selectedFoodShop.tags.map(tag=><span key={tag}>#{tag}</span>)}</div><footer><button type="button" onClick={()=>toggleFoodShop(selectedFoodShop.id)}>{selectedFoodShops.some(item=>item.id===selectedFoodShop.id)?<><Check size={14}/> 선택했어요</>:<><Bookmark size={14}/> {selectedFoodShop.action}</>}</button></footer></div></section>}
@@ -304,7 +400,7 @@ export function LakeParkExperiences(){
       </section>}
     </div>}
 
-    {showJourneyComplete&&allBoothsCompleted&&<div className="lake-experience-overlay lake-completion-overlay" role="dialog" aria-modal="true" aria-labelledby="lake-completion-title">
+    {!isFestivalExperience&&showJourneyComplete&&allBoothsCompleted&&<div className="lake-experience-overlay lake-completion-overlay" role="dialog" aria-modal="true" aria-labelledby="lake-completion-title">
       <section className="lake-completion-panel">
         <button type="button" className="lake-experience-close" onClick={()=>setShowJourneyComplete(false)} aria-label="완료 결과 닫기"><X size={18}/></button>
         <span className="lake-completion-icon">🌸</span><small>충녕이의 취향 분석</small><h2 id="lake-completion-title">나의 취향을 분석했어요</h2>

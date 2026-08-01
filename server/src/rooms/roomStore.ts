@@ -10,7 +10,8 @@ export class RoomStore {
  interactionPositions=new Map<WorldInteractionPosition['destination'],WorldInteractionPosition>([['bear-play-zone',{destination:'bear-play-zone',x:1616,z:601}],['bear-tree-park',{destination:'bear-tree-park',x:1200,z:1650}]]);
  lakeExperiencePositions=new Map<LakeExperienceId,LakeExperiencePosition>([['central-plaza',{experience:'central-plaza',x:1219,z:1462}],['activity-zone',{experience:'activity-zone',x:603,z:452}],['food-shop-zone',{experience:'food-shop-zone',x:491,z:1556}],['wind-hill',{experience:'wind-hill',x:1908,z:549}]]);
  campusFeaturePortalPositions=new Map<CampusFeaturePortalId,CampusFeaturePortalPosition>([['people',{portal:'people',x:881,z:950}],['clubs',{portal:'clubs',x:450,z:882}],['recruit',{portal:'recruit',x:508,z:1382}],['government',{portal:'government',x:1656,z:1501}]]);
- readonly respawnPosition:RespawnPosition={...FIXED_LAKE_RESPAWN};
+ respawnPosition:RespawnPosition={...FIXED_LAKE_RESPAWN};
+ setRespawnPosition(position:RespawnPosition){this.respawnPosition={...position}}
  lakeWishes:LakeWish[]=[];
  nearbyChatMessages=new Map<MapId,ChatMessage[]>();
  private dailyDate='';private dailyVisitors=new Set<string>();private dailyExperienceVisits:Record<LakeExperienceId,Set<string>>={'central-plaza':new Set(),'activity-zone':new Set(),'food-shop-zone':new Set(),'wind-hill':new Set()};

@@ -2,6 +2,7 @@ import type { UserProfile } from '../types';
 import { greenhousePlantById } from '../data/greenhouse-plants';
 import { dominantEmotion,parseGreenhouseProgress,recommendRepresentativePlant } from './greenhouseProgress';
 import { loadBearHabitatProgress } from './bearHabitatDecision';
+import {loadGeneratedExperienceProfile} from './experienceHarness';
 
 type ProfileInterest={emoji:string;label:string};
 export type AiSejongProfile={
@@ -51,7 +52,8 @@ function lakeInterests(){
 }
 
 export function buildAiSejongProfile(profile:UserProfile):AiSejongProfile{
-  const interests=lakeInterests();
+  const generatedExperience=loadGeneratedExperienceProfile();
+  const interests=[...new Map([...lakeInterests(),...(generatedExperience?.tags??[]).map(label=>({emoji:'🎭',label}))].map(item=>[item.label,item])).values()].slice(0,6);
   const greenhouse=parseGreenhouseProgress(localStorage.getItem(`greenhouse-progress-v1:${userKey(profile.nickname)}`));
   const emotionCounts=[...greenhouse.collected.reduce((counts,item)=>{
     if(item.selectedEmotion)counts.set(item.selectedEmotion,(counts.get(item.selectedEmotion)??0)+1);
@@ -80,9 +82,9 @@ export function buildAiSejongProfile(profile:UserProfile):AiSejongProfile{
   const completion=completed*20;
   const pace=decisionResult?.title==='효율 운영형'?'효율적으로':decisionResult?.title==='상황 적응형'?'유연하게':'차근차근';
   const memory=interests.some(item=>item.label==='사진')?'풍경과 순간을 기록하는':'여러 조건을 살펴 결정하는';
-  const oneLineAnalysis=completed
+  const oneLineAnalysis=generatedExperience?.summary??(completed
     ?`새로운 장소를 ${pace} 둘러보며 ${memory} 사람입니다.${dominant?` 자연에서는 ${emotionIcon(dominant)} ${dominant}의 감정을 가장 자주 느껴요.`:''}`
-    :'세종 곳곳의 체험을 시작하면 나만의 여행 성향이 이곳에 자라납니다.';
+    :'세종 곳곳의 체험을 시작하면 나만의 여행 성향이 이곳에 자라납니다.');
   return {
     nickname:profile.nickname,
     completion,

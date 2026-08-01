@@ -5,6 +5,8 @@ import { analyzeNatureTaste,dominantEmotion,parseGreenhouseProgress } from './gr
 import { loadBearProgress } from '../data/bear-wildlife';
 import { loadBearHabitatProgress } from './bearHabitatDecision';
 import { buildAiSejongProfile } from './aiSejongProfile';
+import {loadGeneratedExperienceProfile} from './experienceHarness';
+import {recordProfileVisit} from './profileProgress';
 
 const LAKE_INTEREST_KEY='sejong-lake-interest-profile-v1';
 const MAP_RECORD_PREFIX='sejong-map-experience-v1:';
@@ -65,6 +67,7 @@ const unique=(values:string[])=>[...new Set(values.filter(Boolean))];
 const mapKey=(nickname:string)=>`${MAP_RECORD_PREFIX}${nickname.trim().toLowerCase()||'guest'}`;
 
 export function recordMapExperience(nickname:string,mapId:MapId){
+  recordProfileVisit(nickname,mapId);
   const definition=mapRecords[mapId];
   if(!definition)return;
   try{
@@ -123,6 +126,8 @@ export function buildExperienceRecommendationProfile(profile:UserProfile):Public
   const experienceRecords:string[]=[];
   const preferredPlaceCategories=[...profile.preferredPlaceCategories];
   const aiSejongProfile=buildAiSejongProfile(profile);
+  const generatedExperience=loadGeneratedExperienceProfile();
+  if(generatedExperience){experienceRecords.push(...generatedExperience.tags.map(tag=>`AI 공연 취향: ${tag}`),`AI 체험 분석: ${generatedExperience.summary}`);preferredPlaceCategories.push('문화시설')}
   try{
     const lake=JSON.parse(localStorage.getItem(LAKE_INTEREST_KEY)??'null') as {savedContentIds?:unknown;activities?:unknown;foodShopIds?:unknown;foodPlaceInterests?:unknown;foodInterests?:unknown;shopInterests?:unknown;festivalTheme?:unknown;likedCourseTitles?:unknown;tasteInsights?:unknown}|null;
     const savedIds=Array.isArray(lake?.savedContentIds)?lake.savedContentIds.filter((value):value is string=>typeof value==='string'):[];
@@ -187,7 +192,7 @@ export function buildExperienceRecommendationProfile(profile:UserProfile):Public
   }catch{/* Ignore malformed map records. */}
   return {
     mbti:profile.mbti,
-    interests:unique([...profile.interests,...aiSejongProfile.interests.map(item=>item.label)]).slice(0,10),
+    interests:unique([...profile.interests,...aiSejongProfile.interests.map(item=>item.label),...(generatedExperience?.tags??[])]).slice(0,10),
     usagePurposes:unique(profile.usagePurposes).slice(0,10),
     preferredPlaceCategories:unique(preferredPlaceCategories).slice(0,10),
     experienceRecords:unique(experienceRecords).slice(-10),

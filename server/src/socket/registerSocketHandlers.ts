@@ -8,6 +8,7 @@ import { DirectMessageModel } from '../models/DirectMessage.js';
 import { canUsersStartDirectChat, loadDirectChatPolicy, AGE_GROUP_CHAT_RESTRICTED_MESSAGE } from '../services/chat/directChatPolicyService.js';
 import { localInterestKeywordExtractor } from '../services/interests/interestKeywordExtractor.js';
 import { conversationInterestCache } from '../services/interests/conversationInterestCache.js';
+import { saveWorldRespawnPosition } from '../models/WorldRespawnPosition.js';
 type IO=Server<ClientToServerEvents,ServerToClientEvents>;type Client=Socket<ClientToServerEvents,ServerToClientEvents>;
 const clean=(value:string,max=180)=>value.trim().slice(0,max);
 const pendingBearStories=new Set<string>();
@@ -40,8 +41,22 @@ export function registerSocketHandlers(io:IO,socket:Client){
   ]});
   roomStore.setBearExplorationStory(ids,story);pendingBearStories.delete(key);publishBearExploration(ids);
  };
- const safeMatchProfile=(value:PublicMatchProfile):PublicMatchProfile=>({mbti:clean(value.mbti,4),interests:value.interests.slice(0,10).map(v=>clean(v,30)),usagePurposes:value.usagePurposes.slice(0,10).map(v=>clean(v,30)),preferredPlaceCategories:value.preferredPlaceCategories.slice(0,10).map(v=>clean(v,30)),experienceRecords:value.experienceRecords.slice(0,10).map(v=>clean(v,50))});
+ const safeMatchProfile=(value:PublicMatchProfile):PublicMatchProfile=>{const recordVisibility=(socket.data.recordVisibility??value.recordVisibility)==='private'?'private':'public',chatEnabled=typeof socket.data.chatEnabled==='boolean'?socket.data.chatEnabled:value.chatEnabled!==false;return {mbti:clean(value.mbti,4),interests:value.interests.slice(0,10).map(v=>clean(v,30)),usagePurposes:value.usagePurposes.slice(0,10).map(v=>clean(v,30)),preferredPlaceCategories:value.preferredPlaceCategories.slice(0,10).map(v=>clean(v,30)),experienceRecords:recordVisibility==='private'?[]:value.experienceRecords.slice(0,10).map(v=>clean(v,50)),recordVisibility,chatEnabled}};
  socket.on('getRespawnPosition',ack=>{if(typeof ack==='function')ack(roomStore.respawnPosition)});
+ socket.on('saveCurrentPositionAsRespawn',async ack=>{
+  const player=roomStore.players.get(socket.id);
+  if(!player||player.mapId!=='town')return ack({ok:false,message:'세종호수공원 안에서만 리스폰 위치를 설정할 수 있어요.'});
+  const position={x:Math.round(player.x),z:Math.round(player.y),yaw:Number.isFinite(player.yaw)?player.yaw:0};
+  try{
+   await saveWorldRespawnPosition(position);
+   roomStore.setRespawnPosition(position);
+   io.emit('respawnPositionUpdated',position);
+   ack({ok:true,position,message:`현재 위치(${position.x}, ${position.z})를 공용 리스폰으로 저장했어요.`});
+  }catch(error){
+   console.error('[respawn position save failed]',error instanceof Error?error.name:'unknown');
+   ack({ok:false,message:'리스폰 위치를 서버에 저장하지 못했어요.'});
+  }
+ });
  socket.on('getPlayerResumeState',async ack=>{
   if(typeof ack!=='function')return;
   const userId=socket.data.userId as string|undefined;
@@ -77,7 +92,7 @@ export function registerSocketHandlers(io:IO,socket:Client){
  socket.on('analyzeBearExplorationCards',ack=>{const result=roomStore.analyzeBearExploration(socket.id),ids=activeBearExplorers(),state=roomStore.bearExplorationState(socket.id);if(typeof ack==='function')ack({...result,state});if(result.ok){publishBearExploration(ids);void completeBearStory(ids)}});
  socket.on('captureBearExplorationPhoto',ack=>{const result=roomStore.captureBearExplorationPhoto(socket.id),ids=activeBearExplorers(),state=roomStore.bearExplorationState(socket.id);if(typeof ack==='function')ack({...result,state});if(result.ok){publishBearExploration(ids);void completeBearStory(ids)}});
  socket.on('finalizeBearExplorationReport',(payload,ack)=>{const result=roomStore.finalizeBearExplorationReport(socket.id,clean(payload.title,40),payload.cover),ids=activeBearExplorers(),state=roomStore.bearExplorationState(socket.id);if(typeof ack==='function')ack({...result,state});if(result.ok)publishBearExploration(ids)});
- socket.on('sendNearbyChat',raw=>{const player=roomStore.players.get(socket.id),message=clean(raw);if(!player||!message)return;const data=roomStore.addNearbyChat({id:crypto.randomUUID(),mapId:player.mapId,senderId:socket.id,nickname:player.nickname,message,createdAt:Date.now(),channel:'nearby'});io.to(player.mapId).emit('nearbyChat',data)});
+ socket.on('sendNearbyChat',raw=>{const player=roomStore.players.get(socket.id),message=clean(raw);if(socket.data.chatEnabled===false)return socket.emit('errorMessage','대화 설정이 잠시 쉬기로 되어 있어요.');if(!player||!message)return;const data=roomStore.addNearbyChat({id:crypto.randomUUID(),mapId:player.mapId,senderId:socket.id,nickname:player.nickname,message,createdAt:Date.now(),channel:'nearby'});io.to(player.mapId).emit('nearbyChat',data)});
  socket.on('encounterFocus',({toId,active})=>{const from=roomStore.players.get(socket.id),to=roomStore.players.get(toId);if(!from||!to||from.mapId!==to.mapId||Math.hypot(from.x-to.x,from.y-to.y)>300)return;socket.emit('encounterFocusChanged',{withId:toId,active:Boolean(active)});io.to(toId).emit('encounterFocusChanged',{withId:socket.id,active:Boolean(active)})});
  socket.on('characterEmote',emote=>{const player=roomStore.players.get(socket.id);if(!player||!['cloths','women'].includes(player.model)||!['hi','clapping','talking',null].includes(emote))return;io.to(player.mapId).emit('characterEmoteChanged',{playerId:socket.id,emote})});
  socket.on('directChatRequest',async toId=>{const from=roomStore.players.get(socket.id),to=roomStore.players.get(toId);if(!from||!to)return socket.emit('errorMessage','접속 중인 사용자에게만 요청할 수 있어요.');if(!await directChatAllowed(socket.id,toId))return socket.emit('errorMessage',AGE_GROUP_CHAT_RESTRICTED_MESSAGE);const requestId=crypto.randomUUID();roomStore.pendingDirect.set(requestId,{fromId:from.id,toId});io.to(toId).emit('directChatRequested',{requestId,from:{id:from.id,nickname:from.nickname,appearance:from.appearance},toId})});
@@ -89,8 +104,8 @@ export function registerSocketHandlers(io:IO,socket:Client){
  socket.on('respondGovernmentSession',({proposalId,accept})=>{const proposal=roomStore.governmentProposals.get(proposalId),room=proposal&&roomStore.directRooms.get(proposal.directRoomId);if(!proposal||!room||proposal.status!=='pending'||proposal.fromId===socket.id||!room.participants.some(participant=>participant.id===socket.id))return socket.emit('errorMessage','응답할 수 있는 이동 제안을 찾지 못했어요.');proposal.status=accept?'accepted':'rejected';proposal.respondedAt=Date.now();if(accept){proposal.sessionId=`government-session-${crypto.randomUUID()}`;roomStore.createGovernmentPlan(proposal.sessionId,room);room.participants.forEach(participant=>io.sockets.sockets.get(participant.id)?.join(proposal.sessionId!))}io.to(proposal.directRoomId).emit('governmentSessionProposalUpdated',proposal)});
  socket.on('getGovernmentPlan',({sessionId},ack)=>{const plan=roomStore.governmentPlans.get(sessionId);if(!plan||!plan.memberIds.includes(socket.id))return ack({ok:false,message:'공동 계획 세션을 찾지 못했어요.'});socket.join(sessionId);return ack({ok:true,plan})});
  socket.on('updateGovernmentPlan',({sessionId,update},ack)=>{const plan=roomStore.updateGovernmentPlan(sessionId,socket.id,update);if(!plan){ack?.({ok:false,message:'공동 계획을 수정할 권한이 없어요.'});return}io.to(sessionId).emit('governmentPlanUpdated',plan);ack?.({ok:true})});
- socket.on('createGroup',({name,inviteeIds})=>{const owner=roomStore.players.get(socket.id);if(!owner)return;const group=roomStore.createGroup(owner,clean(name,30),inviteeIds);group.memberIds.forEach(id=>{io.sockets.sockets.get(id)?.join(group.id);io.to(id).emit('groupCreated',group)})});
+ socket.on('createGroup',({name,inviteeIds})=>{const owner=roomStore.players.get(socket.id);if(socket.data.chatEnabled===false)return socket.emit('errorMessage','대화 설정이 잠시 쉬기로 되어 있어요.');if(!owner)return;const availableInvitees=inviteeIds.filter(id=>roomStore.players.get(id)?.matchProfile?.chatEnabled!==false);const group=roomStore.createGroup(owner,clean(name,30),availableInvitees);group.memberIds.forEach(id=>{io.sockets.sockets.get(id)?.join(group.id);io.to(id).emit('groupCreated',group)})});
  socket.on('joinGroup',groupId=>{const player=roomStore.players.get(socket.id),group=roomStore.groups.get(groupId);if(!player||!group||player.mapId!==group.mapId)return;group.memberIds=[...new Set([...group.memberIds,socket.id])];socket.join(group.id);io.to(group.id).emit('groupUpdated',group)});
- socket.on('sendGroupChat',({groupId,message:raw})=>{const player=roomStore.players.get(socket.id),group=roomStore.groups.get(groupId),message=clean(raw);if(!player||!group||!group.memberIds.includes(socket.id)||!message)return;io.to(group.id).emit('nearbyChat',{id:crypto.randomUUID(),mapId:player.mapId,senderId:socket.id,nickname:player.nickname,message,createdAt:Date.now(),channel:'group'})});
+ socket.on('sendGroupChat',({groupId,message:raw})=>{const player=roomStore.players.get(socket.id),group=roomStore.groups.get(groupId),message=clean(raw);if(socket.data.chatEnabled===false)return socket.emit('errorMessage','대화 설정이 잠시 쉬기로 되어 있어요.');if(!player||!group||!group.memberIds.includes(socket.id)||!message)return;io.to(group.id).emit('nearbyChat',{id:crypto.randomUUID(),mapId:player.mapId,senderId:socket.id,nickname:player.nickname,message,createdAt:Date.now(),channel:'group'})});
  socket.on('disconnect',()=>{const player=roomStore.players.get(socket.id);if(!player)return;void savePlayerPosition(player);roomStore.removePlayer(socket.id);socket.to(player.mapId).emit('userLeft',socket.id);publish(player.mapId);if(player.mapId==='bear-play-zone')publishBearExploration(activeBearExplorers())});
 }

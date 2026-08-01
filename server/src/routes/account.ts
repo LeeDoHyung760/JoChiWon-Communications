@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuthenticatedUser } from '../middleware/authenticatedUser.js';
 import { UserModel } from '../models/User.js';
+import { mapExitSchema,scoreMapExit } from '../services/experience/experienceHarness.js';
+import { generateExperienceProfile } from '../services/experience/experienceProfile.js';
 
 const shortList = z.array(z.string().trim().min(1).max(50)).max(30);
 const characterSchema = z.object({
@@ -71,4 +73,29 @@ accountRouter.put('/me/profile', async (req, res) => {
   ).select('profile');
   if (!user) return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: '사용자를 찾을 수 없습니다.' } });
   return res.json({ success: true, data: { profile: user.profile } });
+});
+
+accountRouter.post('/me/experience/map-exit',async(req,res)=>{
+  const parsed=mapExitSchema.safeParse(req.body);
+  if(!parsed.success)return res.status(400).json({success:false,error:{code:'INVALID_EXPERIENCE_LOG',message:parsed.error.issues[0]?.message??'행동 기록 형식이 올바르지 않습니다.'}});
+  const user=await UserModel.findById(res.locals.authenticatedUserId).select('+experienceHarness.processedSessionIds experienceHarness');
+  if(!user)return res.status(404).json({success:false,error:{code:'USER_NOT_FOUND',message:'사용자를 찾을 수 없습니다.'}});
+  const harness=(user.get('experienceHarness')??{}) as any;
+  if((harness.processedSessionIds??[]).includes(parsed.data.sessionId))return res.json({success:true,data:{duplicate:true,profile:harness.generatedProfile??null}});
+  const summary=scoreMapExit(parsed.data),key=parsed.data.mapId==='arts-center'?'performance':parsed.data.mapId==='food-experience'?'food':'festival';
+  const previous=harness[key] as {scores?:Map<string,number>|Record<string,number>;evidence?:string[]}|undefined;
+  const previousScores=previous?.scores instanceof Map?Object.fromEntries(previous.scores):previous?.scores??{};
+  harness[key]={scores:Object.entries(summary.scores).reduce<Record<string,number>>((scores,[name,value])=>{scores[name]=(previousScores[name]??0)+value;return scores},{...previousScores}),evidence:[...(previous?.evidence??[]),...summary.evidence].filter((value,index,all)=>all.indexOf(value)===index).slice(-20)};
+  const bundle={performance:harness.performance,food:harness.food,festival:harness.festival};
+  const generated=await generateExperienceProfile(bundle);
+  harness.processedSessionIds=[...(harness.processedSessionIds??[]),parsed.data.sessionId].slice(-50);
+  harness.generatedProfile={...generated.profile,source:generated.source,updatedAt:new Date()};
+  user.set('experienceHarness',harness);await user.save();
+  return res.json({success:true,data:{summary,profile:harness.generatedProfile}});
+});
+
+accountRouter.get('/me/experience/profile',async(_req,res)=>{
+  const user=await UserModel.findById(res.locals.authenticatedUserId).select('experienceHarness.generatedProfile').lean();
+  if(!user)return res.status(404).json({success:false,error:{code:'USER_NOT_FOUND',message:'사용자를 찾을 수 없습니다.'}});
+  return res.json({success:true,data:{profile:(user as any).experienceHarness?.generatedProfile??null}});
 });

@@ -1,0 +1,13 @@
+import {readFile} from 'node:fs/promises';
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
+const bytes=await readFile('src/assets/maps/food-experience-map.glb');
+const gltf=await new Promise((resolve,reject)=>new GLTFLoader().parse(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'',resolve,reject));
+const model=gltf.scene;model.rotation.y=Math.PI;model.updateMatrixWorld(true);
+const bounds=new THREE.Box3().setFromObject(model),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
+const W=2400,H=1900,P=.72,scale=Math.min((W-180)/size.x,(H-120)/size.z)*1.6,depthScale=scale/P;
+model.position.set(W/2-center.x*scale,-bounds.min.y*scale,H/(2*P)-center.z*depthScale);model.scale.set(scale,scale,depthScale);model.updateMatrixWorld(true);
+const sceneToWorldZ=z=>H/2+(z-H/2)*P;
+const names=['Local_food_truck_service_window','Street_food_truck_service_window','Dessert_truck_service_window'];
+console.log(names.map(name=>{const object=model.getObjectByName(name);if(!object)return {name,found:false};const c=new THREE.Box3().setFromObject(object).getCenter(new THREE.Vector3());return {name,found:true,x:Math.round(c.x),z:Math.round(sceneToWorldZ(c.z)),y:Math.round(c.y)}}));
+console.log('runtime service names',model.children.flatMap(()=>[]));model.traverse(o=>{if(/service/i.test(o.name))console.log(o.name)});
