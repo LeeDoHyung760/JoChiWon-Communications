@@ -1,10 +1,13 @@
 import { useEffect,useMemo,useState,type CSSProperties } from 'react';
-import { BarChart3,Bookmark,Check,Compass,Route,Sparkles,X } from 'lucide-react';
+import { BarChart3,Bookmark,Check,Compass,Download,Plus,QrCode,Route,Smartphone,Sparkles,X } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { gameEvents } from '../game/events';
 import { buildAiSejongProfile } from '../services/aiSejongProfile';
 import type { GovernmentCentralPlazaWebUiId,GovernmentCentralPlazaWebUiSurface } from '../game/governmentCentralPlazaWebUi';
 import './GovernmentCentralPlazaWebUI.css';
+import './GovernmentApprovalFlow.css';
+import './GovernmentCoursePlanner.css';
+import { loadTravelProjectDraft,saveTravelProjectDraft } from '../services/travelProjectDraft';
 
 type ScreenPoint={x:number;y:number};
 type ScreenRect={left:number;top:number;width:number;height:number;quad?:readonly [ScreenPoint,ScreenPoint,ScreenPoint,ScreenPoint]};
@@ -46,6 +49,12 @@ export function GovernmentCentralPlazaWebUI({profile,active,onOpenChange,onNotic
   const [duration,setDuration]=useState('반나절');
   const [generated,setGenerated]=useState(false);
   const [saved,setSaved]=useState<string[]>([]);
+  const [draft,setDraft]=useState(loadTravelProjectDraft);
+  const [approved,setApproved]=useState(()=>loadTravelProjectDraft().status==='approved');
+  const [projectLoaded,setProjectLoaded]=useState(false);
+  const [optimized,setOptimized]=useState(false);
+  const [coursePlaces,setCoursePlaces]=useState(['세종수목원','이응다리','조치원 카페거리','세종호수공원']);
+  const [dragging,setDragging]=useState<string|null>(null);
   const ai=useMemo(()=>buildAiSejongProfile(profile),[profile]);
   const close=()=>gameEvents.emit('government-webui-close');
 
@@ -69,6 +78,7 @@ export function GovernmentCentralPlazaWebUI({profile,active,onOpenChange,onNotic
     const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();close()}};
     window.addEventListener('keydown',escape);return()=>window.removeEventListener('keydown',escape);
   },[screen]);
+  useEffect(()=>{const refresh=()=>setDraft(loadTravelProjectDraft());window.addEventListener('sejong-travel-draft-changed',refresh);return()=>window.removeEventListener('sejong-travel-draft-changed',refresh)},[]);
 
   const toggleSave=(id:string)=>{
     setSaved(items=>items.includes(id)?items.filter(item=>item!==id):[...items,id]);
@@ -83,6 +93,22 @@ export function GovernmentCentralPlazaWebUI({profile,active,onOpenChange,onNotic
   const style=rect?(matrix
     ?{left:0,top:0,width:WEB_UI_WIDTH,height:WEB_UI_HEIGHT,transform:matrix,transformOrigin:'0 0'} as CSSProperties
     :{left:rect.left,top:rect.top,width:Math.max(1,rect.width),height:Math.max(1,rect.height)}):undefined;
+  const optimizeCourse=()=>{
+    setProjectLoaded(true);setGenerated(true);setOptimized(true);setApproved(false);
+    setCoursePlaces(['세종수목원','정부세종청사','이응다리','세종호수공원']);
+    onNotice('AI가 이동시간이 가장 짧은 순서로 코스를 최적화했어요.');
+  };
+  const addCoursePlace=()=>{
+    const candidates=['국립세종박물관','세종전통시장','대통령기록관'];
+    const next=candidates.find(place=>!coursePlaces.includes(place));
+    if(!next){onNotice('추가할 수 있는 추천 장소를 모두 담았어요.');return}
+    setCoursePlaces(items=>[...items,next]);setOptimized(false);setApproved(false);
+  };
+  const dropCoursePlace=(target:string)=>{
+    if(!dragging||dragging===target)return;
+    setCoursePlaces(items=>{const next=items.filter(item=>item!==dragging);next.splice(items.indexOf(target),0,dragging);return next});
+    setDragging(null);setOptimized(false);setApproved(false);
+  };
 
   return <>
     {active&&screen&&<div className="government-webui-active-marker" aria-hidden="true"/>}
@@ -90,23 +116,15 @@ export function GovernmentCentralPlazaWebUI({profile,active,onOpenChange,onNotic
       <span><Sparkles size={18}/></span><div><small>AI 세종 추천센터</small><b>{nearby.label}</b></div><kbd>E</kbd><em>웹 화면 열기</em>
     </button>}
     {active&&screen&&rect&&<section className={`government-surface-webui is-${screen}`} style={style} role="dialog" aria-modal="true">
-      <header><div><small>AI SEJONG · CENTRAL PLAZA</small><h2>{screen==='experience-analysis'?'체험 데이터 분석':screen==='course-recommendation'?'여행코스 추천':'추천 코스 둘러보기'}</h2></div><button type="button" onClick={close} aria-label="웹 화면 닫기"><X/></button></header>
+      <header><div><small>AI SEJONG · CENTRAL PLAZA</small><h2>AI 여행 일정 확정센터</h2></div><button type="button" onClick={close} aria-label="웹 화면 닫기"><X/></button></header>
 
-      {screen==='experience-analysis'&&<div className="government-analysis">
-        <article className="analysis-summary"><div><BarChart3/><span><small>현재 분석 점수</small><strong>{ai.completion||40}<i>%</i></strong></span></div><p>{ai.oneLineAnalysis}</p></article>
-        <div className="analysis-bars">{analysis.map(item=><div key={item.label}><span><b>{item.label}</b><em>{item.value}%</em></span><i><b style={{width:`${item.value}%`}}/></i></div>)}</div>
-        <footer><span>수집된 체험 신호 <b>{Math.max(3,ai.interests.length+ai.emotionCounts.length)}개</b></span><button type="button" onClick={()=>onNotice('최신 체험 기록으로 분석을 갱신했어요.')}><Sparkles/> 분석 새로고침</button></footer>
+      {screen&&<div className="government-approval-flow">
+        <aside className="project-import-panel"><small>PROJECT ROOM</small><h3>프로젝트 가져오기</h3><article><i>📁</i><b>{draft.title}</b><p>{draft.concept}</p><dl><span><dt>장소</dt><dd>4개</dd></span><span><dt>참여자</dt><dd>3명</dd></span><span><dt>예상 소요</dt><dd>6시간</dd></span></dl></article><button className={projectLoaded?'loaded':''} type="button" onClick={()=>{setProjectLoaded(true);setCoursePlaces(['세종수목원','이응다리','조치원 카페거리','세종호수공원']);setOptimized(false);setApproved(false);onNotice('프로젝트실 여행 기획을 불러왔어요.')}}>{projectLoaded?<><Check/> 불러오기 완료</>:<><Download/> 프로젝트 불러오기</>}</button></aside>
+        <main className="hologram-course-panel"><header><Route/><div><small>AI COURSE MAP</small><b>홀로그램 코스</b></div><em>카드를 드래그해 순서를 바꿔보세요</em></header><div className="hologram-map"><div className="hologram-rings"/>{coursePlaces.map((place,index)=><span key={place} style={{'--node-index':index} as CSSProperties}><i>{index+1}</i>{place}</span>)}</div><div className="draggable-course-list">{coursePlaces.map((place,index)=><article key={place} draggable onDragStart={()=>setDragging(place)} onDragOver={event=>event.preventDefault()} onDrop={()=>dropCoursePlace(place)}><i>{index+1}</i><span><b>{place}</b><small>{index===0?'자연·전시':index===coursePlaces.length-1?'야경·공연':'관광·체험'}</small></span><em>⋮⋮</em></article>)}<button type="button" onClick={addCoursePlace}><Plus/> 장소 추가</button></div></main>
+        <aside className="ai-result-panel"><small>AI RESULT</small><h3>AI 분석 결과</h3>{[['이동시간',optimized?'3시간 45분':'4시간 20분'],['예상 비용','18,000원'],['현재 축제','1개 포함'],['추천도',optimized?'96%':'89%']].map(([label,value])=><article key={label}><Check/><span><small>{label}</small><b>{value}</b></span></article>)}{optimized&&<div className="time-saved"><Sparkles/><span><b>이동시간 35분 감소</b><small>정부청사 경유 순서로 최적화했어요.</small></span></div>}</aside>
+        <footer><button className="optimize" disabled={!projectLoaded} onClick={optimizeCourse}><Sparkles/> AI 최적화</button><button className="confirm" disabled={!projectLoaded} onClick={()=>{const next={...draft,status:'approved' as const};saveTravelProjectDraft(next);setDraft(next);setApproved(true);onNotice('여행 일정을 최종 확정했어요.')}}><Check/> {approved?'일정 확정 완료':'일정 확정'}</button>{approved&&<div className="export-actions"><button onClick={()=>onNotice('여행 일정 QR을 생성했어요.')}><QrCode/> QR</button><button onClick={()=>onNotice('여행 일정 PDF를 저장했어요.')}><Download/> PDF</button><button onClick={()=>onNotice('모바일 저장 링크를 만들었어요.')}><Smartphone/> 모바일 저장</button></div>}</footer>
       </div>}
 
-      {screen==='course-recommendation'&&<div className="government-course-maker">
-        <aside><label>오늘의 분위기</label><div>{['여유롭게','알차게','새롭게'].map(item=><button className={mood===item?'active':''} onClick={()=>{setMood(item);setGenerated(false)}} type="button" key={item}>{item}</button>)}</div><label>여행 시간</label><div>{['2시간','반나절','하루'].map(item=><button className={duration===item?'active':''} onClick={()=>{setDuration(item);setGenerated(false)}} type="button" key={item}>{item}</button>)}</div><button className="generate-course" type="button" onClick={()=>setGenerated(true)}><Sparkles/> AI 코스 생성</button></aside>
-        <article><div className="course-heading"><Route/><span><small>{mood} · {duration}</small><b>{profile.nickname}님을 위한 세종 코스</b></span></div>{(generated?routes:routes.slice(0,2)).map((route,index)=><div className="course-stop" key={route.id}><i>{index+1}</i><span><b>{route.title}</b><small>{route.places}</small></span><em>{route.score}%</em></div>)}{!generated&&<p className="course-hint">조건을 선택하고 AI 코스 생성을 눌러주세요.</p>}<button type="button" className="save-generated" disabled={!generated} onClick={()=>onNotice('나의 세종 코스에 저장했어요.')}><Bookmark/> 생성 코스 저장</button></article>
-      </div>}
-
-      {screen==='course-browser'&&<div className="government-course-browser">
-        <nav><button className="active" type="button">전체</button><button type="button">행정·문화</button><button type="button">자연·힐링</button><button type="button">야간</button></nav>
-        <div>{routes.map(route=><article key={route.id}><div className="route-icon"><Compass/></div><span><small>AI 추천 {route.score}% · {route.time}</small><b>{route.title}</b><p>{route.places}</p></span><button className={saved.includes(route.id)?'saved':''} type="button" onClick={()=>toggleSave(route.id)}>{saved.includes(route.id)?<Check/>:<Bookmark/>}{saved.includes(route.id)?'저장됨':'저장'}</button></article>)}</div>
-      </div>}
     </section>}
   </>;
 }

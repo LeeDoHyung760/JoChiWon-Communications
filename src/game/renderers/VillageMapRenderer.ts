@@ -15,6 +15,7 @@ import sejongSmartCityModelUrl from '../../assets/maps/sejong-smartcity-exhibiti
 import sejongArtsCenterModelUrl from '../../assets/maps/sejong-arts-center.glb?url';
 import festivalExperienceModelUrl from '../../assets/maps/festival-experience-map.glb?url';
 import foodExperienceModelUrl from '../../assets/maps/food-experience-map.glb?url';
+import clubStreetFestivalModelUrl from '../../assets/maps/club-street-festival-map.glb?url';
 import bearCubModelUrl from '../../assets/characters/bear-cub.glb?url';
 import grizzlyBearModelUrl from '../../assets/characters/grizzly-bear.glb?url';
 import chungnyeongIdleUrl from '../../assets/characters/chungnyeong_idle.glb?url';
@@ -111,6 +112,7 @@ export const SEJONG_ARTS_CENTER_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:7
 const SEJONG_ARTS_CENTER_CAMERA_DOWN_LIMIT_Z=SEJONG_ARTS_CENTER_SPAWN.z;
 export const FESTIVAL_EXPERIENCE_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1530,yaw:Math.PI};
 export const FOOD_EXPERIENCE_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1193,yaw:Math.PI};
+export const CLUB_STREET_FESTIVAL_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1510,yaw:Math.PI};
 // Change these x/z values to move the lake-park return portal in the festival map.
 export const FESTIVAL_LAKE_RETURN_PORTAL_POSITION={x:1200,z:1690} as const;
 export const FOOD_LAKE_RETURN_PORTAL_POSITION={x:980,z:1810} as const;
@@ -281,6 +283,30 @@ export const CAMPUS_RENDERER_OPTIONS:WorldMapRendererOptions={
   groundGeometrySimplificationRatio:.78,
   simplifiedCollision:true,
 };
+export const CLUB_STREET_FESTIVAL_RENDERER_OPTIONS:WorldMapRendererOptions={
+  modelUrl:clubStreetFestivalModelUrl,
+  mapName:'동아리 거리제',
+  spawn:CLUB_STREET_FESTIVAL_SPAWN,
+  mapRotationY:Math.PI,
+  mapScaleMultiplier:1.08,
+  groundObjectPrefixes:['Central_Pedestrian_Plaza','PaverAccent_','Ground_Base','Garden_','CentralPlanter_'],
+  portal:{x:1200,z:1580,destination:'campus',label:'공동캠퍼스로 돌아가기',appearance:'white-circle',theme:'orange',chargeSeconds:3,fixedPosition:true,sharedPosition:false},
+  perspectiveCamera:true,
+  fixedCameraTarget:false,
+  centerInWorldCoordinates:true,
+  cameraElevationDeg:34,
+  cameraAzimuthDeg:180,
+  cameraDistance:1750,
+  cameraFov:46,
+  characterHeight:150,
+  characterGroundClearance:4,
+  groundFillColor:0x496f32,
+  groundingShadows:true,
+  performanceMode:true,
+  balancedTextureQuality:true,
+  performancePixelRatio:1,
+  simplifiedCollision:true,
+};
 export const STUDENT_HALL_RENDERER_OPTIONS:WorldMapRendererOptions={
   modelUrl:studentHallModelUrl,
   mapName:'학생회관',
@@ -376,11 +402,14 @@ export const GOVERNMENT_CENTRAL_PLAZA_RENDERER_OPTIONS:WorldMapRendererOptions={
   cameraFov:46,
   characterHeight:150,
   groundFillColor:0xd9d9d5,
-  groundingShadows:true,
-  performanceMode:false,
-  balancedTextureQuality:false,
-  prioritizeGroundTextures:true,
-  maxPixelRatio:1.75,
+  // The plaza has several large glass surfaces and three embedded web panels.
+  // Keep it on the same stable 30fps budget as the other interior maps.
+  groundingShadows:false,
+  performanceMode:true,
+  balancedTextureQuality:true,
+  prioritizeGroundTextures:false,
+  performancePixelRatio:1,
+  maxPixelRatio:1.15,
   toneMappingExposure:.9,
   lightingIntensityMultiplier:.78,
   sceneBackgroundColor:'#7899aa',
@@ -496,9 +525,9 @@ export const FESTIVAL_EXPERIENCE_RENDERER_OPTIONS:WorldMapRendererOptions={
   // nearby flat props such as booth counters or stage pieces.
   groundObjectPrefixes:['Festival_Lawn','Promenade','Island_Base'],
   lakeExperiences:[
-    {id:'activity-zone',x:1200,z:520,label:'세종 축제 영상',description:'세종의 축제 현장을 영상으로 만나보세요. · 영상 보기 (E)',color:0x7c5de8,radius:260},
-    {id:'food-shop-zone',x:760,z:1080,label:'전통문화 체험 부스',description:'E를 눌러 축제 상세 팝업을 열어보세요.',color:0x3d9fc4,radius:170},
-    {id:'central-plaza',x:1640,z:1080,label:'문화 예술 전시 부스',description:'E를 눌러 축제 상세 팝업을 열어보세요.',color:0xe75b4f,radius:170},
+    {id:'activity-zone',x:1200,z:520,label:'세종 축제 영상',description:'E를 눌러 축제 영상을 큰 화면으로 감상하세요.',color:0x7c5de8,radius:400},
+    {id:'food-shop-zone',x:760,z:1080,label:'세종 축제 탐색관',description:'E를 눌러 현재·예정 축제를 탐색하세요.',color:0x3d9fc4,radius:280},
+    {id:'central-plaza',x:1640,z:1080,label:'세종 축제 한눈에 보기',description:'E를 눌러 실제 방문 정보를 확인하세요.',color:0xe75b4f,radius:280},
   ],
   lakeExperienceObjectNames:{'activity-zone':'StageBack','food-shop-zone':'Blue_Experience_Tent_Roof','central-plaza':'Red_Experience_Tent_Roof'},
   portal:{...FESTIVAL_LAKE_RETURN_PORTAL_POSITION,destination:'town',label:'세종호수공원으로 돌아가기',appearance:'white-circle',theme:'orange',chargeSeconds:3,fixedPosition:true,sharedPosition:false},
@@ -1120,6 +1149,7 @@ export class VillageMapRenderer{
   private bearPhotoMode=false;
   private bearPhotoReturn?:{x:number;z:number;groundHeight:number};
   private mapModel?:THREE.Object3D;
+  private clubBoothCardAnchors:THREE.Object3D[]=[];
   private bearPhotoStage?:THREE.Object3D;
   private wildlifeClueRoots=new Map<string,THREE.Group>();
   private wildlifeClueNearby?:string;
@@ -1264,6 +1294,9 @@ export class VillageMapRenderer{
       if(this.mapMeshes.length>1)this.mapMeshes.forEach(mesh=>{const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];materials.forEach(material=>this.classifyMaterial(material))});
       this.scene.add(model);
       this.mapModel=model;
+      if(this.options.mapName==='동아리 거리제'){
+        this.clubBoothCardAnchors=['ClubBooth_L1_CanvasRoof','ClubBooth_R1_CanvasRoof','ClubBooth_L3_CanvasRoof','ClubBooth_R3_CanvasRoof','ClubBooth_L5_CanvasRoof','ClubBooth_R5_CanvasRoof'].map(name=>model.getObjectByName(name)).filter((object):object is THREE.Object3D=>!!object);
+      }
       if(this.options.foodTruckExperience)this.setupFoodTruckWindows(model);
       if(this.options.projectRoomInteractions){
         this.setupProjectRoomScreens(model);
@@ -2185,6 +2218,7 @@ export class VillageMapRenderer{
     if(this.campusFeaturePortalNearby){
       event.preventDefault();
       if(this.campusFeaturePortalNearby==='people'&&this.options.mapName!=='학생회관')gameEvents.emit('travel-to-map','student-hall');
+      else if(this.campusFeaturePortalNearby==='clubs'&&this.options.mapName==='공동캠퍼스')gameEvents.emit('travel-to-map','club-street-festival');
       else if(this.campusFeaturePortalNearby==='government')gameEvents.emit('travel-to-map','project-room');
       else gameEvents.emit('campus-hub-open',this.campusFeaturePortalNearby);
     }
@@ -2459,7 +2493,23 @@ export class VillageMapRenderer{
     context.fillStyle='rgba(67,218,220,.12)';context.beginPath();context.arc(1050,100,360,0,Math.PI*2);context.fill();
     text(eyebrow,58,58,21,'#5ce8e3',900);text(label,58,112,44,'#ffffff',900);text('AI 세종 추천센터',1220,62,21,'#9bcbd0',800,'right');
     context.fillStyle='rgba(123,224,224,.22)';context.fillRect(58,150,1164,2);
-    if(id==='experience-analysis'){
+    if(true){
+      const columns=[
+        ['01','프로젝트 가져오기','프로젝트실 여행 기획'],
+        ['02','AI 코스 편집','지도 · 순서 변경 · 장소 추가'],
+        ['03','일정 확정','AI 최적화 · QR · PDF'],
+      ];
+      columns.forEach(([number,title,copy],index)=>{
+        const x=58+index*398;
+        rounded(x,205,366,342,22,index===1?'#104f61':'rgba(255,255,255,.065)',index===1?'#5de4dd':'#315f69');
+        rounded(x+26,232,48,48,14,index===1?'#35bba9':'#244e59');text(number,x+50,256,17,'#ffffff',900,'center');
+        text(title,x+26,326,27,'#ffffff',900);text(copy,x+26,370,17,'#add1d4',650);
+        if(index===0){text('📁  세종 야경 여행',x+26,440,20,'#d9f4f2',800);text('장소 4개  ·  참여자 3명',x+26,478,16,'#83b4b8',700)}
+        if(index===1){['세종수목원','이응다리','카페거리','호수공원'].forEach((place,placeIndex)=>text(`${placeIndex+1}  ${place}`,x+26,420+placeIndex*30,16,placeIndex===0?'#65e9db':'#c2dfe0',750))}
+        if(index===2){text('이동시간  4시간 20분',x+26,430,17,'#bfe5e3',750);text('추천도  96%',x+26,472,20,'#61e1b2',900)}
+      });
+      rounded(420,590,440,58,15,'#209b76','#62e3b4');text('AI 최적화  ·  일정 확정',640,619,21,'#ffffff',900,'center');
+    }else if(id==='experience-analysis'){
       const rows=[['자연·힐링','82%',.82],['문화·전시','67%',.67],['야간 경관','54%',.54]];
       rows.forEach(([name,value,ratio],index)=>{const y=238+index*112;text(String(name),70,y,25,'#d9f4f4',800);rounded(290,y-14,700,28,14,'rgba(255,255,255,.1)');rounded(290,y-14,700*Number(ratio),28,14,index===0?'#48d7c4':index===1?'#5caee9':'#8f88e8');text(String(value),1050,y,25,'#ffffff',900)});
       rounded(70,588,1140,76,18,'rgba(255,255,255,.07)','#2f6671');text('지금까지의 체험 기록을 바탕으로 관심도와 여행 성향을 분석했어요.',110,626,23,'#b8dadd',700);
@@ -3219,9 +3269,9 @@ export class VillageMapRenderer{
 
   private setupFoodTruckWindows(model:THREE.Object3D){
     const configs=[
-      {id:'local' as const,name:'Local_food_truck_service_window',label:'로컬푸드 트럭',title:'세종 로컬푸드',items:['조치원 복숭아','싱싱장터 채소','세종 한우']},
-      {id:'street' as const,name:'Street_food_truck_service_window',label:'길거리 음식 트럭',title:'세종 길거리 음식',items:['왕천파닭','세종 칼국수','들깨수제비']},
-      {id:'dessert' as const,name:'Dessert_truck_service_window',label:'디저트 트럭',title:'세종 디저트',items:['복숭아 아이스크림','로컬 베이커리','로스터리 커피']},
+      {id:'local' as const,name:'Local_food_truck_service_window',label:'세종 대표 맛집',title:'세종 대표 맛집',items:['왕천파닭','맛나당칼국수','들깨수제비']},
+      {id:'street' as const,name:'Street_food_truck_service_window',label:'세종 특산물·로컬푸드',title:'세종 로컬푸드',items:['조치원 복숭아','복숭아 가공품','싱싱세종 농산물']},
+      {id:'dessert' as const,name:'Dessert_truck_service_window',label:'세종 카페·디저트',title:'세종 카페·디저트',items:['로스터리 커피','세종 베이커리','지역 디저트']},
     ];
     const plazaObject=model.getObjectByName('Central_plaza');
     this.foodTruckPlazaCenter=plazaObject
@@ -3230,8 +3280,10 @@ export class VillageMapRenderer{
     const plaza={x:this.foodTruckPlazaCenter.x,z:this.sceneToWorldZ(this.foodTruckPlazaCenter.z)},approachDistance=190;
     this.foodTruckWindows=configs.flatMap(config=>{
       const object=model.getObjectByName(config.name);if(!object)return [];
-      const screen=object instanceof THREE.Mesh?object:object.children.find(child=>child instanceof THREE.Mesh) as THREE.Mesh|undefined;
-      if(screen)this.foodTruckScreens.set(config.id,screen);
+      const surface=object instanceof THREE.Mesh?object:object.children.find(child=>child instanceof THREE.Mesh) as THREE.Mesh|undefined;
+      // The GLB already provides the exact inner service-window rectangle.
+      // Project this authored surface directly; no inferred plane or scaling.
+      if(surface)this.foodTruckScreens.set(config.id,surface);
       const center=new THREE.Box3().setFromObject(object).getCenter(new THREE.Vector3());
       const windowZ=this.sceneToWorldZ(center.z),dx=plaza.x-center.x,dz=plaza.z-windowZ,length=Math.hypot(dx,dz)||1;
       return [{id:config.id,label:config.label,x:center.x+dx/length*approachDistance,z:windowZ+dz/length*approachDistance}];
@@ -3245,7 +3297,7 @@ export class VillageMapRenderer{
     context.fillStyle='#102d2a';context.fillRect(0,0,canvas.width,canvas.height);
     context.fillStyle=accent;context.fillRect(0,0,18,canvas.height);
     context.fillStyle='#effff9';context.font='900 58px "Noto Sans KR",sans-serif';context.fillText(title,65,92);
-    context.fillStyle='#8ecfba';context.font='800 23px "Noto Sans KR",sans-serif';context.fillText('SEJONG FOOD MENU · 가까이에서 E',68,135);
+    context.fillStyle='#8ecfba';context.font='800 23px "Noto Sans KR",sans-serif';context.fillText('SEJONG FOOD GUIDE · 가까이에서 E',68,135);
     items.forEach((item,index)=>{
       const y=184+index*93;context.fillStyle=index%2?'#173a35':'#19423b';context.beginPath();context.roundRect(55,y,914,70,16);context.fill();
       context.fillStyle=accent;context.font='900 28px "Noto Sans KR",sans-serif';context.fillText(String(index+1).padStart(2,'0'),78,y+45);
@@ -3272,6 +3324,13 @@ export class VillageMapRenderer{
 
   private enterFoodTruckKiosk=(id?:FoodTruckWindow['id'])=>{
     const next=id??this.nearbyFoodTruckId,screen=next?this.foodTruckScreens.get(next):undefined;if(!next||!screen)return;
+    // A truck can overlap the lake-return portal's proximity radius. Once the
+    // service window owns the interaction, clear that stale portal state so its
+    // travel prompt and charge timer cannot remain visible behind the kiosk.
+    if(this.portalNearby||this.activePortal){
+      this.portalNearby=false;this.activePortal=undefined;this.resetPortalCharge();
+      gameEvents.emit('world-portal-proximity-changed',null);
+    }
     screen.geometry.computeBoundingBox();
     const center=new THREE.Box3().setFromObject(screen).getCenter(new THREE.Vector3()),localSize=screen.geometry.boundingBox?.getSize(new THREE.Vector3())??new THREE.Vector3(1,1,.01);
     const normalAxis=localSize.x<=localSize.y&&localSize.x<=localSize.z?new THREE.Vector3(1,0,0):localSize.y<=localSize.z?new THREE.Vector3(0,1,0):new THREE.Vector3(0,0,1);
@@ -3282,13 +3341,17 @@ export class VillageMapRenderer{
     const plazaCenter=this.foodTruckPlazaCenter??new THREE.Vector3(FOOD_EXPERIENCE_SPAWN.x,center.y,this.worldToSceneZ(FOOD_EXPERIENCE_SPAWN.z));
     const plazaDirection=plazaCenter.clone().sub(center);plazaDirection.y=0;
     if(normal.dot(plazaDirection)>0)normal.negate();
-    this.foodTruckKioskId=next;this.foodTruckKioskView={target:center,camera:center.clone().addScaledVector(normal,430)};
+    const worldSize=new THREE.Box3().setFromObject(screen).getSize(new THREE.Vector3());
+    const focusFov=30;
+    const distance=Math.max(240,(worldSize.y*.5)/(Math.tan(THREE.MathUtils.degToRad(focusFov*.5))*.78));
+    this.foodTruckKioskId=next;this.foodTruckKioskView={target:center,camera:center.clone().addScaledVector(normal,distance)};
     this.foodTruckKioskTransition={target:this.cameraTarget.clone(),camera:this.camera.position.clone(),fov:this.camera instanceof THREE.PerspectiveCamera?this.camera.fov:46,elapsed:0};
     this.localCharacter.root.visible=false;this.remotes.forEach(character=>{character.root.visible=false});
     gameEvents.emit('food-truck-kiosk-mode-changed',next);gameEvents.emit('game-input-lock',true);
   };
   private exitFoodTruckKiosk=()=>{
-    if(!this.foodTruckKioskId)return;this.foodTruckKioskId=undefined;this.foodTruckKioskView=undefined;this.foodTruckKioskTransition=undefined;
+    if(!this.foodTruckKioskId)return;
+    this.foodTruckKioskId=undefined;this.foodTruckKioskView=undefined;this.foodTruckKioskTransition=undefined;
     this.localCharacter.root.visible=true;this.remotes.forEach(character=>{character.root.visible=true});
     gameEvents.emit('food-truck-kiosk-screen-rect',null);gameEvents.emit('food-truck-kiosk-mode-changed',null);gameEvents.emit('game-input-lock',false);
   };
@@ -3434,6 +3497,18 @@ export class VillageMapRenderer{
     this.updateLakeExperienceCircles();
     this.updateProjectRoomHologram();
     if(this.overviewActive){this.showMapOverview();this.renderAccumulator+=delta;if(this.renderAccumulator>=this.renderInterval){this.renderAccumulator%=this.renderInterval;this.render()}return {x:this.localX,z:this.localZ,groundHeight:this.localGround}}
+    // While a government display is open the WebGL canvas is hidden behind
+    // the DOM interface. Keep only the short camera/rect transition alive and
+    // skip collision raycasts, proximity sorting and continuous 3D rendering.
+    if(this.governmentWebUiActive){
+      const groundPosition=this.followTarget.set(this.localX,this.localGround+this.characterGroundClearance,this.worldToSceneZ(this.localZ));
+      this.followCharacter(groundPosition,delta);
+      if(this.governmentWebUiTransition){
+        this.renderAccumulator+=delta;
+        if(this.renderAccumulator>=this.renderInterval){this.renderAccumulator%=this.renderInterval;this.render()}
+      }
+      return {x:this.localX,z:this.localZ,groundHeight:this.localGround};
+    }
     if(this.artsCenterActiveSeat){
       const seat=this.artsCenterActiveSeat,characterHeight=this.options.characterHeight??CHARACTER_HEIGHT;
       this.localX=seat.x;this.localZ=seat.z;
@@ -3746,7 +3821,7 @@ export class VillageMapRenderer{
       }
       if(this.foodTruckKioskId&&this.foodTruckKioskView){
         const view=this.foodTruckKioskView,transition=this.foodTruckKioskTransition;
-        if(transition){transition.elapsed=Math.min(.65,transition.elapsed+delta);const p=transition.elapsed/.65,e=p*p*(3-2*p);this.cameraTarget.lerpVectors(transition.target,view.target,e);this.camera.position.lerpVectors(transition.camera,view.camera,e);this.camera.fov=THREE.MathUtils.lerp(transition.fov,34,p);if(p>=1)this.foodTruckKioskTransition=undefined}else{this.cameraTarget.copy(view.target);this.camera.position.copy(view.camera);this.camera.fov=34}
+        if(transition){transition.elapsed=Math.min(.65,transition.elapsed+delta);const p=transition.elapsed/.65,e=p*p*(3-2*p);this.cameraTarget.lerpVectors(transition.target,view.target,e);this.camera.position.lerpVectors(transition.camera,view.camera,e);this.camera.fov=THREE.MathUtils.lerp(transition.fov,30,p);if(p>=1)this.foodTruckKioskTransition=undefined}else{this.cameraTarget.copy(view.target);this.camera.position.copy(view.camera);this.camera.fov=30}
         this.camera.aspect=this.width/Math.max(1,this.height);this.camera.lookAt(this.cameraTarget);this.camera.updateProjectionMatrix();
         const screen=this.foodTruckScreens.get(this.foodTruckKioskId),rect=screen?this.projectedMeshScreenRect(screen):undefined;if(rect)gameEvents.emit('food-truck-kiosk-screen-rect',rect);
         return;
@@ -3804,7 +3879,16 @@ export class VillageMapRenderer{
   }
 
   private resize(force=false){const width=Math.max(1,this.parent.clientWidth),height=Math.max(1,this.parent.clientHeight);if(!force&&width===this.width&&height===this.height)return;this.width=width;this.height=height;this.renderer.setSize(width,height,false)}
-  private render(){this.resize();if(!this.destroyed)this.renderer.render(this.scene,this.camera)}
+  private render(){
+    this.resize();if(this.destroyed)return;this.renderer.render(this.scene,this.camera);
+    if(this.clubBoothCardAnchors.length){
+      const rect=this.renderer.domElement.getBoundingClientRect();
+      gameEvents.emit('club-booth-card-screen-positions',this.clubBoothCardAnchors.map(object=>{
+        const center=new THREE.Box3().setFromObject(object).getCenter(new THREE.Vector3());center.y+=18;const projected=center.project(this.camera);
+        return {x:rect.left+(projected.x+1)*rect.width/2,y:rect.top+(1-projected.y)*rect.height/2,visible:projected.z>=-1&&projected.z<=1&&Math.abs(projected.x)<=1.15&&Math.abs(projected.y)<=1.15};
+      }));
+    }
+  }
 
   destroy(){
     if(this.destroyed)return;

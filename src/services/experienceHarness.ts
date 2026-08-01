@@ -4,7 +4,7 @@ import {gameEvents} from '../game/events';
 
 type HarnessMap=Extract<MapId,'arts-center'|'food-experience'|'festival-experience'>;
 type Action={type:string;at?:number;[key:string]:unknown};
-export type GeneratedExperienceProfile={tags:string[];summary:string;source:'openai'|'fallback';updatedAt:string};
+export type GeneratedExperienceProfile={source:string;generatorSource?:'openai'|'fallback';title?:string;tags:string[];traits?:Array<{key:string;label:string;score:number;confidence:number}>;summary:string;evidence?:string[];updatedAt:string};
 export type ExperienceAnalysisResult={summary:{scores:Record<string,number>;evidence:string[]};profile:GeneratedExperienceProfile};
 export const EXPERIENCE_PROFILE_KEY='sejong-ai-experience-profile-v1';
 const isHarnessMap=(mapId:MapId):mapId is HarnessMap=>mapId==='arts-center'||mapId==='food-experience'||mapId==='festival-experience';

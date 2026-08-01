@@ -85,13 +85,14 @@ accountRouter.post('/me/experience/map-exit',async(req,res)=>{
   const summary=scoreMapExit(parsed.data),key=parsed.data.mapId==='arts-center'?'performance':parsed.data.mapId==='food-experience'?'food':'festival';
   const previous=harness[key] as {scores?:Map<string,number>|Record<string,number>;evidence?:string[]}|undefined;
   const previousScores=previous?.scores instanceof Map?Object.fromEntries(previous.scores):previous?.scores??{};
-  harness[key]={scores:Object.entries(summary.scores).reduce<Record<string,number>>((scores,[name,value])=>{scores[name]=(previousScores[name]??0)+value;return scores},{...previousScores}),evidence:[...(previous?.evidence??[]),...summary.evidence].filter((value,index,all)=>all.indexOf(value)===index).slice(-20)};
+  harness[key]={scores:Object.entries(summary.scores).reduce<Record<string,number>>((scores,[name,value])=>{scores[name]=Math.min(100,(previousScores[name]??0)+value);return scores},{...previousScores}),evidence:[...(previous?.evidence??[]),...summary.evidence].filter((value,index,all)=>all.indexOf(value)===index).slice(-20),sessionSummary:summary.sessionSummary};
   const bundle={performance:harness.performance,food:harness.food,festival:harness.festival};
   const generated=await generateExperienceProfile(bundle);
   harness.processedSessionIds=[...(harness.processedSessionIds??[]),parsed.data.sessionId].slice(-50);
-  harness.generatedProfile={...generated.profile,source:generated.source,updatedAt:new Date()};
+  harness.generatedProfile={...generated.profile,generatorSource:generated.source,updatedAt:new Date()};
+  if(key==='festival'||key==='food'){const source=key==='food'?'sejong_food_trucks':'sejong_festival_booth';harness.profileFragments=[...(harness.profileFragments??[]).filter((fragment:any)=>fragment?.source!==source),{...generated.profile,source,scores:summary.scores,sessionSummary:summary.sessionSummary,evidence:summary.evidence,updatedAt:new Date()}].slice(-12)}
   user.set('experienceHarness',harness);await user.save();
-  return res.json({success:true,data:{summary,profile:harness.generatedProfile}});
+  return res.json({success:true,data:{summary,profile:harness.generatedProfile,profileFragments:harness.profileFragments??[]}});
 });
 
 accountRouter.get('/me/experience/profile',async(_req,res)=>{

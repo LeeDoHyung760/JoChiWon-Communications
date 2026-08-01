@@ -1,0 +1,11 @@
+.club-recommend-card.is-anchored {
+  position: fixed;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -100%);
+  margin-top: -8px;
+}
+
+.club-recommend-card.is-offscreen {
+  display: none;
+}

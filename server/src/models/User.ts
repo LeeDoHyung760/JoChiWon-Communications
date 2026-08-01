@@ -97,15 +97,16 @@ const userSchema = new Schema(
     experienceHarness: {
       processedSessionIds: { type: [String], default: [], select: false },
       performance: { scores: { type: Map, of: Number }, evidence: { type: [String], default: [] } },
-      food: { scores: { type: Map, of: Number }, evidence: { type: [String], default: [] } },
+      food: { scores: { type: Map, of: Number }, evidence: { type: [String], default: [] }, sessionSummary: Schema.Types.Mixed },
       festival: { scores: { type: Map, of: Number }, evidence: { type: [String], default: [] } },
-      generatedProfile: { tags: { type: [String], default: [] }, summary: String, source: { type: String, enum: ['openai','fallback'] }, updatedAt: Date },
+      profileFragments: { type: [Schema.Types.Mixed], default: [] },
+      generatedProfile: { source: String, generatorSource: { type: String, enum: ['openai','fallback'] }, title: String, tags: { type: [String], default: [] }, traits: { type: [{ key: String, label: String, score: Number, confidence: Number }], default: [] }, summary: String, evidence: { type: [String], default: [] }, updatedAt: Date },
     },
 
     lastPosition: {
       mapId: {
         type: String,
-        enum: ['town', 'arts-center', 'festival-experience', 'food-experience', 'bear-tree-park', 'bear-play-zone', 'garden', 'campus', 'student-hall', 'project-room', 'government', 'government-central-plaza', 'government-policy-hall', 'government-observatory', 'sejong-smart-city', 'jochwon-station', 'traditional-market', 'jochwon-park', 'college-street'],
+        enum: ['town', 'arts-center', 'festival-experience', 'food-experience', 'club-street-festival', 'bear-tree-park', 'bear-play-zone', 'garden', 'campus', 'student-hall', 'project-room', 'government', 'government-central-plaza', 'government-policy-hall', 'government-observatory', 'sejong-smart-city', 'jochwon-station', 'traditional-market', 'jochwon-park', 'college-street'],
       },
       x: Number,
       z: Number,

@@ -10,6 +10,7 @@ import { ObservatoryTelescopeInteraction } from '../components/ObservatoryTelesc
 import { FoodTruckExperience } from '../components/FoodTruckExperience';
 import { ArtsCenterPosterKiosk } from '../components/ArtsCenterPosterKiosk';
 import { ArtsCenterStageVideo } from '../components/ArtsCenterStageVideo';
+import { ClubStreetExperience } from '../components/ClubStreetExperience';
 import type { GameReturnState } from '../game/gameReturnState';
 import { CAMPUS_FRIEND_NPCS } from '../data/campusNpc';
 import { PROJECT_ROOM_NPC } from '../data/projectRoomNpc';
@@ -136,6 +137,7 @@ export function GamePage({profile,returnState,onExit,onEditProfile,onOpenCommuni
  {<FoodTruckExperience/>}
   {<ArtsCenterPosterKiosk/>}
   {<ArtsCenterStageVideo/>}
+ {<ClubStreetExperience active={location==='동아리 거리제'} onNotice={setNotice}/>}
  {campusHubOpen&&<CampusCommunicationHub profile={profile} players={players} initialTab={campusHubTab} onClose={()=>setCampusHubOpen(false)} onProfile={player=>{setCampusHubOpen(false);setSelected(player)}} onDirectChat={player=>{socket.emit('directChatRequest',player.id);setCampusHubOpen(false);setNotice(`${player.nickname}님에게 1대1 대화를 신청했어요.`)}} onClubChat={club=>{const inviteeIds=players.filter(player=>club.members.some(member=>member.name===player.nickname)).map(player=>player.id);socket.emit('createGroup',{name:club.name,inviteeIds});setCampusHubOpen(false);setNotice(`${club.name} 단체 채팅을 열었어요.`)}} onGovernment={()=>{setCampusHubOpen(false);gameEvents.emit('travel-to-map','government')}}/>}
  {aiProfileOpen&&<AiSejongProfile profile={profile} onClose={()=>setAiProfileOpen(false)} onEdit={()=>{setAiProfileOpen(false);openProfileEditor()}}/>}
  {notice&&<button className="notice" onClick={()=>setNotice('')}>{notice} ×</button>}</main>}

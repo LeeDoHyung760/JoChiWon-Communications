@@ -5,6 +5,7 @@ import { gameEvents } from '../game/events';
 import { socket } from '../game/systems/socketClient';
 import { API_BASE_URL } from '../config/api';
 import { analyzeLakeTaste,lakeTasteQuestions,type LakeTasteAnswers,type LakeTasteDomain,type LakeTasteInsights } from '../services/lakeTasteAnalysis';
+import {recordExperienceAction} from '../services/experienceHarness';
 import './LakeParkExperiences.css';
 
 type NearbyExperience={id:LakeExperienceId;label:string;description:string};
@@ -17,6 +18,7 @@ type LakeInterestProfile={savedContentIds:string[];activities:string[];foodPlace
 type FestivalTentId='blue'|'red';
 type FestivalTentRecord={totalViewMs:number;interested:boolean;completed:boolean;openCount:number;lastOpenedAt?:number;lastClosedAt?:number};
 type FestivalTentRecords=Record<FestivalTentId,FestivalTentRecord>;
+type FestivalExploreFilter='전체'|'이번 달'|'야간'|'공연'|'체험'|'가족'|'무료';
 
 const LAKE_INTEREST_KEY='sejong-lake-interest-profile-v1';
 const LAKE_JOURNEY_STEP_KEY='sejong-lake-journey-step-v1';
@@ -25,8 +27,13 @@ const LAKE_COMPLETION_DISMISSED_KEY='sejong-lake-taste-completion-dismissed-v1';
 const FESTIVAL_TENT_RECORD_KEY='sejong-festival-tent-engagement-v1';
 const FESTIVAL_STAGE_VIDEO_RECORD_KEY='sejong-festival-stage-video-v1';
 const FESTIVAL_TENT_REQUIRED_MS=8000;
-// Replace videoUrl with an official MP4 URL or a file placed under public/videos.
-const FESTIVAL_STAGE_VIDEO={title:'세종 축제 영상',description:'세종의 축제 현장을 영상으로 만나보세요.',buttonLabel:'영상 보기 (E)',videoUrl:'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',poster:'/images/festivals/nakhwa-2026.jpg'};
+const festivalExploreFilters:FestivalExploreFilter[]=['전체','이번 달','야간','공연','체험','가족','무료'];
+const festivalVisitInfo:Record<string,{dayNight:string;programs:string[];recommendation:string;price:string;recommendedTime:string;congestion:string;nearby:string;transport:string;parking:string;supplies:string;timeline:string[];zones:string[];course:string[]}>= {
+  'hangeul-festival':{dayNight:'낮·야간',programs:['한글 주제 공연','미디어아트 전시','시민 참여 체험'],recommendation:'가족·연인·친구',price:'무료',recommendedTime:'16:30~20:30',congestion:'한글날 18시 이후 혼잡',nearby:'국립세종수목원',transport:'BRT 정부세종청사 정류장 하차 후 도보 이동',parking:'호수공원 제1·2주차장, 만차 시 중앙공원 임시주차장',supplies:'편한 신발, 얇은 겉옷, 보조배터리',timeline:['16:30 한글 체험','18:00 주제 공연','19:30 미디어아트'],zones:['한글광장','공연무대','체험마을','푸드존'],course:['국립세종수목원','세종호수공원','한글축제 야간공연']},
+  'nakhwa-festival':{dayNight:'야간',programs:['전통 낙화 시연','호수 야간 공연','문화 체험'],recommendation:'연인·친구·가족',price:'무료',recommendedTime:'18:30~21:00',congestion:'토요일 19시 이후 매우 혼잡',nearby:'국립세종수목원',transport:'BRT 세종호수공원 정류장 이용 권장',parking:'중앙공원 임시주차장 후 셔틀 이용',supplies:'돗자리, 얇은 겉옷, 물',timeline:['18:30 자리 잡기','19:20 식전 공연','20:00 낙화 시연'],zones:['낙화 관람구역','메인무대','체험존','안전통제구역'],course:['국립세종수목원','이응다리','세종낙화축제']},
+};
+const getFestivalVisitInfo=(festival:FestivalCard)=>festivalVisitInfo[festival.id]??{dayNight:festival.tags.some(tag=>tag.includes('야간'))?'야간':'주간',programs:[festival.category==='공연'?'대표 공연':'시민 참여 프로그램','지역 문화 전시','체험 부스'],recommendation:festival.tags.some(tag=>tag.includes('가족')||tag.includes('어린이'))?'가족':'친구·연인',price:'무료',recommendedTime:festival.category==='공연'?'17:30~20:30':'13:00~17:00',congestion:'주말 대표 프로그램 시작 1시간 전 혼잡',nearby:festival.venue.includes('호수공원')?'국립세종수목원':'세종전통시장',transport:'행사장 인근 BRT·시내버스 이용 권장',parking:'행사장 안내 주차장 및 임시주차장 이용',supplies:'편한 신발, 물, 보조배터리',timeline:['13:00 행사장 도착','15:00 핵심 프로그램','17:00 주변 관광'],zones:['종합안내소','메인무대','체험존','휴게·먹거리존'],course:[festival.venue.split('·')[0],festival.title,'주변 관광지']};
+const FESTIVAL_STAGE_VIDEO={title:'2026 세종낙화축제',description:'세종호수공원의 밤을 수놓은 전통 낙화와 축제 현장을 영상으로 만나보세요.',buttonLabel:'영상 보기 (E)',youtubeId:'nWYEA0pSnU4'};
 const festivalTentDetails:Record<FestivalTentId,{eyebrow:string;title:string;description:string;image:string;schedule:string;venue:string;tags:string[]}>= {
   blue:{eyebrow:'BLUE EXPERIENCE TENT',title:'2026 세종 전통문화 체험',description:'전통 놀이와 공예, 한글 문화 프로그램을 직접 만나보는 참여형 축제 부스입니다.',image:'/images/festivals/dano-2026.jpg',schedule:'2026년 축제 기간 상시 운영',venue:'전통문화 체험 부스',tags:['전통놀이','공예','한글문화']},
   red:{eyebrow:'RED EXPERIENCE TENT',title:'2026 세종 문화예술 전시',description:'세종의 축제와 지역 예술가의 작품을 사진과 이야기로 감상하는 문화예술 전시 부스입니다.',image:'/images/festivals/hangeul-2026.jpg',schedule:'2026년 축제 기간 상시 운영',venue:'문화 예술 전시 부스',tags:['문화예술','전시','세종축제']},
@@ -53,6 +60,12 @@ const festivalCultureExperiences=[
   {id:'mask',emoji:'🎭',title:'전통 탈·놀이 체험',description:'세종의 전통 놀이와 탈 문화를 직접 체험해 보세요.',image:'/images/festivals/dano-2026.jpg'},
   {id:'craft',emoji:'🪭',title:'전통 공예 만들기',description:'축제의 색을 담은 나만의 전통 공예품을 만들어요.',image:'/images/festivals/spring-flower-2026.jpg'},
   {id:'hangeul',emoji:'📜',title:'한글 문화 체험',description:'세종대왕과 한글 이야기를 놀이와 전시로 만나보세요.',image:'/images/festivals/king-book-2026.jpg'},
+];
+const festivalArtExhibitions=[
+  {id:'hangeul-media-art',emoji:'🖥️',category:'미디어아트',title:'한글, 빛으로 피어나다',description:'한글의 조형미를 빛과 움직임으로 재해석한 몰입형 미디어아트 전시예요.',image:'/images/festivals/hangeul-2026.jpg'},
+  {id:'sejong-painting',emoji:'🎨',category:'회화',title:'세종의 색, 도시의 표정',description:'세종 지역 작가들이 바라본 도시와 사람의 풍경을 회화 작품으로 만나요.',image:'/images/festivals/spring-flower-2026.jpg'},
+  {id:'public-sculpture',emoji:'🗿',category:'조각·공공미술',title:'도시 사이의 조각들',description:'도시 공간과 자연을 주제로 한 조각과 공공미술 작품을 둘러보는 전시예요.',image:'/images/festivals/nakhwa-2026.jpg'},
+  {id:'festival-archive',emoji:'📷',category:'사진·기록',title:'사진으로 만나는 세종 축제',description:'시민의 시선으로 기록한 세종의 축제와 문화예술 현장을 사진으로 만나보세요.',image:'/images/festivals/street-hangeul-2026.jpg'},
 ];
 const foodShopContents=[
   {id:'jochwon-peach',emoji:'🍑',name:'조치원 복숭아',group:'지역 먹거리' as const,category:'local-food',tags:['복숭아','지역특산물','제철과일'],description:'세종 조치원의 대표 특산물인 달콤한 복숭아입니다.',location:'조치원읍 일원',action:'먹어보고 싶어요',imagePosition:'0% 0%'},
@@ -173,14 +186,21 @@ export function LakeParkExperiences(){
   const [journeyNotice,setJourneyNotice]=useState('');
   const [coach,setCoach]=useState<{domain:LakeTasteDomain;step:number}|null>(null);
   const [festivalCultureSelections,setFestivalCultureSelections]=useState<string[]>([]);
+  const [festivalArtSelections,setFestivalArtSelections]=useState<string[]>([]);
+  const [festivalExploreFilter,setFestivalExploreFilter]=useState<FestivalExploreFilter>('전체');
+  const [festivalVisitPlanId,setFestivalVisitPlanId]=useState<string>('hangeul-festival');
+  const [festivalPlanSection,setFestivalPlanSection]=useState<'시간표'|'지도'|'교통'>('시간표');
+  const festivalDetailOpenedAt=useRef<number|null>(null);
+  const festivalPlanSectionOpenedAt=useRef(Date.now());
   const [festivalTentRecords,setFestivalTentRecords]=useState<FestivalTentRecords>(readFestivalTentRecords);
   const [festivalTentElapsedMs,setFestivalTentElapsedMs]=useState(0);
   const [festivalStageProgress,setFestivalStageProgress]=useState(0);
-  const festivalStageVideoRef=useRef<HTMLVideoElement|null>(null);
+  const festivalStageVideoRef=useRef<HTMLIFrameElement|null>(null);
   const festivalStageLastSecond=useRef(-1);
+  const festivalStagePlayback=useRef({currentTime:0,duration:0,playerState:-1});
   const isFestivalExperience=location==='축제 체험 맵';
   const supportsExperienceWeb=location==='세종호수공원'||isFestivalExperience;
-  const activeFestivalTentId:FestivalTentId|undefined=isFestivalExperience&&active==='food-shop-zone'?'blue':isFestivalExperience&&active==='central-plaza'?'red':undefined;
+  const [activeFestivalTentId]=useState<FestivalTentId|undefined>();
 
   const savedContents=useMemo(()=>festivals.filter(content=>profile.savedContentIds.includes(content.id)),[festivals,profile.savedContentIds]);
   const selectedFoodShops=profile.foodPlaceInterests;
@@ -188,6 +208,14 @@ export function LakeParkExperiences(){
   const completedCount=Object.values(completedBooths).filter(Boolean).length;
   const allBoothsCompleted=completedCount===3;
   const coachQuestion=coach?lakeTasteQuestions[coach.domain][coach.step]:null;
+  const visibleExploreFestivals=festivals.filter(festival=>{
+    if(festivalExploreFilter==='전체')return true;
+    const info=getFestivalVisitInfo(festival),text=[festival.title,festival.description,...festival.tags,...info.programs,info.recommendation,info.price].join(' ');
+    if(festivalExploreFilter==='이번 달')return festival.schedule.includes('8.')||festival.status.includes('예정');
+    return text.includes(festivalExploreFilter)||info.dayNight.includes(festivalExploreFilter);
+  });
+  const festivalVisitPlan=festivals.find(item=>item.id===festivalVisitPlanId)??savedContents[0]??festivals[0];
+  const selectedFestivalVisitInfo=festivalVisitPlan?getFestivalVisitInfo(festivalVisitPlan):null;
 
   useEffect(()=>{
     const proximity=(experience:NearbyExperience|null)=>setNearby(experience);
@@ -225,6 +253,23 @@ export function LakeParkExperiences(){
     return()=>{window.clearInterval(timer);const closedAt=Date.now(),total=previous.totalViewMs+closedAt-startedAt;setFestivalTentRecords(current=>({...current,[tentId]:{...current[tentId],totalViewMs:Math.max(current[tentId].totalViewMs,total),completed:current[tentId].completed||total>=FESTIVAL_TENT_REQUIRED_MS,lastClosedAt:closedAt}}))};
   },[activeFestivalTentId]);
   useEffect(()=>{if(!supportsExperienceWeb){setActive(null);setNearby(null)}},[supportsExperienceWeb]);
+  useEffect(()=>{
+    if(!selectedFestival){festivalDetailOpenedAt.current=null;return}
+    const info=getFestivalVisitInfo(selectedFestival),categories=[...selectedFestival.tags,info.dayNight,selectedFestival.category,info.recommendation];
+    festivalDetailOpenedAt.current=Date.now();recordExperienceAction({type:'festival-open',festivalId:selectedFestival.id,festivalTitle:selectedFestival.title,categories,location:selectedFestival.venue});
+    return()=>{if(festivalDetailOpenedAt.current)recordExperienceAction({type:'festival-close',festivalId:selectedFestival.id,festivalTitle:selectedFestival.title,categories,location:selectedFestival.venue,durationSeconds:(Date.now()-festivalDetailOpenedAt.current)/1000})};
+  },[selectedFestival]);
+  useEffect(()=>{
+    if(!isFestivalExperience||active!=='central-plaza'||!festivalVisitPlan)return;
+    festivalPlanSectionOpenedAt.current=Date.now();
+    recordExperienceAction({type:'festival-section',festivalId:festivalVisitPlan.id,festivalTitle:festivalVisitPlan.title,section:'recommended-time'});
+    recordExperienceAction({type:'festival-section',festivalId:festivalVisitPlan.id,festivalTitle:festivalVisitPlan.title,section:'nearby',nearbyPlace:getFestivalVisitInfo(festivalVisitPlan).nearby});
+  },[isFestivalExperience,active,festivalVisitPlan?.id]);
+  useEffect(()=>{
+    if(!isFestivalExperience||active!=='central-plaza'||!festivalVisitPlan)return;
+    festivalPlanSectionOpenedAt.current=Date.now();
+    return()=>{const section=festivalPlanSection==='시간표'?'timetable':festivalPlanSection==='지도'?'map':'transport';recordExperienceAction({type:'festival-section',festivalId:festivalVisitPlan.id,festivalTitle:festivalVisitPlan.title,section,durationSeconds:(Date.now()-festivalPlanSectionOpenedAt.current)/1000})};
+  },[isFestivalExperience,active,festivalVisitPlan?.id,festivalPlanSection]);
   useEffect(()=>{
     gameEvents.emit('lake-booth-completion-changed',{
       'activity-zone':completedBooths.activity,
@@ -283,7 +328,7 @@ export function LakeParkExperiences(){
     return()=>window.removeEventListener('keydown',openWithE);
   },[active,nearby]);
   const experienceName=(id:LakeExperienceId)=>isFestivalExperience
-    ?id==='central-plaza'?'문화 예술 전시 부스':id==='activity-zone'?'축제 공연장':id==='food-shop-zone'?'전통문화 체험 부스':'축제 안내'
+    ?id==='central-plaza'?'세종 축제 한눈에 보기':id==='activity-zone'?'축제 공연장':id==='food-shop-zone'?'세종 축제 탐색관':'축제 안내'
     :id==='central-plaza'?'축제 부스':id==='activity-zone'?'공연 부스':id==='food-shop-zone'?'먹거리·상점 부스':'세종 추천 코스 게시판';
   const toggleContent=(id:string)=>setProfile(current=>{
     const removing=current.savedContentIds.includes(id);
@@ -291,6 +336,9 @@ export function LakeParkExperiences(){
     setFestivalLimitNotice(false);
     return {...current,savedContentIds:removing?current.savedContentIds.filter(saved=>saved!==id):[...current.savedContentIds,id],updatedAt:Date.now()};
   });
+  const saveFestivalInterest=(id:string)=>{const festival=festivals.find(item=>item.id===id);if(festival){const info=getFestivalVisitInfo(festival);recordExperienceAction({type:'festival-save',festivalId:id,festivalTitle:festival.title,categories:[...festival.tags,info.dayNight,festival.category],location:festival.venue,saved:!profile.savedContentIds.includes(id)})}toggleContent(id)};
+  const selectFestivalVisitPlan=(id:string)=>{setFestivalVisitPlanId(id);setSelectedFestival(null);const festival=festivals.find(item=>item.id===id);if(festival)recordExperienceAction({type:'festival-open',festivalId:id,festivalTitle:festival.title,categories:[...festival.tags,getFestivalVisitInfo(festival).dayNight,festival.category],location:festival.venue})};
+  const inspectFestivalPlanSection=(section:'시간표'|'지도'|'교통')=>{setFestivalPlanSection(section);if(!festivalVisitPlan)return;const mapped=section==='시간표'?'timetable':section==='지도'?'map':'transport';recordExperienceAction({type:'festival-section',festivalId:festivalVisitPlan.id,festivalTitle:festivalVisitPlan.title,section:mapped})};
   const toggleActivity=(id:string)=>setProfile(current=>{const selected=current.activities.includes(id);if(!selected&&current.activities.length>=2){setPerformanceLimitNotice(true);window.setTimeout(()=>setPerformanceLimitNotice(false),2200);return current}setPerformanceLimitNotice(false);return {...current,activities:selected?current.activities.filter(saved=>saved!==id):[...current.activities,id],updatedAt:Date.now()}});
   const toggleFoodShop=(id:string)=>{
     const item=foodShopContents.find(content=>content.id===id);if(!item)return;
@@ -327,9 +375,16 @@ export function LakeParkExperiences(){
   const completeFestivalSelection=()=>{if(!savedContents.length)return;setSelectedFestival(null);startTasteInterview('festival')};
   const toggleFestivalCulture=(id:string)=>setFestivalCultureSelections(current=>current.includes(id)?current.filter(item=>item!==id):[...current,id]);
   const completeFestivalCulture=()=>{if(!festivalCultureSelections.length)return;setCompletedBooths(current=>({...current,food:true}));setActive(null)};
+  const toggleFestivalArt=(id:string)=>setFestivalArtSelections(current=>current.includes(id)?current.filter(item=>item!==id):[...current,id]);
+  const completeFestivalArt=()=>{
+    if(!festivalArtSelections.length)return;
+    setFestivalTentRecords(current=>({...current,red:{...current.red,completed:true,totalViewMs:Math.max(current.red.totalViewMs,FESTIVAL_TENT_REQUIRED_MS)}}));
+    setCompletedBooths(current=>({...current,festival:true}));
+    setActive(null);
+  };
   const toggleFestivalTentInterest=(id:FestivalTentId)=>setFestivalTentRecords(current=>({...current,[id]:{...current[id],interested:!current[id].interested}}));
-  const recordFestivalStageVideoEvent=(type:'play'|'pause'|'ended'|'timeupdate',video:HTMLVideoElement)=>{
-    const currentTime=Number.isFinite(video.currentTime)?video.currentTime:0,duration=Number.isFinite(video.duration)?video.duration:0,progress=duration>0?currentTime/duration:0;
+  const recordFestivalStageVideoEvent=(type:'play'|'pause'|'ended'|'timeupdate',currentTime:number,duration:number)=>{
+    const progress=duration>0?currentTime/duration:0;
     try{
       const saved=JSON.parse(localStorage.getItem(FESTIVAL_STAGE_VIDEO_RECORD_KEY)??'{}') as {events?:unknown[];maxProgress?:number;completed?:boolean};
       const events=Array.isArray(saved.events)?saved.events.slice(-199):[];
@@ -339,11 +394,30 @@ export function LakeParkExperiences(){
     setFestivalStageProgress(progress);
     if(progress>=.7)setCompletedBooths(current=>current.activity?current:{...current,activity:true});
   };
-  const onFestivalStageTimeUpdate=()=>{
-    const video=festivalStageVideoRef.current;if(!video)return;
-    const second=Math.floor(video.currentTime);if(second===festivalStageLastSecond.current)return;
-    festivalStageLastSecond.current=second;recordFestivalStageVideoEvent('timeupdate',video);
-  };
+  useEffect(()=>{
+    if(!isFestivalExperience||active!=='activity-zone')return;
+    const iframe=festivalStageVideoRef.current;if(!iframe)return;
+    const send=(func:string)=>iframe.contentWindow?.postMessage(JSON.stringify({event:'command',func,args:[]}), 'https://www.youtube-nocookie.com');
+    const listen=()=>iframe.contentWindow?.postMessage(JSON.stringify({event:'listening'}), 'https://www.youtube-nocookie.com');
+    const receive=(event:MessageEvent)=>{
+      if(event.origin!=='https://www.youtube-nocookie.com')return;
+      let payload:{event?:string;info?:{currentTime?:number;duration?:number;playerState?:number}};
+      try{payload=typeof event.data==='string'?JSON.parse(event.data):event.data}catch{return}
+      if(payload.event!=='infoDelivery'||!payload.info)return;
+      if(typeof payload.info.currentTime==='number')festivalStagePlayback.current.currentTime=payload.info.currentTime;
+      if(typeof payload.info.duration==='number')festivalStagePlayback.current.duration=payload.info.duration;
+      if(typeof payload.info.playerState==='number')festivalStagePlayback.current.playerState=payload.info.playerState;
+      const {currentTime,duration,playerState}=festivalStagePlayback.current;
+      if(duration<=0||playerState!==1&&playerState!==0)return;
+      const second=Math.floor(currentTime);if(second===festivalStageLastSecond.current)return;
+      festivalStageLastSecond.current=second;
+      recordFestivalStageVideoEvent(playerState===0?'ended':'timeupdate',currentTime,duration);
+    };
+    window.addEventListener('message',receive);
+    listen();
+    const timer=window.setInterval(()=>{listen();send('getPlayerState');send('getCurrentTime');send('getDuration')},1000);
+    return()=>{window.clearInterval(timer);window.removeEventListener('message',receive)};
+  },[active,isFestivalExperience]);
 
   if(!supportsExperienceWeb)return null;
   return <>
@@ -371,13 +445,16 @@ export function LakeParkExperiences(){
     </button>}
 
     {(active==='central-plaza'||active==='activity-zone'||active==='food-shop-zone')&&<div className="lake-experience-overlay festival-plaza-overlay" role="dialog" aria-modal="true" aria-labelledby="festival-title">
-      <section className={`festival-plaza-panel ${isFestivalExperience?'is-festival-map':''}`}>
+      <section className={`festival-plaza-panel ${isFestivalExperience?'is-festival-map':''} ${isFestivalExperience&&active==='activity-zone'?'is-festival-video':''}`}>
         <button type="button" className="lake-experience-close" onClick={()=>setActive(null)} aria-label="부스 닫기"><X size={18}/></button>
         <header className="festival-plaza-header"><div className="festival-plaza-title"><span>{active==='activity-zone'?'🎤':active==='food-shop-zone'?(isFestivalExperience?'🎭':'🍑'):'🎪'}</span><div><small>{isFestivalExperience?'2026 세종 축제 체험':'충녕이가 알아가는 나의 취향'}</small><h2 id="festival-title">{isFestivalExperience?experienceName(active):active==='food-shop-zone'?'세종 맛 발견소':experienceName(active)}</h2><p>{isFestivalExperience?(active==='central-plaza'?'2026 세종의 축제와 문화 예술 전시를 한눈에 살펴보세요.':active==='activity-zone'?'세종의 밤을 밝히는 축제 공연과 무대를 만나보세요.':'전통 놀이와 공예, 한글 문화를 직접 체험해 보세요.'):active==='central-plaza'?'끌리는 축제를 고르면 충녕이가 좋아하는 분위기를 분석해요.':active==='activity-zone'?'끌리는 공연과 짧은 답변으로 나만의 공연 취향을 찾아요.':'장소를 고른 뒤 충녕이가 나의 여행 미식 스타일을 알아가요.'}</p></div></div><div className="festival-live"><Users size={15}/><span><b>{onlineCount}명</b>이 지금 각자의 취향을 찾고 있어요</span></div></header>
         {isFestivalExperience&&active==='activity-zone'&&<section className="festival-stage-video-detail">
-          <video ref={festivalStageVideoRef} controls playsInline preload="metadata" poster={FESTIVAL_STAGE_VIDEO.poster} src={FESTIVAL_STAGE_VIDEO.videoUrl} onPlay={event=>recordFestivalStageVideoEvent('play',event.currentTarget)} onPause={event=>recordFestivalStageVideoEvent('pause',event.currentTarget)} onEnded={event=>recordFestivalStageVideoEvent('ended',event.currentTarget)} onTimeUpdate={onFestivalStageTimeUpdate}/>
+          <iframe ref={festivalStageVideoRef} src={`https://www.youtube-nocookie.com/embed/${FESTIVAL_STAGE_VIDEO.youtubeId}?enablejsapi=1&rel=0&playsinline=1`} title={FESTIVAL_STAGE_VIDEO.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen/>
           <div><small>STAGE VIDEO · 2026 SEJONG FESTIVAL</small><h3>{FESTIVAL_STAGE_VIDEO.title}</h3><p>{FESTIVAL_STAGE_VIDEO.description}</p><div className="festival-detail-progress"><i><em style={{width:`${Math.min(100,festivalStageProgress*100)}%`}}/></i><span>{completedBooths.activity?'공연장 체험 완료 · 스탬프 지급':'영상을 70% 이상 시청하면 스탬프를 받아요.'}</span></div></div>
         </section>}
+        {isFestivalExperience&&active==='food-shop-zone'&&<section className="festival-explorer"><nav className="festival-explore-filters" aria-label="축제 필터">{festivalExploreFilters.map(filter=><button type="button" className={festivalExploreFilter===filter?'active':''} key={filter} onClick={()=>{setFestivalExploreFilter(filter);recordExperienceAction({type:'booth',zone:`festival-filter:${filter}`,count:1})}}>{filter}</button>)}</nav><div className="festival-explore-summary"><b>{visibleExploreFestivals.length}개의 세종 축제</b><span>카드를 열어본 시간과 저장한 축제 유형이 AI 취향 분석에 반영돼요.</span></div><div className="festival-explore-grid">{visibleExploreFestivals.map(content=>{const info=getFestivalVisitInfo(content),saved=profile.savedContentIds.includes(content.id);return <article className={`festival-explore-card ${saved?'is-saved':''}`} key={content.id}><button type="button" className="festival-card-open" onClick={()=>setSelectedFestival(content)}><div className="festival-explore-image"><img src={content.image} alt={`${content.title} 대표 이미지`}/><span>{info.dayNight} · {info.price}</span></div><div className="festival-explore-copy"><small>{content.status}</small><h3>{content.title}</h3><dl><div><dt>장소</dt><dd>{content.venue}</dd></div><div><dt>일정</dt><dd>{content.schedule}</dd></div></dl><p>{info.programs.join(' · ')}</p><em>추천: {info.recommendation}</em></div></button><button type="button" className="festival-explore-save" onClick={()=>saveFestivalInterest(content.id)}>{saved?<><Check size={14}/> 저장됨</>:<><Bookmark size={14}/> 관심 축제 저장</>}</button></article>})}</div></section>}
+        {isFestivalExperience&&active==='central-plaza'&&festivalVisitPlan&&selectedFestivalVisitInfo&&<section className="festival-visit-dashboard"><nav className="festival-plan-picker" aria-label="축제 선택">{festivals.map(item=><button type="button" className={item.id===festivalVisitPlan.id?'active':''} key={item.id} onClick={()=>selectFestivalVisitPlan(item.id)}>{item.emoji} {item.title.replace(/^2026\s*/, '')}</button>)}</nav><div className="festival-visit-hero"><img src={festivalVisitPlan.image} alt={`${festivalVisitPlan.title} 대표 이미지`}/><div><small>VISIT PLANNER</small><h3>{festivalVisitPlan.title}</h3><p>{festivalVisitPlan.venue}</p><strong>추천 시간 {selectedFestivalVisitInfo.recommendedTime}</strong><span>혼잡 예상: {selectedFestivalVisitInfo.congestion}</span></div></div><nav className="festival-plan-tabs" aria-label="방문 정보 상세">{(['시간표','지도','교통'] as const).map(section=><button type="button" className={festivalPlanSection===section?'active':''} key={section} onClick={()=>inspectFestivalPlanSection(section)}>{section}</button>)}</nav><div className="festival-plan-primary">{festivalPlanSection==='시간표'&&selectedFestivalVisitInfo.timeline.map((item,index)=><div className="festival-time-row" key={item}><i>{index+1}</i><b>{item}</b></div>)}{festivalPlanSection==='지도'&&<div className="festival-zone-map">{selectedFestivalVisitInfo.zones.map((zone,index)=><span key={zone} style={{left:`${12+(index%2)*48}%`,top:`${18+Math.floor(index/2)*43}%`}}>{index+1}. {zone}</span>)}</div>}{festivalPlanSection==='교통'&&<dl><div><dt>대중교통</dt><dd>{selectedFestivalVisitInfo.transport}</dd></div><div><dt>주차</dt><dd>{selectedFestivalVisitInfo.parking}</dd></div></dl>}</div><div className="festival-visit-info-grid"><article><small>핵심 프로그램</small><b>{selectedFestivalVisitInfo.programs.join(' · ')}</b></article><article><small>함께 가기 좋은 곳</small><b>{selectedFestivalVisitInfo.nearby}</b></article><article><small>준비물·유의사항</small><b>{selectedFestivalVisitInfo.supplies}</b></article><article><small>추천 대상·요금</small><b>{selectedFestivalVisitInfo.recommendation} · {selectedFestivalVisitInfo.price}</b></article></div><section className="festival-route-strip"><Route size={18}/><div><small>실제 방문 코스</small><b>{selectedFestivalVisitInfo.course.join(' → ')}</b></div></section></section>}
+        {isFestivalExperience&&active==='central-plaza'&&<><div className="booth-selection-progress"><div><b>서로 다른 장르의 문화예술 전시를 둘러보세요.</b><small>마음에 드는 전시를 여러 개 골라 나만의 관람 코스를 만들 수 있어요.</small></div><strong>현재 선택 {festivalArtSelections.length} / {festivalArtExhibitions.length}</strong></div><div className="festival-card-grid festival-art-grid">{festivalArtExhibitions.map(item=>{const selected=festivalArtSelections.includes(item.id);return <article className={`festival-card ${selected?'is-saved':''}`} key={item.id} role="button" tabIndex={0} onClick={()=>toggleFestivalArt(item.id)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleFestivalArt(item.id)}}}><div className="festival-card-visual"><span>{item.emoji}</span><img src={item.image} alt={`${item.title} 전시 대표 이미지`}/><small>{selected?'관람 코스에 추가됨':item.category}</small></div><div className="festival-card-copy"><small>2026 세종 문화예술 전시</small><h3>{item.title}</h3><p>{item.description}</p></div><button type="button" className="festival-save-button" onClick={event=>{event.stopPropagation();toggleFestivalArt(item.id)}}>{selected?<><Check size={14}/> 선택 완료</>:<><Heart size={14}/> 전시 선택</>}</button></article>})}</div><footer className="festival-plaza-footer"><div><Sparkles size={16}/><span><b>{festivalArtSelections.length}개</b> 전시로 관람 코스를 만들었어요.</span></div><button type="button" disabled={!festivalArtSelections.length} onClick={completeFestivalArt}><Check size={15}/> 관람 완료하고 스탬프 받기</button></footer></>}
         {activeFestivalTentId&&(()=>{const detail=festivalTentDetails[activeFestivalTentId],record=festivalTentRecords[activeFestivalTentId],progress=Math.min(100,festivalTentElapsedMs/FESTIVAL_TENT_REQUIRED_MS*100);return <section className="festival-tent-detail">
           <img src={detail.image} alt={`${detail.title} 대표 이미지`}/><div><small>{detail.eyebrow}</small><h3>{detail.title}</h3><p>{detail.description}</p><dl><div><dt>운영 일정</dt><dd>{detail.schedule}</dd></div><div><dt>체험 장소</dt><dd>{detail.venue}</dd></div></dl><div className="festival-detail-tags">{detail.tags.map(tag=><span key={tag}>#{tag}</span>)}</div><div className="festival-detail-progress"><i><em style={{width:`${progress}%`}}/></i><span>{record.completed?'부스 체험 완료 · 스탬프 1개 지급':`상세 확인 ${Math.min(8,Math.floor(festivalTentElapsedMs/1000))}/8초`}</span></div><button type="button" className={record.interested?'is-saved':''} onClick={()=>toggleFestivalTentInterest(activeFestivalTentId)}>{record.interested?<><Check size={15}/> 관심 저장됨</>:<><Bookmark size={15}/> 관심 축제로 저장</>}</button></div>
         </section>})()}

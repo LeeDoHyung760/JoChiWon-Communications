@@ -8,7 +8,7 @@ export interface GovernmentCentralPlazaWebUiSurface{
 }
 
 export const GOVERNMENT_CENTRAL_PLAZA_WEB_UI:GovernmentCentralPlazaWebUiSurface[]=[
-  {id:'experience-analysis',objectName:'WebUI_Surface_Right',label:'체험 데이터 분석',eyebrow:'EXPERIENCE DATA'},
-  {id:'course-recommendation',objectName:'WebUI_Surface_Center',label:'여행코스 추천',eyebrow:'AI COURSE CENTER'},
-  {id:'course-browser',objectName:'WebUI_Surface_Left',label:'추천 코스 둘러보기',eyebrow:'RECOMMENDED COURSES'},
+  {id:'experience-analysis',objectName:'WebUI_Surface_Right',label:'프로젝트 가져오기',eyebrow:'01 · PROJECT IMPORT'},
+  {id:'course-recommendation',objectName:'WebUI_Surface_Center',label:'AI 여행 일정 확정센터',eyebrow:'02 · AI COURSE PLANNER'},
+  {id:'course-browser',objectName:'WebUI_Surface_Left',label:'일정 저장 및 방문',eyebrow:'03 · FINAL APPROVAL'},
 ];

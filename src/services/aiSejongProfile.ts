@@ -15,6 +15,7 @@ export type AiSejongProfile={
   decisionProfile?:{title:string;description:string;criteria:string;response:string};
   recommendedCourse:string[];
   oneLineAnalysis:string;
+  experienceProfile?:ReturnType<typeof loadGeneratedExperienceProfile>;
 };
 
 const LAKE_KEY='sejong-lake-interest-profile-v1';
@@ -103,5 +104,6 @@ export function buildAiSejongProfile(profile:UserProfile):AiSejongProfile{
     }:undefined,
     recommendedCourse,
     oneLineAnalysis,
+    experienceProfile:generatedExperience,
   };
 }
