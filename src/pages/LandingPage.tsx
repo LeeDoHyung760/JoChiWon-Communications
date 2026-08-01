@@ -29,6 +29,8 @@ import festivalExperienceWorldUrl from '../assets/maps/festival-experience-map.g
 import festivalExperiencePreview from '../assets/maps/festival-experience-map-preview.png';
 import foodExperienceWorldUrl from '../assets/maps/food-experience-map.glb?url';
 import foodExperiencePreview from '../assets/maps/food-experience-map-preview.png';
+import clubStreetFestivalWorldUrl from '../assets/maps/club-street-festival-map.glb?url';
+import clubStreetFestivalPreview from '../assets/maps/club-street-festival-map-preview.png';
 import type { MapId } from '../../shared/socket-events';
 import './LandingPage.css';
 
@@ -43,7 +45,8 @@ const places:WorldPlace[]=[
   {name:'정부청사',description:'함께 장소를 고르고 인공지능 방문 코스 완성',people:'계획',emoji:'🗺️',image:governmentMapPreview,modelUrl:governmentWorldUrl,modelSize:'3.9MB',accent:'#8155c3',mapId:'government',points:['도시 테마 전시관','공동 선택 대형 지도','AI 방문 코스']},
 ];
 
-const guideWorlds:WorldPlace[]=[
+const guideWorldCatalog:WorldPlace[]=[
+  {name:'동아리 거리제',description:'공동캠퍼스 동아리관에서 이어지는 야외 거리제로, 양쪽의 동아리 부스와 중앙 광장을 자유롭게 둘러볼 수 있어요.',people:'동아리 교류',emoji:'🎪',image:clubStreetFestivalPreview,modelUrl:clubStreetFestivalWorldUrl,modelSize:'3.1MB',accent:'#d47a32',mapId:'club-street-festival',points:['좌우 동아리 홍보·체험 부스 둘러보기','중앙 광장에서 다른 사용자와 교류하기','입구 포털로 공동캠퍼스에 돌아가기']},
   {name:'세종호수공원',description:'세종의 축제와 먹거리, 공연을 체험하며 나의 여행 취향을 발견하는 시작 월드예요.',people:'취향 발견',emoji:'🎪',image:lakeMapPreview,modelUrl:lakeWorldUrl,modelSize:'3.2MB',accent:'#2f72c7',mapId:'town',points:['축제 부스에서 선호 분위기 선택','공연·먹거리 부스에서 여행 스타일 분석','추천 코스 게시판 저장과 반응']},
   {name:'세종예술의전당',description:'세종호수공원의 공연 공간에서 이어지는 별도 실내 공연장으로, 밝은 예술 로비와 어두운 객석·무대를 둘러볼 수 있어요.',people:'공연 문화',emoji:'🎭',image:sejongArtsCenterPreview,modelUrl:sejongArtsCenterWorldUrl,modelSize:'7.1MB',accent:'#a84875',mapId:'arts-center',points:['공연 포스터가 전시된 밝은 예술 로비','객석과 조명이 갖춰진 공연 무대','세종호수공원으로 돌아가는 별도 포털']},
   {name:'축제 체험 맵',description:'세종호수공원의 축제 부스에서 이어지는 야외 축제 공간으로, 공연 무대와 체험 부스, 휴게 공간을 둘러볼 수 있어요.',people:'축제 체험',emoji:'🎪',image:festivalExperiencePreview,modelUrl:festivalExperienceWorldUrl,modelSize:'4.0MB',accent:'#7c4b9d',mapId:'festival-experience',points:['조명과 악기가 설치된 야외 공연 무대','양쪽 체험 부스와 피크닉 테이블','세종호수공원 축제 부스로 돌아가는 포털']},
@@ -59,6 +62,30 @@ const guideWorlds:WorldPlace[]=[
   {name:'전망대',description:'곡면 파노라마 창 너머로 세종의 방향을 살펴보고 망원경과 포토존을 체험하는 실내 전망 공간이에요.',people:'전경 감상',emoji:'🔭',image:observatoryPreview,modelUrl:observatoryWorldUrl,modelSize:'3.0MB',accent:'#1683b8',mapId:'government-observatory',points:['곡면 유리 파노라마 전망 공간','전망 망원경과 중앙 포토 스팟','정부청사로 돌아가는 이동 포털']},
   {name:'프로젝트실',description:'공동캠퍼스에서 만든 팀과 프로젝트를 찾고 추천받아 실제 협업을 시작하는 공간이에요.',people:'팀 협업',emoji:'💡',image:projectRoomPreview,modelUrl:projectRoomWorldUrl,modelSize:'2.9MB',accent:'#566171',mapId:'project-room',points:['모집 프로젝트 게시판 확인','AI 추천 프로젝트와 적합도 확인','키오스크에서 새 프로젝트 생성']},
 ];
+
+const GUIDE_WORLD_ORDER:MapId[]=[
+  'town',
+  'arts-center',
+  'festival-experience',
+  'food-experience',
+  'bear-tree-park',
+  'bear-play-zone',
+  'garden',
+  'campus',
+  'student-hall',
+  'project-room',
+  'club-street-festival',
+  'government',
+  'sejong-smart-city',
+  'government-central-plaza',
+  'government-observatory',
+];
+
+const guideWorlds:WorldPlace[]=GUIDE_WORLD_ORDER.map(mapId=>{
+  const world=guideWorldCatalog.find(place=>place.mapId===mapId);
+  if(!world)throw new Error(`공간 안내에 등록되지 않은 맵입니다: ${mapId}`);
+  return world;
+});
 
 const livingAreas=[
   {number:1,emoji:'🎪',title:'세종에서 나의 취향을 발견해요',names:['세종호수공원'],summary:'세종의 축제·공연·먹거리·지역 상점을 둘러보고 관심 있는 볼거리를 저장해요.',activities:['축제 공간과 공연·특산품·지역 상점 안내 살펴보기','관심 장소 저장과 하고 싶은 활동 선택','시민 방문 코스 게시판에서 ‘나도 가고 싶어요’ 반응'],reward:'축제 관심사 · 선호 활동 · 가고 싶은 장소',role:'전체 여정의 시작점이자 결과가 다시 공유되는 중심 공간',communication:'1대1·단체 대화는 열지 않고 저장과 가벼운 반응만 제공',connection:'관심사가 하나 이상 쌓이면 수목원에서 개인 탐험 기록 만들기를 안내'},
@@ -219,11 +246,6 @@ export function LandingPage({onStart,onEnterWorld,onLogin,onUserClick,actionLabe
             <h1 id="neighborhood-title">총 {guideWorlds.length}개의 실제 월드를<br/><em>3D로 먼저 둘러보세요.</em></h1>
             <p>각 공간의 GLB 맵을 직접 회전하고 확대해 볼 수 있어요. 월드마다 어떤 체험과 기록이 준비되어 있는지도 함께 확인하세요.</p>
           </div>
-          <aside className="guide-home-route">
-            <small>MY WORLD ROUTE</small>
-            <div>{guideWorlds.map(world=><span key={world.name}><i>{world.emoji}</i><b>{world.name}</b></span>)}</div>
-            <p><Sparkles size={14}/> 정해진 순서 없이 포털로 자유롭게 이동할 수 있어요.</p>
-          </aside>
         </div>
 
         <div className="guide-home-title"><div><small>{guideWorlds.length} INTERACTIVE WORLDS</small><h2>세종을 경험하는 {guideWorlds.length}개의 공간</h2></div><span>카드를 누르면 실제 GLB 맵이 열립니다</span></div>

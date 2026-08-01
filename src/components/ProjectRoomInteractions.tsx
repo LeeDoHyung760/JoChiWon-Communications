@@ -17,6 +17,7 @@ import {
   type ProjectApplication,
 } from '../services/projectRoomProjects';
 import './ProjectRoomInteractions.css';
+import { loadTravelProjectDraft,saveTravelProjectDraft,type TravelIdea,type TravelProjectDraft } from '../services/travelProjectDraft';
 
 type Panel='board'|'recommendation'|'creation'|'course'|'detail'|'profile-send'|null;
 const filters=['전체','사진','탐방','문화','축제','자연','조사','인터뷰'];
@@ -161,81 +162,35 @@ const COURSE_PLACES:CoursePlace[]=[
 ];
 
 function CourseCollaborationTable({profile,onNotice}:{profile:UserProfile;onNotice:(message:string)=>void}){
-  const [tab,setTab]=useState<'course'|'roles'|'schedule'|'info'>('course');
-  const [course,setCourse]=useState<CoursePlace[]>(()=>COURSE_PLACES.slice(0,3));
-  const [selectedId,setSelectedId]=useState('garden');
-  const [memo,setMemo]=useState('해 질 무렵 방문하면 빛이 예뻐요!');
-  const selected=course.find(place=>place.id===selectedId)??course[0];
-  const totalHours=Math.max(1,Math.round(course.length*1.7));
-  const addPlace=()=>{
-    const next=COURSE_PLACES.find(place=>!course.some(item=>item.id===place.id));
-    if(!next){onNotice('추가할 수 있는 장소를 모두 담았어요.');return}
-    setCourse(current=>[...current,next]);setSelectedId(next.id);onNotice(`${next.name}을 코스에 추가했어요.`);
-  };
-  const removeSelected=()=>{
-    if(!selected)return;
-    const next=course.filter(place=>place.id!==selected.id);
-    setCourse(next);setSelectedId(next[0]?.id??'');onNotice(`${selected.name}을 코스에서 삭제했어요.`);
-  };
-  const reorder=()=>{
-    const index=course.findIndex(place=>place.id===selectedId);
-    if(index<0||course.length<2)return;
-    const next=[...course],target=(index+1)%next.length;
-    [next[index],next[target]]=[next[target],next[index]];
-    setCourse(next);onNotice(`${selected?.name}의 순서를 변경했어요.`);
-  };
-  const reset=()=>{setCourse(COURSE_PLACES.slice(0,3));setSelectedId('garden');setMemo('해 질 무렵 방문하면 빛이 예뻐요!');onNotice('코스를 처음 상태로 되돌렸어요.')};
+  const [tab,setTab]=useState<'ideas'|'themes'|'roles'|'info'>('ideas');
+  const [draft,setDraft]=useState<TravelProjectDraft>(loadTravelProjectDraft);
+  const [newIdea,setNewIdea]=useState('');
+  const update=(next:TravelProjectDraft)=>{setDraft(next);saveTravelProjectDraft(next)};
+  const vote=(id:string)=>update({...draft,ideas:draft.ideas.map(idea=>idea.id===id?{...idea,votes:idea.votes+1}:idea),status:'draft'});
+  const addIdea=()=>{if(!newIdea.trim())return;const idea:TravelIdea={id:`idea-${Date.now()}`,name:newIdea.trim(),category:'place',emoji:'📍',votes:1};update({...draft,ideas:[...draft.ideas,idea],status:'draft'});setNewIdea('');onNotice('새 여행 아이디어를 추가했어요.')};
+  const requestReview=()=>{update({...draft,status:'review-requested'});onNotice('임시 여행 프로젝트를 정부청사 AI에 전달했어요.')};
+  const groups=[
+    {key:'theme',title:'가고 싶은 활동',tone:'purple'},
+    {key:'festival',title:'축제·테마 아이디어',tone:'blue'},
+    {key:'food',title:'먹거리 아이디어',tone:'green'},
+  ] as const;
   return <section className="course-collaboration">
     <header className="course-project-header">
-      <div className="course-project-title"><Users/><div><h2>수목원 사진 기록 프로젝트 <em>계획 중</em></h2><p>참여자 4명 <i/> 모집 인원 6명 <i/> 프로젝트 코드 7XF3D</p></div></div>
+      <div className="course-project-title"><Users/><div><h2>{draft.title} <em>아이디어 기획 중</em></h2><p>함께 만드는 세종 여행 프로젝트 <i/> 참여자 4명 <i/> 시간·동선은 아직 정하지 않아요</p></div></div>
       <button type="button"><UserPlus/> 초대하기</button>
     </header>
     <nav className="course-tabs">
-      <button className={tab==='course'?'active':''} onClick={()=>setTab('course')}><MapPin/> 코스 계획</button>
-      <button className={tab==='roles'?'active':''} onClick={()=>setTab('roles')}><Users/> 역할 배정</button>
-      <button className={tab==='schedule'?'active':''} onClick={()=>setTab('schedule')}><CalendarDays/> 일정 및 메모</button>
+      <button className={tab==='ideas'?'active':''} onClick={()=>setTab('ideas')}><MapPin/> 아이디어 보드</button>
+      <button className={tab==='themes'?'active':''} onClick={()=>setTab('themes')}><Sparkles/> 테마와 먹거리</button>
+      <button className={tab==='roles'?'active':''} onClick={()=>setTab('roles')}><Users/> 역할 및 멤버</button>
       <button className={tab==='info'?'active':''} onClick={()=>setTab('info')}><Info/> 프로젝트 정보</button>
     </nav>
-    {tab==='course'?<>
-      <div className="course-workspace">
-        <aside className="course-tools">
-          <b>코스 편집 도구</b>
-          <button className="primary" onClick={addPlace}><Plus/> 장소 추가</button>
-          <button onClick={reorder} disabled={!selected}><ArrowUpDown/> 순서 변경</button>
-          <button onClick={removeSelected} disabled={!selected}><Trash2/> 삭제</button>
-          <button onClick={reset}><RotateCcw/> 전체 초기화</button>
-          <div><strong>💡 사용 방법</strong><p>장소 카드를 선택한 뒤 순서 변경 버튼으로 코스를 조정할 수 있어요.</p></div>
-        </aside>
-        <main className="course-map-stage">
-          <div className="course-map-grid"/>
-          <div className="course-route-cards">
-            {course.map((place,index)=><div className="course-card-wrap" key={place.id}>
-              <button type="button" className={`course-place-card ${selected?.id===place.id?'selected':''}`} onClick={()=>setSelectedId(place.id)}>
-                <span className="course-order">{index+1}</span>
-                <b>{place.name}</b>
-                <img src={place.image} alt=""/>
-                <small><Clock3/> 예상 시간 {place.time}</small>
-              </button>
-              {index<course.length-1&&<span className="course-route-arrow">➜</span>}
-            </div>)}
-            <button type="button" className="course-add-card" onClick={addPlace}><Plus/><b>장소 추가</b></button>
-          </div>
-          <div className="course-total-time"><Clock3/> 총 예상 시간 {totalHours}시간 <i/> 이동 시간 포함</div>
-        </main>
-      </div>
-      <footer className="course-bottom">
-        <section className="course-selected-info">
-          <h3>선택한 장소 정보</h3>
-          {selected?<div><img src={selected.image} alt=""/><div><b>{selected.name}</b><p>{selected.description}</p><span>{selected.tags.map(tag=><i key={tag}>{tag}</i>)}</span><small>예상 체류 시간 <strong>{selected.duration}</strong></small></div></div>:<p>장소를 추가해 코스를 만들어 주세요.</p>}
-        </section>
-        <section className="course-owner-memo">
-          <h3>담당자</h3><div className="course-owner"><span>{profile.nickname.slice(0,1)||'나'}</span><p><b>{profile.nickname||'김민주'}</b><small>사진 기록</small></p><button>변경</button></div>
-          <h3>메모</h3><label><textarea value={memo} onChange={event=>setMemo(event.target.value)}/><button onClick={()=>onNotice('메모를 저장했어요.')}>수정</button></label>
-        </section>
-        <section className="course-activity"><h3>최근 활동</h3><p>👩 김민주님이 국립세종수목원을 추가했어요. <time>오후 2:15</time></p><p>👨 이준서님이 카페거리를 3순위로 추가했어요. <time>오후 2:16</time></p><p>👩 연지님이 코스 순서를 변경했어요. <time>오후 2:18</time></p></section>
-        <button className="course-confirm" onClick={()=>onNotice('코스를 확정했어요. 프로젝트를 시작할 수 있습니다!')}><Check/><b>코스 확정하기</b><small>모든 코스와 역할이 확정되면<br/>프로젝트를 시작할 수 있어요.</small></button>
-      </footer>
-    </>:<CourseSecondaryTab tab={tab} profile={profile}/>}
+    {tab==='ideas'?<div className="idea-planning-board">
+      <aside className="idea-chat"><h3>프로젝트 채팅</h3><p><b>민주</b> 호수공원 야경은 꼭 가고 싶어요! 🌙</p><p><b>철수</b> 이응다리와 카페도 넣으면 좋겠어요.</p><p><b>복숭아</b> 복숭아 디저트는 필수예요 🍑</p><div><input value={newIdea} onChange={e=>setNewIdea(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addIdea()}} placeholder="새 의견을 입력하세요"/><button onClick={addIdea}><Send/></button></div></aside>
+      <main><header><div><h3>장소 아이디어 보드</h3><p>가고 싶은 장소에 투표해 우선순위를 함께 정해요.</p></div><button onClick={addIdea}><Plus/> 장소 추가</button></header><div className="idea-place-grid">{draft.ideas.filter(i=>i.category==='place').sort((a,b)=>b.votes-a.votes).map((idea,index)=><article key={idea.id}><span>{index+1}</span><i>{idea.emoji}</i><b>{idea.name}</b><small>#{index===0?'야경':'사진'} · #{index===2?'카페':'산책'}</small><button onClick={()=>vote(idea.id)}>♥ {idea.votes}</button></article>)}</div><section className="ai-meeting-summary"><Bot/><div><b>AI 회의 도우미</b><p>호수공원 야경 선호가 가장 높고, 카페와 복숭아 디저트 의견도 모였어요. 아직 운영시간과 이동 순서는 계산하지 않았어요.</p></div></section></main>
+      <aside className="idea-members"><h3>멤버 및 역할</h3>{draft.roles.map((member,index)=><div key={member.name}><span>{member.name.slice(0,1)}</span><p><b>{member.name}{index===0?' (나)':''}</b><small>{member.role}</small></p></div>)}<section><h4>참여도 현황</h4><p>의견 작성 <i><b style={{width:'80%'}}/></i></p><p>장소 투표 <i><b style={{width:'65%'}}/></i></p><p>아이디어 제안 <i><b style={{width:'55%'}}/></i></p></section></aside>
+    </div>:tab==='themes'?<div className="theme-idea-columns">{groups.map(group=><section className={group.tone} key={group.key}><h3>{group.title}</h3>{draft.ideas.filter(i=>i.category===group.key).map(idea=><button key={idea.id} onClick={()=>vote(idea.id)}><span>{idea.emoji} {idea.name}</span><b>♥ {idea.votes}</b></button>)}<button className="add"><Plus/> 아이디어 추가</button></section>)}</div>:tab==='roles'?<CourseSecondaryTab tab="roles" profile={profile}/>:<CourseSecondaryTab tab="info" profile={profile}/>} 
+    <footer className="idea-action-footer"><button onClick={()=>{saveTravelProjectDraft(draft);onNotice('임시 여행 프로젝트를 저장했어요.')}}>☁ 임시 저장</button><div><small>다음 단계</small><b>정부청사 AI가 현실 정보로 검증하고 실행 일정으로 완성해요.</b></div><button className="review" onClick={requestReview}>정부청사로 검증 요청 <ChevronRight/></button></footer>
   </section>;
 }
 

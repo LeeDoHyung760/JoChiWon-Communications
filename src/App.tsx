@@ -1,9 +1,12 @@
 import {
+  Component,
   lazy,
   Suspense,
   useCallback,
   useEffect,
   useState,
+  type ErrorInfo,
+  type ReactNode,
 } from 'react';
 
 import { LandingPage } from './pages/LandingPage';
@@ -35,8 +38,31 @@ const CreateProfilePage=lazy(()=>import('./pages/CreateProfilePage').then(module
 const loadGamePage=()=>import('./pages/GamePage').then(module=>({default:module.GamePage}));
 const GamePage=lazy(loadGamePage);
 
+class DeferredPageErrorBoundary extends Component<{children:ReactNode},{failed:boolean}> {
+  state={failed:false};
+
+  static getDerivedStateFromError(){
+    return {failed:true};
+  }
+
+  componentDidCatch(error:Error,errorInfo:ErrorInfo){
+    console.error('[deferred page load failed]',error,errorInfo);
+  }
+
+  render(){
+    if(this.state.failed){
+      return <main className="deferred-page-loading" role="alert">
+        <span>⚠️</span>
+        <b>화면을 불러오지 못했어요.</b>
+        <button type="button" onClick={()=>window.location.reload()}>다시 불러오기</button>
+      </main>;
+    }
+    return this.props.children;
+  }
+}
+
 function DeferredPage({children}:{children:React.ReactNode}){
-  return <Suspense fallback={<main className="deferred-page-loading" role="status"><span>🌿</span><b>페이지를 준비하고 있어요</b></main>}>{children}</Suspense>;
+  return <DeferredPageErrorBoundary><Suspense fallback={<main className="deferred-page-loading" role="status"><span>🌿</span><b>페이지를 준비하고 있어요</b></main>}>{children}</Suspense></DeferredPageErrorBoundary>;
 }
 
 function ExperienceLoading({mapId='town'}:{mapId?:MapId}){
@@ -264,6 +290,7 @@ export default function App() {
       'arts-center':{mapId:'arts-center',x:1200,z:370,yaw:0},
       'festival-experience':{mapId:'festival-experience',x:1200,z:1530,yaw:Math.PI},
       'food-experience':{mapId:'food-experience',x:1200,z:1530,yaw:Math.PI},
+      'club-street-festival':{mapId:'club-street-festival',x:1200,z:1510,yaw:Math.PI},
       'bear-tree-park':{mapId:'bear-tree-park',x:1200,z:1610,yaw:Math.PI},
       'bear-play-zone':{mapId:'bear-play-zone',x:1200,z:1570,yaw:Math.PI},
       garden:{mapId:'garden',x:1200,z:1180,yaw:Math.PI},
@@ -513,6 +540,7 @@ export default function App() {
   return (
     <Suspense fallback={<ExperienceLoading mapId={gameReturnState?.mapId}/>}>
       <GamePage
+        key={gameReturnState?.mapId??'default-world'}
         profile={
           profile.nickname.trim()
             ? profile
