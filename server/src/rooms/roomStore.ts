@@ -37,8 +37,11 @@ export class RoomStore {
  allLakeExperiencePositions(){return [...this.lakeExperiencePositions.values()]}
  setLakeExperiencePosition(_position:LakeExperiencePosition,_persist=true){return false}
  allCampusFeaturePortalPositions(){return [...this.campusFeaturePortalPositions.values()]}
- setCampusFeaturePortalPosition(_position:CampusFeaturePortalPosition){return false}
- replaceCampusFeaturePortalPositions(_positions:CampusFeaturePortalPosition[]){/* Verified campus coordinates are fixed in source. */}
+ setCampusFeaturePortalPosition(position:CampusFeaturePortalPosition){
+  if(!this.campusFeaturePortalPositions.has(position?.portal)||!Number.isFinite(position?.x)||!Number.isFinite(position?.z)||position.x<0||position.x>2400||position.z<0||position.z>1900)return false;
+  this.campusFeaturePortalPositions.set(position.portal,{portal:position.portal,x:Math.round(position.x),z:Math.round(position.z)});return true;
+ }
+ replaceCampusFeaturePortalPositions(positions:CampusFeaturePortalPosition[]){positions.forEach(position=>this.setCampusFeaturePortalPosition(position))}
  addLakeWish(nickname:string,message:string){const wish:LakeWish={id:crypto.randomUUID(),nickname,message,createdAt:Date.now()};this.lakeWishes=[...this.lakeWishes.slice(-79),wish];try{fs.writeFileSync(this.lakeWishFile,JSON.stringify(this.lakeWishes,null,2))}catch(error){console.error('[lake wish persistence failed]',error)}return wish}
  addNearbyChat(message:ChatMessage){
   const messages=[...(this.nearbyChatMessages.get(message.mapId)??[]),message].slice(-80);

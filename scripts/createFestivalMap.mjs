@@ -34,7 +34,6 @@ slab('Island_Base',30,34,1,-.65,M.soil,4); slab('Promenade',28.7,32.7,.35,-.12,M
 box('River',[31,.28,8],[0,.02,-18.2],M.water); box('River_Bank',[30,.35,.8],[0,.18,-14.55],M.path2);
 // Fine paving joints make the outer path readable from the isometric camera.
 for(let z=-12.5;z<=12.5;z+=2.5){ for(const x of [-13.25,13.25]) box(`PavingJoint_X_${x}_${z}`,[1.8,.025,.045],[x,.46,z],M.soil); }
-for(let x=-11;x<=11;x+=2.2){ for(const z of [-15.05,15.05]) box(`PavingJoint_Z_${x}_${z}`,[.045,.025,1.5],[x,.46,z],M.soil); }
 for(let x=-13;x<=13;x+=2.6){ cyl(`RailPost_${x}`,.08,.9,[x,.75,-14.1],M.wood); }
 for(const z of [-14.25,-13.95]) lineCylinder(`Rail_${z}`,[-13,.72,z],[13,.72,z],.07,M.wood);
 
@@ -73,8 +72,7 @@ for(let i=0;i<lampPoints.length-1;i++){ const a=[lampPoints[i][0],3.25,lampPoint
 // Curved inner lawn edging represented by small stone markers.
 for(let i=0;i<28;i++){const a=i/28*Math.PI*2,x=Math.cos(a)*10.8,z=Math.sin(a)*12.3+1; const s=cyl(`LawnEdge_${i}`,.22,.18,[x,.49,z],M.stone,scene,10);s.scale.z=.7;}
 
-// Entrance portal and central signpost.
-for(const r of [1.25,1.65]){ const ring=mesh(`PortalRing_${r}`,new THREE.TorusGeometry(r,.12,12,40),M.portal,[0,.22,14.2]);ring.rotation.x=Math.PI/2; }
+// Entrance marker and central signpost.
 cyl('PortalCore',1.05,.08,[0,.2,14.2],M.portal,scene,40);box('FestivalBanner',[1,.16,3.3],[6.6,1.8,9.7],M.blue);cyl('FestivalBannerPole',.11,4,[6.6,2.1,9.7],M.dark);
 // Direction board, map kiosk, litter bins and rope bollards add human-scale detail.
 cyl('MapKioskPole',.1,1.8,[-6.5,1.25,11.2],M.dark);box('MapKiosk',[1.8,1.2,.16],[-6.5,2.15,11.2],M.canvas);box('MapKioskInset',[1.45,.85,.04],[-6.5,2.15,11.1],M.blue);

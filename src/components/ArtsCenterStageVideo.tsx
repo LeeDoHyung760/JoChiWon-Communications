@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {Armchair,ExternalLink,Maximize2,Minimize2,Play,Square,X} from 'lucide-react';
+import {Armchair,Play,Square,X} from 'lucide-react';
 import type {MapId} from '../../shared/socket-events';
 import {ARTS_CENTER_PERFORMANCES} from '../game/artsCenterPerformances';
 import {ARTS_CENTER_VIDEOS} from '../game/artsCenterVideos';
@@ -22,13 +22,13 @@ export function ArtsCenterStageVideo(){
   const finishWatchSegment=useRef<(reason:'pause'|'stop'|'finish')=>number>(()=>0);
   const playCounts=useRef(new Map<number,number>());
   const startedCurrentViewing=useRef(false);
+  const selectedIndexRef=useRef<number|null>(null);
   const [analysis,setAnalysis]=useState<ExperienceAnalysisResult|null>(null);
-  const [favoriteIndexes,setFavoriteIndexes]=useState<Set<number>>(()=>new Set());
   useEffect(()=>{
-    const selected=({index}:{index:number})=>{setSelectedIndex(index);setVideoIndex(0);setRect(null);setExpanded(false);autoExpandedForSeat.current=false;startedCurrentViewing.current=false};
+    const selected=({index}:{index:number})=>{if(selectedIndexRef.current!==null&&selectedIndexRef.current!==index)gameEvents.emit('experience-analysis-request');selectedIndexRef.current=index;recordExperienceAction({type:'browse',performanceId:String(index),durationSeconds:0});setSelectedIndex(index);setVideoIndex(0);setRect(null);setExpanded(false);autoExpandedForSeat.current=false;startedCurrentViewing.current=false};
     const seatChanged=(next:SeatState)=>{setSeat(next);if(!next?.seated){setRect(null);setExpanded(false);autoExpandedForSeat.current=false}};
     const rectChanged=(next:ScreenRect|null)=>{setRect(next);if(next&&!autoExpandedForSeat.current){autoExpandedForSeat.current=true;setExpanded(true)}};
-    const mapChanged=(mapId:MapId)=>{if(mapId!=='arts-center'){setSelectedIndex(null);setSeat(null);setRect(null)}};
+    const mapChanged=(mapId:MapId)=>{if(mapId!=='arts-center'){selectedIndexRef.current=null;setSelectedIndex(null);setSeat(null);setRect(null)}};
     gameEvents.on('arts-center-video-select',selected);
     gameEvents.on('arts-center-seat-proximity-changed',seatChanged);
     gameEvents.on('arts-center-stage-screen-rect',rectChanged);
@@ -74,9 +74,7 @@ export function ArtsCenterStageVideo(){
     const timer=window.setInterval(listen,1000);
     return()=>{window.removeEventListener('message',receive);window.clearInterval(timer);finishSegment('stop');finishWatchSegment.current=()=>0};
   },[selectedIndex,seat?.seated,!!rect,video?.youtubeId]);
-  const clearSelection=()=>{finishWatchSegment.current('stop');gameEvents.emit('experience-analysis-request');setSelectedIndex(null);setVideoIndex(0);setRect(null);setExpanded(false)};
-  const leaveSeat=()=>{finishWatchSegment.current('stop');gameEvents.emit('experience-analysis-request');gameEvents.emit('arts-center-seat-toggle')};
-  const saveFavorite=()=>{if(selectedIndex===null||favoriteIndexes.has(selectedIndex))return;setFavoriteIndexes(current=>new Set(current).add(selectedIndex));recordExperienceAction({type:'favorite',performanceId:String(selectedIndex)})};
+  const clearSelection=()=>{finishWatchSegment.current('stop');gameEvents.emit('experience-analysis-request');selectedIndexRef.current=null;setSelectedIndex(null);setVideoIndex(0);setRect(null);setExpanded(false)};
   if(!performance||!video)return analysis?<AnalysisToast result={analysis}/>:null;
   if(!seat?.seated||!rect)return <aside className="arts-center-video-seat-guide" aria-live="polite">
     <span><Play size={18} fill="currentColor"/></span>
@@ -84,30 +82,17 @@ export function ArtsCenterStageVideo(){
     {seat&&<button type="button" onClick={()=>gameEvents.emit('arts-center-seat-toggle')}><Armchair size={17}/><kbd>E</kbd> 앉아서 보기</button>}
     <button type="button" className="arts-center-video-selection-delete" onClick={clearSelection} aria-label="선택한 공연 영상 삭제"><X size={17}/>선택 삭제</button>
   </aside>;
-  const pageOrigin=window.location.protocol==='http:'||window.location.protocol==='https:'?window.location.origin:'';
-  const embedParameters=new URLSearchParams({rel:'0',playsinline:'1',enablejsapi:'1',hl:'ko'});
-  if(pageOrigin){embedParameters.set('origin',pageOrigin);embedParameters.set('widget_referrer',window.location.href)}
-  const embedUrl=`https://www.youtube-nocookie.com/embed/${video.youtubeId}?${embedParameters.toString()}`;
-  const watchUrl=`https://www.youtube.com/watch?v=${video.youtubeId}`;
+  const embedUrl=`https://www.youtube-nocookie.com/embed/${video.youtubeId}?enablejsapi=1&rel=0&playsinline=1`;
   return <section className={`arts-center-stage-video${expanded?' is-expanded':''}`} style={expanded?undefined:{left:rect.left,top:rect.top,width:rect.width,height:rect.height}} aria-label={`${performance.title} 무대 영상`}>
-    <header>
-      <div><small>STAGE VIDEO</small><b>{performance.title}</b></div>
-      {videos.length>1&&<nav aria-label="영상 선택">{videos.map((item,index)=><button type="button" className={index===videoIndex?'active':''} onClick={()=>setVideoIndex(index)} key={item.youtubeId}>{item.title}</button>)}</nav>}
-      <button type="button" className="arts-center-stage-favorite" disabled={selectedIndex!==null&&favoriteIndexes.has(selectedIndex)} onClick={saveFavorite}>{selectedIndex!==null&&favoriteIndexes.has(selectedIndex)?'♥ 저장됨':'♡ 관심 저장'}</button>
-      <button type="button" className="arts-center-stage-leave-seat" onClick={leaveSeat} aria-label="좌석에서 일어나기"><Armchair size={13}/> 일어나기</button>
-      <button type="button" className="arts-center-stage-expand" onClick={()=>setExpanded(value=>!value)} aria-label={expanded?'무대 화면 축소':'무대 화면 확대'}>{expanded?<Minimize2 size={13}/>:<Maximize2 size={13}/>} {expanded?'축소':'확대'}</button>
-      <button type="button" className="arts-center-stage-stop" onClick={clearSelection} aria-label="영상 끄기"><Square size={13} fill="currentColor"/> 끄기</button>
-    </header>
+    <button type="button" className="arts-center-stage-stop" onClick={clearSelection} aria-label="영상 끄기"><Square size={13} fill="currentColor"/> 끄기</button>
     <iframe
       ref={iframeRef}
       key={video.youtubeId}
       src={embedUrl}
       title={`${performance.title} - ${video.title}`}
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-      referrerPolicy="origin-when-cross-origin"
       allowFullScreen
     />
-    <footer><b>{video.title}</b><span>{video.source}</span><a href={watchUrl} target="_blank" rel="noopener noreferrer">재생이 안 되면 YouTube에서 보기 <ExternalLink size={10}/></a></footer>
     {analysis&&<AnalysisToast result={analysis}/>}
   </section>;
 }

@@ -1,0 +1,116 @@
+/* Project the interactive web UI onto the kiosk display in the 3D scene. */
+.food-truck-overlay.is-kiosk.is-in-world {
+  display: block;
+  padding: 0;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  pointer-events: none;
+}
+
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu {
+  position: fixed !important;
+  left: var(--kiosk-left) !important;
+  top: var(--kiosk-top) !important;
+  width: var(--kiosk-width) !important;
+  height: var(--kiosk-height) !important;
+  max-height: none !important;
+  overflow: hidden;
+  padding: clamp(12px, 1.8vh, 20px);
+  border: 1px solid color-mix(in srgb, var(--truck-color) 55%, #d9fff2) !important;
+  border-radius: clamp(8px, 1vw, 14px);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--truck-color) 24%, transparent), transparent 34%),
+    linear-gradient(155deg, #16342e 0%, #0b211d 72%, #081a17 100%);
+  color: #effbf6;
+  box-shadow: inset 0 0 0 3px #071814, inset 0 0 35px #0006 !important;
+  transform: var(--kiosk-transform, none) !important;
+  transform-origin: 0 0;
+  pointer-events: auto;
+}
+
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 5px;
+  border: 1px solid #ffffff10;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu > header {
+  padding: 3px 34px 10px 3px;
+  border-bottom: 1px solid #ffffff18;
+}
+
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu header p { color: #9fc2b8; }
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu header small { color: color-mix(in srgb, var(--truck-color) 62%, #fff); }
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu > header > span { border: 1px solid #ffffff18; background: #ffffff0d; }
+.food-truck-overlay.is-kiosk.is-in-world .food-stamps i { width: 20px; height: 20px; border-color: #ffffff28; border-radius: 6px; color: #75958c; }
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-close { border: 1px solid #ffffff1c; background: #ffffff0c; color: #b9d3cc; }
+
+.food-truck-overlay.is-kiosk .food-truck-menu > header,
+.food-truck-overlay.is-kiosk .food-tools,
+.food-truck-overlay.is-kiosk .food-truck-menu > footer {
+  flex: 0 0 auto;
+}
+
+.food-truck-overlay.is-kiosk .food-tools {
+  position: relative;
+  top: auto;
+  margin-top: clamp(8px, 2vh, 18px);
+  margin-bottom: 4px;
+  padding: 0 2px 8px;
+  border-bottom: 1px solid #ffffff12;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.food-truck-overlay.is-kiosk.is-in-world .food-tools label,
+.food-truck-overlay.is-kiosk.is-in-world .food-tools nav button {
+  border-color: #ffffff1c;
+  background: #ffffff0b;
+  color: #c5ddd6;
+}
+
+.food-truck-overlay.is-kiosk.is-in-world .food-tools input { color: #effbf6; }
+.food-truck-overlay.is-kiosk.is-in-world .food-tools input::placeholder { color: #86a69d; }
+.food-truck-overlay.is-kiosk.is-in-world .food-tools nav button.active { border-color: var(--truck-color); background: var(--truck-color); color: #fff; }
+
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: minmax(230px, 32vh);
+  align-content: start;
+  padding: 4px 5px 8px 2px;
+}
+
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid article {
+  position: relative;
+  border-color: #ffffff18;
+  background: #ffffff0b;
+  transition: border-color .18s ease, background .18s ease;
+}
+
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid article:hover { border-color: color-mix(in srgb, var(--truck-color) 70%, #fff); background: #ffffff10; }
+.food-truck-overlay.is-kiosk.is-in-world .food-card-main { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: transparent; color: #effbf6; }
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid img,
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-fallback { width: 100%; height: 64%; min-height: 0; flex: 0 0 64%; object-fit: cover; }
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-fallback { background: color-mix(in srgb, var(--truck-color) 13%, #122c27); }
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid section { display: flex; min-width: 0; min-height: 0; flex: 1; flex-direction: column; padding: 10px 12px; }
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid h3 { margin: 4px 0 5px; overflow: hidden; font-size: 14px; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid small { color: color-mix(in srgb, var(--truck-color) 65%, #fff); font-size: 8px; }
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid section > b { color: #b8d9cf; }
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid em { display: none; }
+.food-truck-overlay.is-kiosk.is-in-world .food-rank { position: absolute; z-index: 1; top: 8px; left: 8px; min-width: 24px; padding: 5px 7px; border: 1px solid #ffffff40; border-radius: 7px; background: #071814d9; color: #fff; font-size: 8px; font-weight: 900; }
+.food-truck-overlay.is-kiosk.is-in-world .food-save { position: absolute; z-index: 2; right: 8px; bottom: 8px; width: 27px; height: 27px; display: grid; place-items: center; margin: 0; padding: 0; border-color: #ffffff24; border-radius: 50%; background: #0a211ddd; color: #d5ebe4; }
+
+@media (max-height: 600px) {
+  .food-truck-overlay.is-kiosk.is-in-world .food-truck-menu > header > span,
+  .food-truck-overlay.is-kiosk.is-in-world .food-truck-menu > footer {
+    display: none;
+  }
+
+  .food-truck-overlay.is-kiosk .food-truck-menu h2 {
+    font-size: 18px;
+  }
+}

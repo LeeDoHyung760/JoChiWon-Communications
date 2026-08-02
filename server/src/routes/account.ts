@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuthenticatedUser } from '../middleware/authenticatedUser.js';
 import { UserModel } from '../models/User.js';
-import { mapExitSchema,scoreMapExit } from '../services/experience/experienceHarness.js';
+import { buildPersistedActivity,mapExitSchema,scoreMapExit } from '../services/experience/experienceHarness.js';
 import { generateExperienceProfile } from '../services/experience/experienceProfile.js';
 
 const shortList = z.array(z.string().trim().min(1).max(50)).max(30);
@@ -81,7 +81,7 @@ accountRouter.post('/me/experience/map-exit',async(req,res)=>{
   const user=await UserModel.findById(res.locals.authenticatedUserId).select('+experienceHarness.processedSessionIds experienceHarness');
   if(!user)return res.status(404).json({success:false,error:{code:'USER_NOT_FOUND',message:'사용자를 찾을 수 없습니다.'}});
   const harness=(user.get('experienceHarness')??{}) as any;
-  if((harness.processedSessionIds??[]).includes(parsed.data.sessionId))return res.json({success:true,data:{duplicate:true,profile:harness.generatedProfile??null}});
+  if((harness.processedSessionIds??[]).includes(parsed.data.sessionId))return res.json({success:true,data:{duplicate:true,profile:harness.generatedProfile??null,activityRecords:harness.activityRecords??[]}});
   const summary=scoreMapExit(parsed.data),key=parsed.data.mapId==='arts-center'?'performance':parsed.data.mapId==='food-experience'?'food':'festival';
   const previous=harness[key] as {scores?:Map<string,number>|Record<string,number>;evidence?:string[]}|undefined;
   const previousScores=previous?.scores instanceof Map?Object.fromEntries(previous.scores):previous?.scores??{};
@@ -90,13 +90,15 @@ accountRouter.post('/me/experience/map-exit',async(req,res)=>{
   const generated=await generateExperienceProfile(bundle);
   harness.processedSessionIds=[...(harness.processedSessionIds??[]),parsed.data.sessionId].slice(-50);
   harness.generatedProfile={...generated.profile,generatorSource:generated.source,updatedAt:new Date()};
+  const activityRecord=buildPersistedActivity(parsed.data,summary);
+  if(activityRecord)harness.activityRecords=[...(harness.activityRecords??[]).filter((record:any)=>record?.id!==activityRecord.id),activityRecord].slice(-100);
   if(key==='festival'||key==='food'){const source=key==='food'?'sejong_food_trucks':'sejong_festival_booth';harness.profileFragments=[...(harness.profileFragments??[]).filter((fragment:any)=>fragment?.source!==source),{...generated.profile,source,scores:summary.scores,sessionSummary:summary.sessionSummary,evidence:summary.evidence,updatedAt:new Date()}].slice(-12)}
   user.set('experienceHarness',harness);await user.save();
-  return res.json({success:true,data:{summary,profile:harness.generatedProfile,profileFragments:harness.profileFragments??[]}});
+  return res.json({success:true,data:{summary,profile:harness.generatedProfile,profileFragments:harness.profileFragments??[],activityRecords:harness.activityRecords??[]}});
 });
 
 accountRouter.get('/me/experience/profile',async(_req,res)=>{
-  const user=await UserModel.findById(res.locals.authenticatedUserId).select('experienceHarness.generatedProfile').lean();
+  const user=await UserModel.findById(res.locals.authenticatedUserId).select('experienceHarness.generatedProfile experienceHarness.activityRecords').lean();
   if(!user)return res.status(404).json({success:false,error:{code:'USER_NOT_FOUND',message:'사용자를 찾을 수 없습니다.'}});
-  return res.json({success:true,data:{profile:(user as any).experienceHarness?.generatedProfile??null}});
+  return res.json({success:true,data:{profile:(user as any).experienceHarness?.generatedProfile??null,activityRecords:(user as any).experienceHarness?.activityRecords??[]}});
 });

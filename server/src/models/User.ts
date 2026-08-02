@@ -100,6 +100,7 @@ const userSchema = new Schema(
       food: { scores: { type: Map, of: Number }, evidence: { type: [String], default: [] }, sessionSummary: Schema.Types.Mixed },
       festival: { scores: { type: Map, of: Number }, evidence: { type: [String], default: [] } },
       profileFragments: { type: [Schema.Types.Mixed], default: [] },
+      activityRecords: { type: [Schema.Types.Mixed], default: [] },
       generatedProfile: { source: String, generatorSource: { type: String, enum: ['openai','fallback'] }, title: String, tags: { type: [String], default: [] }, traits: { type: [{ key: String, label: String, score: Number, confidence: Number }], default: [] }, summary: String, evidence: { type: [String], default: [] }, updatedAt: Date },
     },
 

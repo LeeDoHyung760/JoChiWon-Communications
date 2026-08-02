@@ -29,7 +29,8 @@ function fallback(data:SummaryBundle):GeneratedExperienceProfile{
   }
   const genreLabels:Record<string,string>={musical:'뮤지컬 선호',play:'연극 선호',jazz:'재즈 선호',traditional:'전통공연 선호',classical:'클래식 선호'};
   const favoriteGenre=Object.keys(genreLabels).sort((a,b)=>(p[b]??0)-(p[a]??0))[0];
-  const performance=favoriteGenre&&(p[favoriteGenre]??0)>0?genreLabels[favoriteGenre]:(p.immersion??0)>=(p.culture??0)?'공연 몰입형':'문화예술 감상형';
+  const genreScore=favoriteGenre?p[favoriteGenre]??0:0;
+  const performance=favoriteGenre&&genreScore>0?(genreScore>=15?genreLabels[favoriteGenre]:`최근 ${genreLabels[favoriteGenre].replace(' 선호',' 공연에 높은 몰입')}`):(p.immersion??0)>=(p.culture??0)?'최근 공연에 높은 몰입':'문화예술 탐색 중';
   const food=(f.local??0)>=(f.street??0)&&(f.local??0)>=(f.dessert??0)?'지역 특산물 탐험가':(f.street??0)>=(f.dessert??0)?'야시장 탐색가':'감성 디저트 수집가';
   const festival=(v.participation??0)>=(v.exploration??0)?'축제 참여형':'축제 탐험형';
   const festivalTraits=[{key:'night_festival_interest',label:'야간 축제 관심',score:v.nightFestivalInterest??0,confidence:Math.min(.95,.45+(data.festival?.sessionSummary?.festivalsViewed??0)*.06)},{key:'visit_planning',label:'방문 계획 성향',score:v.planningStyle??0,confidence:Math.min(.92,.45+(data.festival?.sessionSummary?.informationFocus?.length??0)*.08)},{key:'festival_exploration',label:'축제 탐색 성향',score:v.festivalExploration??0,confidence:Math.min(.9,.42+(data.festival?.sessionSummary?.festivalsViewed??0)*.05)}];
@@ -48,6 +49,6 @@ export async function generateExperienceProfile(data:SummaryBundle):Promise<{pro
     if(!parsed)return {profile:fallback(data),source:'fallback'};
     const deterministic=fallback(data);
     const localFoodProfile=deterministic.source==='sejong_food_trucks';
-    return {profile:{...parsed,source:deterministic.source,title:localFoodProfile?deterministic.title:parsed.title,tags:localFoodProfile?deterministic.tags:parsed.tags,summary:localFoodProfile?deterministic.summary:parsed.summary,traits:deterministic.traits,evidence:deterministic.evidence},source:'openai'};
+    return {profile:{...parsed,source:deterministic.source,title:localFoodProfile?deterministic.title:parsed.title,tags:localFoodProfile?deterministic.tags:[deterministic.tags[0],parsed.tags[1],parsed.tags[2]],summary:localFoodProfile?deterministic.summary:parsed.summary,traits:deterministic.traits,evidence:deterministic.evidence},source:'openai'};
   }catch{return {profile:fallback(data),source:'fallback'}}
 }

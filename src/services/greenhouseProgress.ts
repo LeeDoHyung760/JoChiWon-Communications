@@ -22,6 +22,7 @@ export const GREENHOUSE_RECORD_STYLES=[
 export interface CollectedPlant{
   plantId:string;
   collectedAt:string;
+  updatedAt?:string;
   selectedEmotion?:GreenhouseEmotion;
   reasonCategory?:EmotionReasonCategory;
   reasonText?:string;
@@ -159,6 +160,7 @@ export class GreenhouseProgressService{
     const next:CollectedPlant={
       plantId,
       collectedAt:existing?.collectedAt??new Date().toISOString(),
+      updatedAt:new Date().toISOString(),
       selectedEmotion:emotion,
       reasonCategory:reflection?.reasonCategory??existing?.reasonCategory,
       reasonText:reflection?.reasonText.trim().slice(0,180)??existing?.reasonText,
@@ -176,7 +178,8 @@ export class GreenhouseProgressService{
   }
   collectDiscovery(progress:GreenhouseProgress,plantId:string,aiMessage:string){
     const existing=progress.collected.find(item=>item.plantId===plantId);
-    const next:CollectedPlant={plantId,collectedAt:existing?.collectedAt??new Date().toISOString(),aiMessage,includeInAnalysis:false};
+    const now=new Date().toISOString();
+    const next:CollectedPlant={plantId,collectedAt:existing?.collectedAt??now,updatedAt:now,aiMessage,includeInAnalysis:false};
     return this.save({...progress,collected:[...progress.collected.filter(item=>item.plantId!==plantId),next]});
   }
   clearPlantReflection(progress:GreenhouseProgress,plantId:string){
@@ -185,6 +188,7 @@ export class GreenhouseProgressService{
     const discovery:CollectedPlant={
       plantId:existing.plantId,
       collectedAt:existing.collectedAt,
+      updatedAt:new Date().toISOString(),
       aiMessage:existing.aiMessage,
       includeInAnalysis:false,
     };

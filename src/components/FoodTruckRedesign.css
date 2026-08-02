@@ -1,0 +1,96 @@
+.food-truck-overlay.is-kiosk .food-truck-menu{
+  --ink:#f4f2e9;--muted:#9eb4ae;--line:rgba(205,224,217,.16);
+  padding:22px 28px 18px;border:1px solid rgba(235,220,176,.45);border-radius:22px;
+  background:radial-gradient(circle at 22% -20%,rgba(77,125,105,.26),transparent 42%),linear-gradient(145deg,#102e28 0%,#062823 56%,#0d332c 100%);
+  color:var(--ink);box-shadow:inset 0 0 0 5px rgba(7,29,25,.6),0 18px 50px rgba(0,0,0,.28)
+}
+.food-truck-overlay.is-kiosk .food-truck-menu>header{min-height:64px;gap:14px;padding:0}
+.food-truck-overlay.is-kiosk .food-truck-menu>header>span{width:48px;height:48px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.04);font-size:25px}
+.food-truck-overlay.is-kiosk .food-truck-menu header small{color:#e0a854;font-size:8px;letter-spacing:.13em}
+.food-truck-overlay.is-kiosk .food-truck-menu h2{margin:3px 0;font-size:22px;letter-spacing:-.03em}
+.food-truck-overlay.is-kiosk .food-truck-menu header p{color:var(--muted);font-size:8px}
+.food-header-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.food-header-actions button{width:36px;height:36px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:rgba(5,30,26,.35);color:#dbe8e3;cursor:pointer}
+.food-header-actions button:hover{border-color:#d5a354;color:#f2bd64;background:rgba(213,163,84,.12)}
+.food-header-actions svg{width:17px;height:17px}.food-header-actions button:last-child{margin-left:3px}
+.food-truck-overlay.is-kiosk .food-tools{position:static;margin:15px 0 0;padding:0;background:transparent;backdrop-filter:none}
+.food-truck-overlay.is-kiosk .food-tools label{height:40px;padding:0 14px;border:1px solid rgba(196,219,211,.12);border-radius:13px;background:rgba(255,255,255,.09);color:#c7d7d2}
+.food-truck-overlay.is-kiosk .food-tools label svg{width:17px}.food-truck-overlay.is-kiosk .food-tools input{color:#f5f4ec;font-size:10px}.food-truck-overlay.is-kiosk .food-tools input::placeholder{color:#91a7a1}
+.food-truck-overlay.is-kiosk .food-tools nav{gap:7px;margin-top:10px;padding-bottom:2px}
+.food-truck-overlay.is-kiosk .food-tools nav button{height:31px;display:flex;align-items:center;gap:5px;padding:0 11px;border-color:var(--line);background:rgba(4,31,27,.26);color:#c4d3ce;font-size:8px;cursor:pointer}
+.food-truck-overlay.is-kiosk .food-tools nav button svg{width:12px;height:12px}.food-truck-overlay.is-kiosk .food-tools nav button.active{border-color:#d4a052;background:linear-gradient(135deg,#d4a052,#b97b32);color:#fff8e9;box-shadow:0 5px 15px rgba(198,139,60,.2)}
+.food-results{display:flex;justify-content:space-between;align-items:center;margin:10px 1px 6px;color:#8fa7a0;font-size:7px}.food-results b{color:#dca54f}.food-results small{font-size:7px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:158px;gap:10px;margin:0;padding:0 3px 3px 0;overflow-y:auto}
+.food-truck-overlay.is-kiosk .food-truck-menu-grid article{position:relative;min-height:0;display:block;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:rgba(15,55,48,.82);transition:.18s ease}
+.food-truck-overlay.is-kiosk .food-truck-menu-grid article:hover{border-color:rgba(220,165,79,.55);transform:translateY(-1px);background:rgba(20,66,57,.92)}
+.food-truck-overlay.is-kiosk.is-in-world .food-card-main{position:relative;width:100%;height:100%;display:grid;grid-template-columns:55% 45%;grid-template-rows:100%;overflow:hidden;background:transparent;color:inherit;cursor:pointer}
+.food-card-photo{position:relative;min-width:0;height:100%;overflow:hidden}.food-truck-overlay.is-kiosk.is-in-world .food-card-photo img,.food-truck-overlay.is-kiosk.is-in-world .food-card-photo .food-truck-fallback{width:100%;height:100%;min-height:0;object-fit:cover;flex:none}.food-card-photo:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 70%,rgba(10,43,37,.5))}
+.food-truck-overlay.is-kiosk .food-rank{position:absolute;z-index:2;left:9px;top:9px;min-width:27px;height:27px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.15);border-radius:8px;background:rgba(8,44,38,.86);color:#fff;font-size:10px;font-weight:900;backdrop-filter:blur(5px)}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid section{min-width:0;min-height:0;padding:14px 13px 12px;display:flex;flex:initial;flex-direction:column}
+.food-truck-overlay.is-kiosk .food-truck-menu-grid small{overflow:hidden;color:#dda64e;font-size:7px;white-space:nowrap;text-overflow:ellipsis}
+.food-truck-overlay.is-kiosk .food-truck-menu-grid h3{overflow:hidden;margin:5px 25px 4px 0;color:#f3f3eb;font-size:12px;white-space:nowrap;text-overflow:ellipsis}
+.food-truck-overlay.is-kiosk .food-truck-menu-grid section>b{overflow:hidden;color:#aabdb7;font-size:8px;font-weight:650;white-space:nowrap;text-overflow:ellipsis}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid em{display:flex;align-items:center;gap:4px;margin-top:auto;color:#a6bbb4;font-size:7px}.food-truck-overlay.is-kiosk .food-truck-menu-grid em svg{width:10px;height:10px}
+.food-truck-overlay.is-kiosk .food-save{position:absolute;z-index:3;right:9px;top:9px;width:26px;height:26px;margin:0;padding:0;display:grid;place-items:center;border:0;background:transparent;color:#d7e2de;cursor:pointer}.food-truck-overlay.is-kiosk .food-save svg{width:14px}.food-truck-overlay.is-kiosk .food-save.saved{border-radius:7px;background:#d39d4c;color:#fff}
+.food-truck-overlay.is-kiosk .food-truck-menu>footer{height:40px;flex:none;margin:11px 0 0;padding:0 14px;display:flex;border:1px solid rgba(219,230,225,.5);border-radius:11px;background:rgba(238,243,239,.92);color:#284940}
+.food-truck-overlay.is-kiosk .food-truck-menu>footer>svg{width:19px;color:#2f7c6b}.food-truck-overlay.is-kiosk .food-truck-menu>footer>span{display:flex;flex:1;flex-direction:column}.food-truck-overlay.is-kiosk .food-truck-menu>footer b{font-size:8px}.food-truck-overlay.is-kiosk .food-truck-menu>footer small{font-size:6px;color:#668079}.food-truck-overlay.is-kiosk .food-truck-menu>footer strong{font-size:8px;color:#315e54}
+.food-empty{flex:1;display:grid;place-content:center;justify-items:center;gap:5px;color:#97aaa4;font-size:9px}.food-empty svg{width:24px}.food-empty b{color:#eef2ef}
+@container (max-width:760px){.food-truck-overlay.is-kiosk .food-truck-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.food-header-actions button:not(:last-child){display:none}}
+@container (max-width:480px){.food-truck-overlay.is-kiosk .food-truck-menu-grid{grid-template-columns:1fr}.food-results small{display:none}}
+
+/* Compact layout for the shallow 3D service window. Keep at least one full
+   row of food cards visible instead of letting header controls consume it. */
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu{padding:8px 11px 7px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu>header{min-height:34px;gap:8px;padding:0 0 5px;border-bottom:1px solid var(--line)}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu>header>span{width:30px;height:30px;border-radius:9px;font-size:16px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu header small{font-size:5px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu h2{margin:1px 0;font-size:14px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu header p{display:none}
+.food-truck-overlay.is-kiosk.is-in-world .food-header-actions{gap:3px}
+.food-truck-overlay.is-kiosk.is-in-world .food-header-actions button:not(:last-child){display:none}
+.food-truck-overlay.is-kiosk.is-in-world .food-header-actions button:last-child{width:27px;height:27px;margin:0}
+.food-truck-overlay.is-kiosk.is-in-world .food-header-actions button:last-child svg{width:13px;height:13px}
+.food-truck-overlay.is-kiosk.is-in-world .food-tools{margin:4px 0 0;padding:0 0 4px;border-bottom:0}
+.food-truck-overlay.is-kiosk.is-in-world .food-tools label{height:25px;padding:0 8px;border-radius:7px}
+.food-truck-overlay.is-kiosk.is-in-world .food-tools label svg{width:11px}
+.food-truck-overlay.is-kiosk.is-in-world .food-tools input{font-size:7px}
+.food-truck-overlay.is-kiosk.is-in-world .food-tools nav{gap:4px;margin-top:3px;padding:0;overflow:hidden}
+.food-truck-overlay.is-kiosk.is-in-world .food-tools nav button{height:20px;padding:0 6px;gap:3px;font-size:6px}
+.food-truck-overlay.is-kiosk.is-in-world .food-tools nav button svg{width:8px;height:8px}
+.food-truck-overlay.is-kiosk.is-in-world .food-results{margin:1px 1px 3px;font-size:6px}
+.food-truck-overlay.is-kiosk.is-in-world .food-results small{display:none}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid{min-height:64px;flex:1;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:minmax(64px,1fr);gap:5px;margin:0;padding:0 2px 1px 0}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid article{border-radius:7px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid section{padding:6px 6px 5px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid small{font-size:5px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid h3{margin:2px 16px 2px 0;font-size:8px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid section>b{font-size:6px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid em{font-size:5px}
+.food-truck-overlay.is-kiosk.is-in-world .food-rank{left:4px;top:4px;min-width:18px;height:18px;font-size:6px}
+.food-truck-overlay.is-kiosk.is-in-world .food-save{right:4px;top:4px;width:18px;height:18px}
+.food-truck-overlay.is-kiosk.is-in-world .food-save svg{width:9px;height:9px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu>footer{display:none}
+
+/* The focused GLB window is 2.36:1, so it has enough height for a readable
+   two-column kiosk. The previous three-column/shallow rules were compensating
+   for the map's accidental depth stretch and reduced text to 5-8px. */
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu{padding:13px 16px 12px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu>header{min-height:45px;gap:10px;padding-bottom:7px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu>header>span{width:38px;height:38px;font-size:20px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu header small{font-size:7px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu h2{font-size:18px}
+.food-truck-overlay.is-kiosk.is-in-world .food-header-actions button:last-child{width:32px;height:32px}
+.food-truck-overlay.is-kiosk.is-in-world .food-tools{margin-top:7px;padding-bottom:6px}
+.food-truck-overlay.is-kiosk.is-in-world .food-tools label{height:32px;padding:0 10px}
+.food-truck-overlay.is-kiosk.is-in-world .food-tools input{font-size:10px}
+.food-truck-overlay.is-kiosk.is-in-world .food-tools nav{gap:5px;margin-top:5px;overflow-x:auto}
+.food-truck-overlay.is-kiosk.is-in-world .food-tools nav button{height:25px;padding:0 8px;font-size:8px;white-space:nowrap}
+.food-truck-overlay.is-kiosk.is-in-world .food-results{margin:3px 1px 5px;font-size:8px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(105px,1fr);gap:8px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid section{padding:10px 9px 8px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid small{font-size:7px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid h3{margin:3px 20px 3px 0;font-size:11px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid section>b{font-size:8px}
+.food-truck-overlay.is-kiosk.is-in-world .food-truck-menu-grid em{font-size:7px}
+.food-truck-overlay.is-kiosk.is-in-world .food-rank{left:6px;top:6px;min-width:23px;height:23px;font-size:8px}
+.food-truck-overlay.is-kiosk.is-in-world .food-save{right:6px;top:6px;width:22px;height:22px}

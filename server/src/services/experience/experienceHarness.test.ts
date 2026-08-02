@@ -1,6 +1,39 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {scoreMapExit} from './experienceHarness.js';
+import {buildPersistedActivity,scoreMapExit,type MapExit} from './experienceHarness.js';
+
+test('축제 부스 완료를 최근 활동 기록으로 만든다',()=>{
+  const input:MapExit={mapId:'festival-experience',sessionId:'festival-activity-1',events:[{type:'festival-booth-complete',at:10,booth:'traditional-culture',selectedCards:['한글 도장','전통 매듭']}]};
+  const record=buildPersistedActivity(input,scoreMapExit(input));
+  assert.equal(record?.mapId,'festival-experience');
+  assert.match(record?.title??'',/전통문화/);
+  assert.equal(record?.point,12);
+});
+
+test('관심 표시한 축제 이름과 키워드를 최근 기록으로 만든다',()=>{
+  const input:MapExit={mapId:'festival-experience',sessionId:'festival-interest-1',events:[{type:'festival-save',at:10,festivalId:'nakhwa',festivalTitle:'세종 낙화축제',categories:['낙화','야간공연'],saved:true}]};
+  const record=buildPersistedActivity(input,scoreMapExit(input));
+  assert.equal(record?.title,'세종 낙화축제 관심 저장');
+  assert.match(record?.note??'',/낙화 · 야간공연/);
+  assert.equal(record?.point,5);
+});
+
+test('공연 활동 기록은 사용자용 제목과 점수 근거로 변환한다',()=>{
+  const input:MapExit={mapId:'arts-center',sessionId:'readable-performance-record',events:[{type:'browse',performanceId:'0',at:0,durationSeconds:20},{type:'watch',performanceId:'0',at:1,durationSeconds:42},{type:'finish',performanceId:'0',at:2},{type:'favorite',performanceId:'0',at:3}]};
+  const record=buildPersistedActivity(input,scoreMapExit(input));
+  assert.equal(record?.title,'뮤지컬 〈서편제〉');
+  assert.equal(record?.point,15);
+  assert.deepEqual(record?.breakdown,[{label:'공연 탐색',point:2},{label:'영상 42초 감상',point:5},{label:'끝까지 감상',point:5},{label:'관심 공연 저장',point:3}]);
+  assert.doesNotMatch(record?.note??'',/musical|finish|watch/);
+});
+
+test('관심 공연은 공연명과 장르가 포함된 최근 기록으로 만든다',()=>{
+  const input:MapExit={mapId:'arts-center',sessionId:'performance-favorite-1',events:[{type:'favorite',performanceId:'4',at:1}]};
+  const record=buildPersistedActivity(input,scoreMapExit(input));
+  assert.match(record?.title??'',/브람스/);
+  assert.match(record?.note??'',/관심 공연.*클래식/);
+  assert.deepEqual(record?.breakdown,[{label:'관심 공연 저장',point:3}]);
+});
 
 test('공연 임계값과 종료 보너스를 서버에서 계산한다',()=>{
   const result=scoreMapExit({mapId:'arts-center',sessionId:'session-123',events:[{type:'watch',at:0,durationSeconds:42},{type:'finish',at:42000}]});

@@ -4,9 +4,9 @@ export const harnessMapSchema=z.enum(['arts-center','food-experience','festival-
 export type HarnessMap=z.infer<typeof harnessMapSchema>;
 
 const baseEvent=z.object({at:z.number().int().nonnegative()});
-const performanceEvent=baseEvent.extend({type:z.enum(['enter','browse','watch','stop','sit','near-stage','finish','rewatch','favorite','compare']),performanceId:z.string().trim().max(80).optional(),durationSeconds:z.number().min(0).max(14400).optional()});
+const performanceEvent=baseEvent.extend({type:z.enum(['enter','browse','watch','stop','sit','near-stage','finish','rewatch','favorite','compare']),performanceId:z.string().trim().max(80).optional(),durationSeconds:z.number().min(0).max(14400).optional(),saved:z.boolean().optional()});
 const foodEvent=baseEvent.extend({type:z.enum(['visit','dwell','detail','taste','favorite','photo','revisit','food_truck_enter','food_truck_exit','food_card_open','food_card_close','food_section_open','food_filter_apply','food_search','food_map_open','food_hours_open','food_price_open','food_origin_open','food_nearby_place_open','food_save','food_unsave','food_reopen','food_truck_complete']),truck:z.enum(['local','street','dessert']),durationSeconds:z.number().min(0).max(14400).optional(),activeDurationSec:z.number().min(0).max(14400).optional(),item:z.string().trim().max(80).optional(),itemId:z.string().trim().max(100).optional(),itemType:z.enum(['restaurant','local_food','cafe']).optional(),categories:z.array(z.string().trim().max(40)).max(12).optional(),tags:z.array(z.string().trim().max(40)).max(20).optional(),district:z.string().trim().max(80).optional(),timestamp:z.string().datetime().optional(),section:z.string().trim().max(40).optional(),query:z.string().trim().max(50).optional()});
-const festivalEvent=baseEvent.extend({type:z.enum(['zone-first','stage-watch','booth','photo','food-zone','exploration','social','festival-open','festival-close','festival-section','festival-save','festival-route-save','festival-stamps']),zone:z.string().trim().max(80).optional(),festivalId:z.string().trim().max(100).optional(),festivalTitle:z.string().trim().max(120).optional(),categories:z.array(z.string().trim().max(30)).max(12).optional(),location:z.string().trim().max(120).optional(),section:z.enum(['program','schedule','location','timetable','map','transport','nearby','recommended-time','route']).optional(),nearbyPlace:z.string().trim().max(120).optional(),saved:z.boolean().optional(),durationSeconds:z.number().min(0).max(14400).optional(),count:z.number().int().min(0).max(100).optional(),percent:z.number().min(0).max(100).optional()});
+const festivalEvent=baseEvent.extend({type:z.enum(['zone-first','stage-watch','booth','photo','food-zone','exploration','social','festival-open','festival-close','festival-section','festival-save','festival-route-save','festival-stamps','festival-filter','festival-booth-enter','festival-booth-complete']),zone:z.string().trim().max(80).optional(),booth:z.enum(['performance','traditional-culture','art-exhibition']).optional(),filter:z.string().trim().max(40).optional(),selectedCards:z.array(z.string().trim().max(100)).max(20).optional(),actualViewMs:z.number().min(0).max(14400000).optional(),watchedMs:z.number().min(0).max(14400000).optional(),durationMs:z.number().min(0).max(14400000).optional(),progress:z.number().min(0).max(1).optional(),completed:z.boolean().optional(),festivalId:z.string().trim().max(100).optional(),festivalTitle:z.string().trim().max(120).optional(),categories:z.array(z.string().trim().max(30)).max(12).optional(),location:z.string().trim().max(120).optional(),section:z.enum(['program','schedule','location','timetable','map','transport','nearby','recommended-time','route']).optional(),nearbyPlace:z.string().trim().max(120).optional(),saved:z.boolean().optional(),durationSeconds:z.number().min(0).max(14400).optional(),count:z.number().int().min(0).max(100).optional(),percent:z.number().min(0).max(100).optional()});
 
 export const mapExitSchema=z.discriminatedUnion('mapId',[
   z.object({mapId:z.literal('arts-center'),sessionId:z.string().trim().min(8).max(100),events:z.array(performanceEvent).max(500)}),
@@ -19,8 +19,40 @@ export type FestivalSessionSummary={festivalsViewed:number;festivalsSaved:number
 export type FoodSessionSummary={restaurantsViewed:number;localFoodsViewed:number;cafesViewed:number;savedItems:string[];mostViewedCategories:string[];informationFocus:string[];reopenedItems:string[];allTrucksCompleted:boolean};
 export type ExperienceSessionSummary=Partial<FestivalSessionSummary>&Partial<FoodSessionSummary>;
 export type ExperienceSummary={scores:Record<string,number>;evidence:string[];space?:'sejong_festival_booth'|'sejong_food_trucks';sessionSummary?:ExperienceSessionSummary};
+export type ExperiencePointItem={label:string;point:number};
+export type PersistedExperienceActivity={id:string;mapId:HarnessMap;title:string;note:string;point:number;breakdown:ExperiencePointItem[];recordedAt:Date};
 
 const add=(scores:Record<string,number>,key:string,value:number)=>{scores[key]=(scores[key]??0)+value};
+const performanceNames:Record<string,{title:string;type:string}>={
+  '0':{title:'뮤지컬 〈서편제〉',type:'뮤지컬 공연'},'1':{title:'연극 〈렁스〉',type:'연극 공연'},'2':{title:'19시 야민락콘서트 〈레브드집시〉',type:'라이브 공연'},'3':{title:'국립국악원 〈연희-판, 흥으로 잇는 세상〉',type:'전통 공연'},'4':{title:'국립심포니콘서트오케스트라 〈브람스, 교향곡 1번〉',type:'클래식 공연'},
+};
+export function buildPersistedActivity(input:MapExit,summary:ExperienceSummary):PersistedExperienceActivity|null{
+  if(!Object.values(summary.scores).some(value=>value>0)&&!summary.evidence.length)return null;
+  if(input.mapId==='festival-experience'){
+    const savedFestival=[...input.events].reverse().find(event=>event.type==='festival-save'&&event.saved!==false&&event.festivalTitle);
+    const completed=[...new Set(input.events.filter(event=>event.type==='festival-booth-complete').map(event=>event.booth).filter((value):value is NonNullable<typeof value>=>Boolean(value)))];
+    if(!completed.length&&savedFestival)return {id:`${input.mapId}:${input.sessionId}`,mapId:input.mapId,title:`${savedFestival.festivalTitle} 관심 저장`,note:`${savedFestival.festivalTitle}에 관심을 표시했어요.${savedFestival.categories?.length?` 관심 키워드: ${savedFestival.categories.slice(0,4).join(' · ')}`:''}`,point:5,breakdown:[{label:'관심 축제 저장',point:5}],recordedAt:new Date()};
+    if(!completed.length)return null;
+    const labels:Record<string,string>={performance:'공연 무대','traditional-culture':'전통문화 체험','art-exhibition':'문화예술 전시'};
+    const breakdown:ExperiencePointItem[]=completed.map(booth=>({label:`${labels[booth]??'축제'} 완료`,point:booth==='performance'?15:12}));
+    const selected=input.events.filter(event=>event.type==='festival-booth-complete').flatMap(event=>event.selectedCards??[]);
+    const names=completed.map(booth=>labels[booth]??booth);
+    return {id:`${input.mapId}:${input.sessionId}`,mapId:input.mapId,title:names.length===1?`${names[0]} 체험 완료`:'축제 부스 체험 완료',note:`${names.join(' · ')}${selected.length?`에서 ${selected.join(' · ')}을(를) 선택하고`:''} 축제 경험을 쌓았어요.`,point:breakdown.reduce((sum,item)=>sum+item.point,0),breakdown,recordedAt:new Date()};
+  }
+  if(input.mapId!=='arts-center')return null;
+  const events=input.events,performanceId=events.find(event=>event.performanceId)?.performanceId??'',performance=performanceNames[performanceId]??{title:'세종예술의전당 공연',type:'공연'};
+  const watched=Math.round(events.filter(event=>event.type==='watch').reduce((total,event)=>total+(event.durationSeconds??0),0));
+  const breakdown:ExperiencePointItem[]=[];
+  if(events.some(event=>event.type==='browse'))breakdown.push({label:'공연 탐색',point:2});
+  if(watched>=15)breakdown.push({label:`영상 ${watched}초 감상`,point:5});
+  if(events.some(event=>event.type==='finish'))breakdown.push({label:'끝까지 감상',point:5});
+  if(events.some(event=>event.type==='favorite'&&event.saved!==false))breakdown.push({label:'관심 공연 저장',point:3});
+  if(events.some(event=>event.type==='rewatch'))breakdown.push({label:'공연 다시 감상',point:3});
+  if(events.some(event=>event.type==='sit'))breakdown.push({label:'객석에서 감상',point:2});
+  if(!breakdown.length)return null;
+  const finished=events.some(event=>event.type==='finish'),favorited=events.some(event=>event.type==='favorite'&&event.saved!==false);
+  return {id:`${input.mapId}:${input.sessionId}`,mapId:input.mapId,title:performance.title,note:finished?`${performance.title} 영상을 ${watched}초 동안 시청하고 끝까지 감상했어요.`:favorited?`${performance.title}을(를) 관심 공연으로 저장했어요. 장르: ${performance.type}`:watched?`${performance.title} 영상을 ${watched}초 감상했어요.`:`${performance.title} 공연 정보를 살펴봤어요. 장르: ${performance.type}`,point:breakdown.reduce((sum,item)=>sum+item.point,0),breakdown,recordedAt:new Date()};
+}
 export function scoreMapExit(input:MapExit):ExperienceSummary{
   const scores:Record<string,number>={},evidence:string[]=[];
   if(input.mapId==='arts-center'){
@@ -35,7 +67,7 @@ export function scoreMapExit(input:MapExit):ExperienceSummary{
       if(event.type==='near-stage')add(scores,'presence',2);
       if(event.type==='finish'){add(scores,'immersion',4);if(genre)add(scores,genre,5);evidence.push(`${genre??'공연'} 끝까지 시청`)}
       if(event.type==='rewatch'){add(scores,'preference',4);evidence.push('같은 공연 재관람')}
-      if(event.type==='favorite'){add(scores,'preference',5);if(genre)add(scores,genre,4);evidence.push(`${genre??'공연'} 관심 저장`)}
+      if(event.type==='favorite'&&event.saved!==false){add(scores,'preference',5);if(genre)add(scores,genre,4);evidence.push(`${genre??'공연'} 관심 저장`)}
       if(event.type==='compare'){add(scores,'variety',3);evidence.push('여러 공연 비교 탐색')}
     }
   }else if(input.mapId==='food-experience'){
@@ -88,6 +120,7 @@ export function scoreMapExit(input:MapExit):ExperienceSummary{
     return {space:'sejong_food_trucks',sessionSummary:{restaurantsViewed:restaurants.length,localFoodsViewed:localFoods.length,cafesViewed:cafes.length,savedItems:[...cards].filter(([,v])=>v.saved).map(([id])=>id),mostViewedCategories:[...categoryCounts].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([v])=>v),informationFocus:[...sectionCounts].sort((a,b)=>b[1]-a[1]).slice(0,4).map(([v])=>v),reopenedItems:[...cards].filter(([,v])=>v.opens>=2).map(([id])=>id),allTrucksCompleted:completed.size===3},scores,evidence:[...new Set(evidence)].slice(0,12)};
   }else{
     let booths=0,photos=0,allStampsCompleted=false;
+    const completedBooths=new Map<string,{selectedCards:string[];actualViewMs:number}>();
     const festivalViews=new Map<string,{title:string;count:number;duration:number;categories:Set<string>;sections:Set<string>;saved:boolean}>();
     const ensureFestival=(event:(typeof input.events)[number])=>{if(!('festivalId' in event)||!event.festivalId)return undefined;const current=festivalViews.get(event.festivalId)??{title:event.festivalTitle??event.festivalId,count:0,duration:0,categories:new Set<string>(),sections:new Set<string>(),saved:false};event.categories?.forEach(category=>current.categories.add(category));if(event.festivalTitle)current.title=event.festivalTitle;festivalViews.set(event.festivalId,current);return current};
     for(const event of input.events){
@@ -98,13 +131,18 @@ export function scoreMapExit(input:MapExit):ExperienceSummary{
       if(event.type==='festival-save'&&festival)festival.saved=event.saved!==false;
       if(event.type==='festival-route-save'&&festival){festival.sections.add('route');festival.saved=event.saved!==false}
       if(event.type==='festival-stamps')allStampsCompleted=(event.percent??0)>=100;
-      if(event.type==='stage-watch'&&(event.durationSeconds??0)>=20)add(scores,'performance',3);
+      if(event.type==='stage-watch'&&event.completed){const watchedSeconds=Math.round((event.watchedMs??0)/1000);add(scores,'performance',3);evidence.push(`공연형 축제 영상 ${watchedSeconds}초 실제 시청`)}
+      if(event.type==='festival-booth-complete'&&event.booth){completedBooths.set(event.booth,{selectedCards:event.selectedCards??[],actualViewMs:event.actualViewMs??0});booths=completedBooths.size}
       if(event.type==='booth'){const count=event.count??1;booths+=count;add(scores,'participation',3*count)}
       if(event.type==='photo')photos+=event.count??1;
       if(event.type==='exploration'&&(event.percent??0)>=80){add(scores,'exploration',4);evidence.push(`공간 ${Math.round(event.percent!)}% 탐색`)}
       if(event.type==='social'){add(scores,'social',3);evidence.push('다른 사용자와 활동')}
     }
     if(booths>=3){add(scores,'participation',4);evidence.push(`체험부스 ${booths}개 참여`)}
+    const traditional=completedBooths.get('traditional-culture'),art=completedBooths.get('art-exhibition');
+    if(traditional){add(scores,'participation',Math.max(2,traditional.selectedCards.length*2));evidence.push(`전통문화 체험 ${traditional.selectedCards.length}종 선택`)}
+    if(art){add(scores,'culture',Math.max(2,art.selectedCards.length*2));evidence.push(`예술 전시 ${art.selectedCards.length}개 관람 (${Math.round(art.actualViewMs/1000)}초)`)}
+    if(allStampsCompleted){add(scores,'festivalCompletion',10);evidence.push('전체 부스 3/3 완료')}
     if(photos>=3){add(scores,'recording',4);evidence.push(`사진 ${photos}장 촬영`)}
     const categoryCounts=new Map<string,number>(),sectionCounts=new Map<string,number>();
     festivalViews.forEach(view=>{view.categories.forEach(category=>categoryCounts.set(category,(categoryCounts.get(category)??0)+1));view.sections.forEach(section=>sectionCounts.set(section,(sectionCounts.get(section)??0)+1))});
