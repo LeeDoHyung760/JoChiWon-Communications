@@ -5,8 +5,8 @@ export type CharacterEmote = 'hi' | 'clapping' | 'talking';
 export type CharacterModel = 'custom' | 'chungnyeong' | 'girl1' | 'boy1' | 'cloths' | 'women';
 export interface Appearance { hair:string; hairStyle?:'hair1'|'hair2'|'both'; topStyle?:'style1'|'style2'; bottomStyle?:'style1'|'style2'; shoesStyle?:'style1'|'style2'; outfitStyle?:'outfit1'|'outfit2'; face:string; top:string; topLayer?:string; bottom:string; shoes:string; accessory?:string }
 export interface PublicMatchProfile { mbti:string; interests:string[]; usagePurposes:string[]; preferredPlaceCategories:string[]; experienceRecords:string[]; recordVisibility?:'public'|'private'; chatEnabled?:boolean }
-export interface PlayerState { id:string; mapId:MapId; x:number; y:number; direction:Direction; isMoving:boolean; yaw:number; motionState:MotionState; jumpHeight?:number; timestamp:number; nickname:string; appearance:Appearance; model:CharacterModel; matchProfile?:PublicMatchProfile }
-export interface JoinMapPayload { mapId:MapId; nickname:string; appearance:Appearance; model:CharacterModel; x:number; y:number; matchProfile?:PublicMatchProfile }
+export interface PlayerState { id:string; mapId:MapId; projectRoomId?:string; x:number; y:number; direction:Direction; isMoving:boolean; yaw:number; motionState:MotionState; jumpHeight?:number; timestamp:number; nickname:string; appearance:Appearance; model:CharacterModel; matchProfile?:PublicMatchProfile }
+export interface JoinMapPayload { mapId:MapId; projectRoomId?:string; nickname:string; appearance:Appearance; model:CharacterModel; x:number; y:number; matchProfile?:PublicMatchProfile }
 export interface MovementPayload { mapId:MapId; x:number; y:number; direction:Direction; isMoving:boolean; yaw:number; motionState:MotionState; jumpHeight?:number; timestamp:number }
 export interface RespawnPosition { x:number; z:number; yaw:number }
 export const FIXED_LAKE_RESPAWN:Readonly<RespawnPosition>={x:1870,z:1180,yaw:2.1};
@@ -75,6 +75,7 @@ export interface ServerToClientEvents {
  groupCreated:(group:GroupRoom)=>void; groupUpdated:(group:GroupRoom)=>void; bearExplorationUpdated:(state:BearExplorationState)=>void; errorMessage:(message:string)=>void;
 }
 export interface ClientToServerEvents {
+ enterProjectRoomInstance:(projectRoomId:string)=>void;
  getRespawnPosition:(ack:(position:RespawnPosition)=>void)=>void; saveCurrentPositionAsRespawn:(ack:(result:{ok:boolean;position?:RespawnPosition;message:string})=>void)=>void; getPlayerResumeState:(ack:(position:PlayerResumeState|null)=>void)=>void; migrateBearTreePortalPositions:(positions:BearTreePortalPositions,ack:(result:{ok:boolean;positions:BearTreePortalPositions})=>void)=>void; joinMap:(payload:JoinMapPayload)=>void; changeMap:(payload:JoinMapPayload)=>void; updateMatchProfile:(profile:PublicMatchProfile)=>void; userMoved:(payload:MovementPayload)=>void; savePortalPosition:(position:PortalPosition)=>void; saveCampusFeaturePortalPosition:(position:CampusFeaturePortalPosition)=>void; saveInteractionPosition:(position:WorldInteractionPosition)=>void; saveLakeExperiencePosition:(position:LakeExperiencePosition)=>void; enterLakeExperience:(experience:LakeExperienceId)=>void; addLakeWish:(message:string,ack:(result:{ok:boolean;wish?:LakeWish;message?:string})=>void)=>void; sendNearbyChat:(message:string)=>void;
  directChatRequest:(toId:string)=>void; directChatAccept:(requestId:string)=>void; directChatReject:(requestId:string)=>void; directMessage:(data:{directRoomId:string;message:string})=>void; directChatClosed:(directRoomId:string)=>void;
  encounterFocus:(data:{toId:string;active:boolean})=>void;

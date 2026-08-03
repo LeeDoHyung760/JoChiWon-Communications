@@ -148,7 +148,7 @@ const GUIDE_PATROL_STOPS=new Set(['2045,1138','1900,500','1350,200','300,400','3
 type CharacterState={scene:THREE.Object3D;mixer?:THREE.AnimationMixer;action?:THREE.AnimationAction};
 type GroundSample={height:number;normal:THREE.Vector3};
 type ArtsCenterSeat={id:string;x:number;z:number;seatHeight:number;yaw:number};
-type ProjectRoomSeat=ArtsCenterSeat&{standX:number;standZ:number};
+type ProjectRoomSeat=ArtsCenterSeat&{standX:number;standZ:number;opensCollaborationTable?:boolean};
 type RemoteGroundSample=GroundSample&{x:number;z:number};
 type GuidePosition={x:number;z:number;yaw:number};
 type GuidePatrolFrame=GuidePosition&{motion:Extract<MotionState,'idle'|'walk'>};
@@ -370,7 +370,7 @@ export const CLUB_STREET_FESTIVAL_RENDERER_OPTIONS:WorldMapRendererOptions={
   mapRotationY:Math.PI,
   mapScaleMultiplier:1.08,
   groundObjectPrefixes:['Central_Pedestrian_Plaza','PaverAccent_','Ground_Base','Garden_','CentralPlanter_'],
-  portal:{x:1200,z:1580,destination:'campus',label:'공동캠퍼스로 돌아가기',appearance:'white-circle',theme:'orange',chargeSeconds:3,fixedPosition:true,sharedPosition:false},
+  portal:{x:1200,z:1580,destination:'campus',label:'공동캠퍼스로 돌아가기',appearance:'white-circle',theme:'orange',chargeSeconds:3,fixedPosition:true,sharedPosition:false,positionEditable:true},
   perspectiveCamera:true,
   fixedCameraTarget:false,
   centerInWorldCoordinates:true,
@@ -385,7 +385,9 @@ export const CLUB_STREET_FESTIVAL_RENDERER_OPTIONS:WorldMapRendererOptions={
   performanceMode:true,
   balancedTextureQuality:true,
   performancePixelRatio:1,
-  simplifiedCollision:true,
+  // Booths, planters, street furniture and other authored props must block
+  // the avatar capsule instead of being treated as walkable ground only.
+  simplifiedCollision:false,
 };
 export const STUDENT_HALL_RENDERER_OPTIONS:WorldMapRendererOptions={
   modelUrl:studentHallModelUrl,
@@ -470,9 +472,13 @@ export const PROJECT_ROOM_RENDERER_OPTIONS:WorldMapRendererOptions={
   fixedCameraTarget:false,
   centerInWorldCoordinates:true,
   projectRoomInteractions:true,
-  cameraElevationDeg:25,
-  cameraDistance:1400,
-  cameraFov:46,
+  hiddenObjectPrefixes:['Project_Touch_Kiosk'],
+  // Use a slightly elevated, longer-lens view so the wide room does not feel
+  // flattened across the screen. The added distance preserves useful context.
+  cameraElevationDeg:30,
+  cameraDistance:1850,
+  cameraFov:39,
+  cameraTargetHeight:75,
   cameraFollowBounds:{maxZ:PROJECT_ROOM_SPAWN.z},
   characterHeight:170,
   groundFillColor:0x484945,
@@ -516,7 +522,9 @@ export const GOVERNMENT_CENTRAL_PLAZA_RENDERER_OPTIONS:WorldMapRendererOptions={
   perspectiveCamera:true,
   fixedCameraTarget:false,
   centerInWorldCoordinates:true,
-  cameraElevationDeg:28,
+  // A slightly higher view keeps the circular plaza and hologram table from
+  // reading as horizontally squashed on wide desktop viewports.
+  cameraElevationDeg:36,
   cameraAzimuthDeg:180,
   cameraDistance:1550,
   cameraFov:46,
@@ -1284,6 +1292,10 @@ export class VillageMapRenderer{
   private projectRoomInteractionNearby?:ProjectRoomInteractionId;
   private projectRoomInteractionOutlines=new Map<ProjectRoomInteractionId,THREE.Box3Helper>();
   private projectRoomInteractionPositions=new Map<ProjectRoomInteractionId,{x:number;z:number;radius:number}>();
+  private projectRoomDoorMeshes:THREE.Mesh[]=[];
+  private projectRoomDoorUnlocked=false;
+  private projectRoomDoorEntrySide=0;
+  private projectRoomCameraAzimuthDeg?:number;
   private projectRoomScreenTextures:THREE.CanvasTexture[]=[];
   private projectRoomHologram?:THREE.Group;
   private projectRoomFocus?:ProjectRoomInteractionId;
@@ -1475,6 +1487,7 @@ export class VillageMapRenderer{
     if(options.projectRoomInteractions)gameEvents.on('project-room-kiosk-activate',this.enterProjectRoomKiosk);
     if(options.projectRoomInteractions)gameEvents.on('project-lobby-board-focus-open',this.enterProjectLobbyBoardFocus);
     if(options.projectRoomInteractions)gameEvents.on('project-room-seat-toggle',this.toggleProjectRoomSeat);
+    if(options.projectRoomInteractions)gameEvents.on('project-room-door-unlock',this.unlockProjectRoomDoor);
     if(options.projectRoomInteractions)window.addEventListener('pointerdown',this.onProjectRoomKioskPointerDown,true);
     if(options.governmentCentralPlazaWebUi)gameEvents.on('government-webui-open',this.enterGovernmentWebUi);
     if(options.governmentCentralPlazaWebUi)gameEvents.on('government-webui-close',this.exitGovernmentWebUi);
@@ -1513,6 +1526,7 @@ export class VillageMapRenderer{
         model.add(primary,cloneSkeleton(companionGltf.scene));
       }
       model.rotation.y=this.options.mapRotationY??0;
+      if(this.options.projectRoomInteractions)this.resizeProjectRoomFurniture(model);
       model.updateMatrixWorld(true);
       let hasArtsCenterPosterScreens=false;
       model.traverse(object=>{if(artsCenterPosterIndex(object.name)>=0)hasArtsCenterPosterScreens=true});
@@ -1572,7 +1586,7 @@ export class VillageMapRenderer{
       this.mapModel=model;
       if(this.options.studentHallFeatures)this.setupStudentHallFeatures(model);
       if(this.options.mapName==='동아리 거리제'){
-        this.clubBoothCardAnchors=['ClubBooth_L1_CanvasRoof','ClubBooth_R1_CanvasRoof','ClubBooth_L3_CanvasRoof','ClubBooth_R3_CanvasRoof','ClubBooth_L5_CanvasRoof','ClubBooth_R5_CanvasRoof'].map(name=>model.getObjectByName(name)).filter((object):object is THREE.Object3D=>!!object);
+        this.clubBoothCardAnchors=['ClubBooth_L1_CanvasRoof','ClubBooth_R1_CanvasRoof','ClubBooth_L2_CanvasRoof','ClubBooth_R2_CanvasRoof','ClubBooth_L3_CanvasRoof','ClubBooth_R3_CanvasRoof','ClubBooth_L4_CanvasRoof','ClubBooth_R4_CanvasRoof','ClubBooth_L5_CanvasRoof','ClubBooth_R5_CanvasRoof'].map(name=>model.getObjectByName(name)).filter((object):object is THREE.Object3D=>!!object);
       }
       if(this.options.foodTruckExperience){this.setupFoodTruckWindows(model);this.setupFoodSeats(model)}
       if(this.options.projectRoomInteractions){
@@ -2060,12 +2074,18 @@ export class VillageMapRenderer{
   private setupProjectRoomSeats(model:THREE.Object3D){
     const tree=model.getObjectByName('Lobby_Tree_Planter');
     const treeCenter=tree?new THREE.Box3().setFromObject(tree).getCenter(new THREE.Vector3()):new THREE.Vector3();
+    const table=model.getObjectByName('Collaboration_Table_Inset');
+    const tableCenter=table?new THREE.Box3().setFromObject(table).getCenter(new THREE.Vector3()):new THREE.Vector3();
     const seats:ProjectRoomSeat[]=[];
     model.updateMatrixWorld(true);
     model.traverse(object=>{
-      if(!(object instanceof THREE.Mesh)||!/^Lobby_Sofa_Cushion_\d+$/.test(object.name))return;
+      if(!(object instanceof THREE.Mesh))return;
+      const isLobbySofa=/^Lobby_Sofa_Cushion_\d+$/.test(object.name);
+      const isCollaborationStool=/^Stool_Seat_\d+$/.test(object.name);
+      if(!isLobbySofa&&!isCollaborationStool)return;
       const bounds=new THREE.Box3().setFromObject(object),center=bounds.getCenter(new THREE.Vector3());
-      const outward=center.clone().sub(treeCenter);outward.y=0;
+      const furnitureCenter=isCollaborationStool?tableCenter:treeCenter;
+      const outward=center.clone().sub(furnitureCenter);outward.y=0;
       if(outward.lengthSq()<.001)outward.set(0,0,1);else outward.normalize();
       const inward=outward.clone().negate();
       const standScene=center.clone().addScaledVector(outward,82);
@@ -2077,6 +2097,7 @@ export class VillageMapRenderer{
         yaw:Math.atan2(inward.x,inward.z),
         standX:standScene.x,
         standZ:this.sceneToWorldZ(standScene.z),
+        opensCollaborationTable:isCollaborationStool,
       });
     });
     this.projectRoomSeats=seats;
@@ -2100,6 +2121,7 @@ export class VillageMapRenderer{
     const seat=this.projectRoomSeatNearby;if(!seat)return;
     this.projectRoomActiveSeat=seat;this.localCharacter.setSeated(true);
     gameEvents.emit('project-room-seat-proximity-changed',{id:seat.id,seated:true});
+    if(seat.opensCollaborationTable)gameEvents.emit('project-room-interaction-open','collaboration-table');
   };
   arrivalSpawnFrom(sourceMapId:MapId){
     const spawn=portalArrivalSpawn(this.options,sourceMapId);
@@ -2691,6 +2713,51 @@ export class VillageMapRenderer{
     this.setProjectRoomCharactersVisible(true);
     gameEvents.emit('project-lobby-board-focus-mode-changed',false);gameEvents.emit('game-input-lock',false);
   };
+  private unlockProjectRoomDoor=()=>{
+    if(this.projectRoomDoorUnlocked||!this.projectRoomDoorMeshes.length)return;
+    const doorPosition=this.projectRoomInteractionPositions.get('project-door');
+    this.projectRoomDoorEntrySide=doorPosition?Math.sign(this.localX-doorPosition.x)||-1:-1;
+    this.projectRoomDoorUnlocked=true;
+    this.projectRoomDoorMeshes.forEach(mesh=>{
+      mesh.visible=false;
+      this.mapMeshes=this.mapMeshes.filter(candidate=>candidate!==mesh);
+      this.mapMeshBounds.delete(mesh);
+    });
+  };
+  private lockProjectRoomDoor(){
+    if(!this.projectRoomDoorUnlocked)return;
+    this.projectRoomDoorUnlocked=false;
+    this.projectRoomDoorEntrySide=0;
+    this.projectRoomDoorMeshes.forEach(mesh=>{
+      mesh.visible=true;
+      if(!this.mapMeshes.includes(mesh))this.mapMeshes.push(mesh);
+      this.mapMeshBounds.set(mesh,new THREE.Box3().setFromObject(mesh));
+    });
+  }
+
+  private resizeProjectRoomFurniture(model:THREE.Object3D){
+    // Keep furniture at a usable character-relative height while reducing its
+    // oversized footprint. Structural pieces, screens and kiosks stay intact.
+    const tableScale=.82;
+    model.traverse(object=>{
+      if(object.name.startsWith('Collaboration_Table_')||object.name==='Collaboration_Rug'){
+        object.scale.x*=tableScale;
+        object.scale.z*=tableScale;
+      }
+      if(/^Lobby_Sofa_(?:Cushion_)?\d+$/.test(object.name)){
+        object.scale.x*=.85;
+        object.scale.z*=.85;
+      }
+    });
+    for(let index=1;index<=6;index+=1){
+      const stool=model.getObjectByName(`Collaboration_Stool_${index}`);
+      if(!stool)continue;
+      stool.scale.x*=.85;
+      stool.scale.z*=.85;
+      stool.position.x*=.86;
+      stool.position.z=-.55+(stool.position.z+.55)*.86;
+    }
+  }
   private onWorldPortalKeyDown=(event:KeyboardEvent)=>{
     const focused=document.activeElement as HTMLElement|null;
     if(this.projectLobbyBoardFocused&&(event.key==='Escape'||event.code==='KeyE')){event.preventDefault();this.exitProjectLobbyBoardFocus();return}
@@ -3075,6 +3142,60 @@ export class VillageMapRenderer{
     context.fillStyle='#16a17f';context.fillRect(0,0,width,kind==='kiosk'?14:12);
 
     if(kind==='recommendation'){
+      context.fillStyle='#071f1c';context.fillRect(0,0,width,height);
+      const statusGlow=context.createLinearGradient(0,0,width,0);
+      statusGlow.addColorStop(0,'rgba(23,151,122,.22)');statusGlow.addColorStop(.52,'rgba(18,74,67,.10)');statusGlow.addColorStop(1,'rgba(97,74,181,.20)');
+      context.fillStyle=statusGlow;context.fillRect(0,0,width,height);
+      text('PROJECT STATUS',54,45,17,'#66e5c8',900);
+      text('프로젝트 현황',54,83,34,'#ffffff',900);
+      text('공동캠퍼스 프로젝트실 · LIVE',width-54,69,16,'#a9cbc3',700,'right');
+      const stats=[
+        ['오늘 생성','18','개','#58d9ba'],
+        ['진행 중','42','개','#78b7ff'],
+        ['모집 중','12','개','#c49cff'],
+        ['오늘 완료','7','개','#ffd17c'],
+        ['현재 프로젝트실','23','명','#ff8e9d'],
+      ];
+      const gap=18,margin=52,cardWidth=(width-margin*2-gap*4)/5;
+      stats.forEach(([label,value,unit,color],index)=>{
+        const x=margin+index*(cardWidth+gap);
+        rounded(x,124,cardWidth,242,22,'rgba(12,48,43,.92)',index===4?'#ff8e9d':'#2d675b');
+        rounded(x+20,145,44,8,4,color);
+        text(label,x+20,191,index===4?18:20,'#b8d3cd',800);
+        text(value,x+20,271,64,'#ffffff',900);
+        text(unit,x+cardWidth-22,281,22,color,900,'right');
+        text(index===4?'● LIVE':'↗ 실시간 집계',x+20,335,14,index===4?'#ff9cab':'#70b6a6',800);
+      });
+    }else if(kind==='board'){
+      context.fillStyle='#f3faf7';context.fillRect(0,0,width,height);
+      const scheduleGlow=context.createLinearGradient(0,0,width,height);
+      scheduleGlow.addColorStop(0,'rgba(46,175,139,.13)');scheduleGlow.addColorStop(1,'rgba(111,91,196,.08)');
+      context.fillStyle=scheduleGlow;context.fillRect(0,0,width,height);
+      text('SEJONG SCHEDULE BOARD',38,38,15,'#198b70',900);
+      text('세종 일정 보드',38,76,30,'#153f37',900);
+      text('TODAY · LIVE',width-38,55,14,'#6a817a',800,'right');
+      rounded(34,112,548,374,22,'#ffffff','#cce5dc');
+      text('오늘의 세종',58,144,21,'#174a40',900);
+      text('🎉  진행 중 행사',58,183,18,'#7b5ac7',900);
+      const events=['야간 분수쇼','조치원 복숭아축제','국립수목원 특별전'];
+      events.forEach((event,index)=>{
+        rounded(56,210+index*72,500,56,14,index===0?'#eaf8f3':'#f6faf8');
+        rounded(70,226+index*72,24,24,12,index===0?'#20a07f':'#b5d9cd');
+        text(String(index+1),82,238+index*72,12,'#ffffff',900,'center');
+        text(event,110,238+index*72,17,'#244d44',800);
+        text(index===0?'진행 중':'오늘',532,238+index*72,13,index===0?'#16856c':'#7a918b',800,'right');
+      });
+      rounded(608,112,382,110,20,'#0e3b34','#2f7768');
+      text('📅  이번 주 일정',632,146,17,'#72e2c7',900);
+      text('행사 8 · 전시 4 · 체험 6',632,186,20,'#ffffff',900);
+      rounded(608,238,382,110,20,'#ffffff','#d2e5de');
+      text('🔥  인기 장소',632,272,17,'#d86d4d',900);
+      text('세종호수공원 · 조치원시장',632,312,17,'#274f46',800);
+      rounded(608,364,382,122,20,'#eaf5ff','#bfd8ed');
+      text('🌤  오늘의 날씨',632,399,17,'#3977a7',900);
+      text('24°C  맑음',632,442,25,'#174866',900);
+      text('야외 활동 좋아요',966,442,14,'#56809b',800,'right');
+    }else if(false&&kind==='recommendation'){
       text('AI PROJECT MATCH',58,52,18,'#20a080',900);
       text('나에게 맞는 프로젝트',58,94,35,'#173f37',900);
       text('체험 기록과 관심사를 바탕으로 추천했어요',width-58,94,18,'#68827a',600,'right');
@@ -3093,7 +3214,7 @@ export class VillageMapRenderer{
         tag(card[2],x+24,309,116);
         text(`추천 역할  ${card[3]}`,x+24,365,15,'#5c756e',700);
       });
-    }else if(kind==='board'){
+    }else if(false){
       text('PROJECT BOARD',42,50,17,'#1b8d72',900);
       text('모집 중인 프로젝트',42,92,31,'#173f37',900);
       const cards=[
@@ -3111,12 +3232,11 @@ export class VillageMapRenderer{
       });
       text('가까이에서 E를 눌러 프로젝트를 확인하세요',width/2,height-28,15,'#668078',700,'center');
     }else{
-      const card=(y:number,icon:string,title:string,description:string,primary=false)=>{
+      const card=(y:number,icon:string,title:string,primary=false)=>{
         rounded(34,y,width-68,120,20,primary?'#15977c':'#143c35',primary?'#53e5c5':'#2a5b51');
         rounded(52,y+25,70,70,16,primary?'rgba(255,255,255,.14)':'#214d45');
         text(icon,87,y+60,34,'#ffffff',700,'center');
-        text(title,144,y+42,22,'#ffffff',900);
-        text(description,144,y+73,13,primary?'#d9fff6':'#b2d1c9',600);
+        text(title,144,y+66,22,'#ffffff',900);
         text('›',width-55,y+59,42,'#ffffff',400,'center');
       };
       context.fillStyle='#071f1c';context.fillRect(12,12,width-24,height-24);
@@ -3130,9 +3250,9 @@ export class VillageMapRenderer{
       text('체험 탐험가님, 무엇을 할까요?',36,154,29,'#ffffff',900);
       text('화면에서 원하는 기능을 선택하세요.',36,196,14,'#b0cec6',600);
       context.fillStyle='rgba(108,205,181,.22)';context.fillRect(34,231,width-68,1);
-      card(267,'＋','새 프로젝트 시작하기','새 프로젝트를 만들고 팀원을 모집해요',true);
-      card(407,'⌕','모집글 둘러보기','함께할 사람을 찾는 글을 살펴봐요');
-      card(547,'▱','내 프로젝트','내가 만든 프로젝트와 참여 현황을 확인해요');
+      card(267,'＋','새 프로젝트 시작하기',true);
+      card(407,'⌕','프로젝트 둘러보기');
+      card(547,'▱','내 프로젝트');
       text('화면을 터치하거나 항목을 선택하세요',36,height-54,12,'#9bc3ba',600);
       rounded(width-82,height-78,48,34,9,'#123b34','#3f6e63');
       text('ESC',width-58,height-61,12,'#d8eee8',800,'center');
@@ -3146,10 +3266,14 @@ export class VillageMapRenderer{
     return texture;
   }
   private setupProjectRoomScreens(model:THREE.Object3D){
+    // Make both lobby kiosks easier to see and use while preserving their
+    // authored positions and proportions.
+    ['Lobby_NewProject_Kiosk','Lobby_NewProject_Kiosk_2'].forEach(name=>{
+      model.getObjectByName(name)?.scale.multiplyScalar(1.5);
+    });
     const screens=[
       {anchor:'Idea_Board_Frame',surface:'Idea_Board_Frame',kind:'board' as const,size:[4.18,2.18] as const,position:[.121,0,0] as const,rotationY:Math.PI/2,hide:['Idea_Board_Card_','Idea_Board_Status_','Idea_Board_Title_Line']},
       {anchor:'Project_Screen_Frame',surface:'Project_Screen_Frame',kind:'recommendation' as const,size:[7.35,2.08] as const,position:[0,0,.121] as const,rotationY:0,hide:['Project_Screen_Card_','Project_Screen_Title_Line']},
-      {anchor:'Kiosk_Screen_Inner',surface:'Kiosk_Screen_Inner',kind:'kiosk' as const,kioskId:'project-kiosk' as const,kioskRoot:'Project_Touch_Kiosk',size:[.79,1.42] as const,position:[0,0,.03] as const,rotationY:0,hide:['Kiosk_Plus_']},
       {anchor:'Lobby_Kiosk_Screen',surface:'Lobby_Kiosk_Screen',kind:'kiosk' as const,kioskId:'lobby-kiosk-1' as const,kioskRoot:'Lobby_NewProject_Kiosk',size:[.98,2.1] as const,position:[0,0,.04] as const,rotationY:0,hide:[]},
       {anchor:'Lobby_Kiosk_Screen_2',surface:'Lobby_Kiosk_Screen_2',kind:'kiosk' as const,kioskId:'lobby-kiosk-2' as const,kioskRoot:'Lobby_NewProject_Kiosk_2',size:[.98,2.1] as const,position:[0,0,.04] as const,rotationY:0,hide:[]},
     ];
@@ -3177,16 +3301,16 @@ export class VillageMapRenderer{
         const kioskRoot=model.getObjectByName(config.kioskRoot)??target;
         const kioskCenter=new THREE.Box3().setFromObject(kioskRoot).getCenter(new THREE.Vector3());
         const screenNormal=new THREE.Vector3(0,0,1).transformDirection(target.matrixWorld).normalize();
+        const isLobbyKiosk=config.kioskId==='lobby-kiosk-1'||config.kioskId==='lobby-kiosk-2';
+        // The lobby kiosks are displayed at 1.5x scale, so frame them from a
+        // little farther away to keep the complete screen bezel in view.
+        const cameraDistance=isLobbyKiosk?1100:900;
         const view={
-          target:kioskCenter.clone().add(new THREE.Vector3(0,15,0)),
-          camera:kioskCenter.clone().addScaledVector(screenNormal,900).add(new THREE.Vector3(0,60,0)),
+          target:kioskCenter.clone().add(new THREE.Vector3(0,isLobbyKiosk?0:15,0)),
+          camera:kioskCenter.clone().addScaledVector(screenNormal,cameraDistance).add(new THREE.Vector3(0,isLobbyKiosk?45:60,0)),
         };
         this.projectRoomKioskScreens.set(config.kioskId,panel);
         this.projectRoomKioskViews.set(config.kioskId,view);
-        if(config.kioskId==='project-kiosk'){
-          this.projectRoomKioskScreen=panel;
-          this.projectRoomKioskView=view;
-        }
       }
       model.traverse(object=>{if(hide.some(prefix=>object.name.startsWith(prefix)))object.visible=false});
     });
@@ -3636,7 +3760,11 @@ export class VillageMapRenderer{
     });
   }
   private setupProjectRoomInteractionOutlines(model:THREE.Object3D){
+    const doorPrefixes=['Lobby_ProjectDoor_Glass_','Lobby_ProjectDoor_Handle_'];
+    this.projectRoomDoorMeshes=[];
+    model.traverse(object=>{if(object instanceof THREE.Mesh&&doorPrefixes.some(prefix=>object.name.startsWith(prefix)))this.projectRoomDoorMeshes.push(object)});
     PROJECT_ROOM_INTERACTIONS.forEach(config=>{
+      if(config.id==='project-kiosk')return;
       const matches:THREE.Object3D[]=[];
       model.traverse(object=>{
         if(config.objectNames.includes(object.name))matches.push(object);
@@ -3648,24 +3776,20 @@ export class VillageMapRenderer{
       const center=bounds.getCenter(new THREE.Vector3());
       const position={x:center.x,z:this.sceneToWorldZ(center.z),radius:config.radius};
       const roomIsRightOfLobby=this.options.mapName==='프로젝트실'&&!!this.options.companionModelUrl;
-      if(config.id==='project-board'){
+      if(config.id==='sejong-schedule-board'){
         if(roomIsRightOfLobby)position.z+=185;else position.x+=185;
         position.radius=Math.max(position.radius,285);
       }
-      if(config.id==='ai-recommendation-screen'){
+      if(config.id==='project-status-board'){
         if(roomIsRightOfLobby)position.x-=230;else position.z+=230;
         position.radius=Math.max(position.radius,330);
-      }
-      if(config.id==='project-kiosk'){
-        if(roomIsRightOfLobby)position.x-=175;else position.z+=175;
-        position.radius=Math.max(position.radius,320);
       }
       if(config.id==='lobby-kiosk-1'||config.id==='lobby-kiosk-2'){
         position.z-=175;
         position.radius=Math.max(position.radius,320);
       }
       this.projectRoomInteractionPositions.set(config.id,position);
-      const helper=new THREE.Box3Helper(bounds,config.id==='ai-recommendation-screen'?0x55e5ff:0x74f0c9);
+      const helper=new THREE.Box3Helper(bounds,config.id==='project-status-board'?0x55e5ff:0x74f0c9);
       helper.name=`project-room-outline-${config.id}`;
       helper.visible=false;
       helper.renderOrder=90;
@@ -4573,6 +4697,18 @@ export class VillageMapRenderer{
       }
     }
     if(this.options.projectRoomInteractions){
+      if(this.projectRoomDoorUnlocked){
+        const doorPosition=this.projectRoomInteractionPositions.get('project-door');
+        if(doorPosition){
+          const currentSide=Math.sign(nextX-doorPosition.x);
+          if(currentSide!==0&&currentSide!==this.projectRoomDoorEntrySide&&Math.abs(nextX-doorPosition.x)>35){
+            // Face the project room square-on after crossing the door.
+            this.projectRoomCameraAzimuthDeg=-90;
+            gameEvents.emit('project-room-entered');
+            this.lockProjectRoomDoor();
+          }
+        }
+      }
       if(this.projectLobbyBoardPosition){
         const distance=Math.hypot(nextX-this.projectLobbyBoardPosition.x,nextZ-this.projectLobbyBoardPosition.z);
         const nearby=distance<this.projectLobbyBoardPosition.radius+(this.projectLobbyBoardNearby?55:0);
@@ -4656,7 +4792,7 @@ export class VillageMapRenderer{
   removeRemoteCharacter(id:string){this.remotes.get(id)?.destroy();this.remotes.delete(id);this.remoteGrounds.delete(id)}
 
   movementFromScreen(x:number,z:number){
-    const azimuth=THREE.MathUtils.degToRad(this.options.cameraAzimuthDeg??0);
+    const azimuth=THREE.MathUtils.degToRad(this.projectRoomCameraAzimuthDeg??this.options.cameraAzimuthDeg??0);
     const cosine=Math.cos(azimuth),sine=Math.sin(azimuth);
     return {x:x*cosine+z*sine,z:-x*sine+z*cosine};
   }
@@ -4825,7 +4961,7 @@ export class VillageMapRenderer{
       }
       if(this.options.fixedCameraTarget&&!this.mapBounds.isEmpty())this.mapBounds.getCenter(this.cameraTarget);
       const distance=this.options.cameraDistance??CAMERA_DISTANCE;
-      const azimuth=THREE.MathUtils.degToRad(this.options.cameraAzimuthDeg??0);
+      const azimuth=THREE.MathUtils.degToRad(this.projectRoomCameraAzimuthDeg??this.options.cameraAzimuthDeg??0);
       const horizontalDistance=this.options.cameraHorizontalDistance??Math.cos(elevation)*distance;
       this.camera.aspect=this.width/Math.max(1,this.height);
       this.camera.fov=this.options.cameraFov??42;
@@ -4853,7 +4989,7 @@ export class VillageMapRenderer{
       this.cameraTarget.z=minZ<=maxZ?THREE.MathUtils.clamp(this.cameraTarget.z,minZ,maxZ):center.z;
     }
     this.camera.left=-this.width/(2*zoom);this.camera.right=this.width/(2*zoom);this.camera.top=this.height/(2*zoom);this.camera.bottom=-this.height/(2*zoom);
-    const azimuth=THREE.MathUtils.degToRad(this.options.cameraAzimuthDeg??0);
+    const azimuth=THREE.MathUtils.degToRad(this.projectRoomCameraAzimuthDeg??this.options.cameraAzimuthDeg??0);
     const horizontalDistance=Math.cos(elevation)*CAMERA_DISTANCE;
     this.camera.position.set(
       this.cameraTarget.x+Math.sin(azimuth)*horizontalDistance,
@@ -4876,7 +5012,19 @@ export class VillageMapRenderer{
     this.qualityElapsed=0;this.qualityFrameTime=0;this.qualityFrames=0;
   }
 
-  private resize(force=false){const width=Math.max(1,this.parent.clientWidth),height=Math.max(1,this.parent.clientHeight);if(!force&&width===this.width&&height===this.height)return;this.width=width;this.height=height;this.renderer.setSize(width,height,false)}
+  private resize(force=false){
+    const width=Math.max(1,this.parent.clientWidth),height=Math.max(1,this.parent.clientHeight);
+    if(!force&&width===this.width&&height===this.height)return;
+    this.width=width;this.height=height;
+    this.renderer.setSize(width,height,false);
+    // Keep the projection and the CSS-sized canvas in lockstep. Without this,
+    // a viewport/layout resize can briefly draw the previous aspect ratio into
+    // the new canvas dimensions, which is most noticeable as horizontal stretch.
+    if(this.camera instanceof THREE.PerspectiveCamera){
+      this.camera.aspect=width/height;
+      this.camera.updateProjectionMatrix();
+    }
+  }
   private render(){
     this.resize();if(this.destroyed)return;this.renderer.render(this.scene,this.camera);
     this.syncStudentHallBoardScreenRects();
@@ -4884,8 +5032,19 @@ export class VillageMapRenderer{
     if(this.clubBoothCardAnchors.length){
       const rect=this.renderer.domElement.getBoundingClientRect();
       gameEvents.emit('club-booth-card-screen-positions',this.clubBoothCardAnchors.map(object=>{
-        const center=new THREE.Box3().setFromObject(object).getCenter(new THREE.Vector3());center.y+=18;const projected=center.project(this.camera);
-        return {x:rect.left+(projected.x+1)*rect.width/2,y:rect.top+(1-projected.y)*rect.height/2,visible:projected.z>=-1&&projected.z<=1&&Math.abs(projected.x)<=1.15&&Math.abs(projected.y)<=1.15};
+        const mesh=object as THREE.Mesh,geometry=mesh.geometry;
+        if(geometry&&!geometry.boundingBox)geometry.computeBoundingBox();
+        const bounds=geometry?.boundingBox,worldBounds=new THREE.Box3().setFromObject(object);
+        const localCenter=bounds?.getCenter(new THREE.Vector3());
+        const center=bounds&&localCenter?localCenter.clone().applyMatrix4(object.matrixWorld):worldBounds.getCenter(new THREE.Vector3());
+        const halfWidth=bounds?Math.max(.01,(bounds.max.x-bounds.min.x)*.42):1,halfDepth=bounds?Math.max(.01,(bounds.max.z-bounds.min.z)*.32):.6;
+        const edgeA=bounds&&localCenter?new THREE.Vector3(localCenter.x-halfWidth,bounds.max.y+.02,localCenter.z).applyMatrix4(object.matrixWorld):center.clone().add(new THREE.Vector3(-1,0,0));
+        const edgeB=bounds&&localCenter?new THREE.Vector3(localCenter.x+halfWidth,bounds.max.y+.02,localCenter.z).applyMatrix4(object.matrixWorld):center.clone().add(new THREE.Vector3(1,0,0));
+        const depthA=bounds&&localCenter?new THREE.Vector3(localCenter.x,bounds.max.y+.02,localCenter.z-halfDepth).applyMatrix4(object.matrixWorld):center.clone().add(new THREE.Vector3(0,0,-.6));
+        const depthB=bounds&&localCenter?new THREE.Vector3(localCenter.x,bounds.max.y+.02,localCenter.z+halfDepth).applyMatrix4(object.matrixWorld):center.clone().add(new THREE.Vector3(0,0,.6));
+        const projected=center.clone().project(this.camera),projectScreen=(point:THREE.Vector3)=>{const value=point.project(this.camera);return new THREE.Vector2((value.x+1)*rect.width/2,(1-value.y)*rect.height/2)};
+        const screenA=projectScreen(edgeA),screenB=projectScreen(edgeB),screenDepthA=projectScreen(depthA),screenDepthB=projectScreen(depthB);
+        return {x:rect.left+(projected.x+1)*rect.width/2,y:rect.top+(1-projected.y)*rect.height/2,width:screenA.distanceTo(screenB),height:screenDepthA.distanceTo(screenDepthB),rotation:THREE.MathUtils.radToDeg(Math.atan2(screenB.y-screenA.y,screenB.x-screenA.x)),visible:projected.z>=-1&&projected.z<=1&&Math.abs(projected.x)<=1.15&&Math.abs(projected.y)<=1.15};
       }));
     }
   }
@@ -4941,6 +5100,7 @@ export class VillageMapRenderer{
     if(this.options.projectRoomInteractions)gameEvents.off('project-room-kiosk-activate',this.enterProjectRoomKiosk);
     if(this.options.projectRoomInteractions)gameEvents.off('project-lobby-board-focus-open',this.enterProjectLobbyBoardFocus);
     if(this.options.projectRoomInteractions)gameEvents.off('project-room-seat-toggle',this.toggleProjectRoomSeat);
+    if(this.options.projectRoomInteractions)gameEvents.off('project-room-door-unlock',this.unlockProjectRoomDoor);
     if(this.options.projectRoomInteractions)window.removeEventListener('pointerdown',this.onProjectRoomKioskPointerDown,true);
     if(this.options.foodTruckExperience)gameEvents.off('food-truck-kiosk-activate',this.enterFoodTruckKiosk);
     if(this.options.foodTruckExperience)gameEvents.off('food-truck-kiosk-close',this.exitFoodTruckKiosk);

@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
+import { ClubModel } from '../models/Club.js';
 
 type ClubMember = {
   userId: string;
@@ -64,13 +65,17 @@ async function ensureDataFile(): Promise<void> {
 }
 
 async function readClubs(): Promise<Club[]> {
+  const stored=await ClubModel.find().select('-_id').lean<Club[]>();
+  if(stored.length)return stored;
   await ensureDataFile();
 
   try {
     const fileContent = await fs.readFile(dataFilePath, 'utf-8');
     const parsedData = JSON.parse(fileContent);
 
-    return Array.isArray(parsedData) ? parsedData : [];
+    const seeds=Array.isArray(parsedData)?parsedData as Club[]:[];
+    if(seeds.length)await ClubModel.insertMany(seeds,{ordered:false});
+    return seeds;
   } catch (error) {
     console.error('[Clubs] 동아리 파일 읽기 실패:', error);
     return [];
@@ -78,13 +83,8 @@ async function readClubs(): Promise<Club[]> {
 }
 
 async function saveClubs(clubs: Club[]): Promise<void> {
-  await ensureDataFile();
-
-  await fs.writeFile(
-    dataFilePath,
-    JSON.stringify(clubs, null, 2),
-    'utf-8',
-  );
+  await ClubModel.deleteMany({});
+  if(clubs.length)await ClubModel.insertMany(clubs);
 }
 
 const placeVoteOptions = ['국립세종수목원', '세종호수공원', '이응다리', '조치원전통시장'];

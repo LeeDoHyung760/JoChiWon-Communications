@@ -1,5 +1,5 @@
 export type ProjectRoomKioskInteractionId='project-kiosk'|'lobby-kiosk-1'|'lobby-kiosk-2';
-export type ProjectRoomInteractionId='project-board'|'ai-recommendation-screen'|ProjectRoomKioskInteractionId|'collaboration-table';
+export type ProjectRoomInteractionId='sejong-schedule-board'|'project-status-board'|ProjectRoomKioskInteractionId|'collaboration-table'|'project-door';
 
 export const isProjectRoomKioskInteraction=(id:ProjectRoomInteractionId|undefined):id is ProjectRoomKioskInteractionId=>
   id==='project-kiosk'||id==='lobby-kiosk-1'||id==='lobby-kiosk-2';
@@ -18,6 +18,17 @@ const METRE=123;
 
 export const PROJECT_ROOM_INTERACTIONS:ProjectRoomInteraction[]=[
   {
+    id:'project-door',
+    label:'완성된 프로젝트로 내부 입장',
+    radius:2.8*METRE,
+    radiusMeters:2.8,
+    x:1200,
+    z:1320,
+    // The authored entrance marker is an empty Group and has no bounds.
+    // Use the two real GLB door leaves so proximity is measured at the door.
+    objectNames:['Lobby_ProjectDoor_Glass_Back','Lobby_ProjectDoor_Glass_Front'],
+  },
+  {
     id:'collaboration-table',
     label:'협업 테이블에서 코스 편집',
     radius:4.2*METRE,
@@ -27,8 +38,8 @@ export const PROJECT_ROOM_INTERACTIONS:ProjectRoomInteraction[]=[
     objectNames:['Collaboration_Table_Top','Collaboration_Table_Inset'],
   },
   {
-    id:'project-board',
-    label:'모집 프로젝트 보기',
+    id:'sejong-schedule-board',
+    label:'세종 일정 보드 보기',
     radius:2*METRE,
     radiusMeters:2,
     x:300,
@@ -36,8 +47,8 @@ export const PROJECT_ROOM_INTERACTIONS:ProjectRoomInteraction[]=[
     objectNames:['Idea_Board_Frame'],
   },
   {
-    id:'ai-recommendation-screen',
-    label:'나에게 맞는 프로젝트 보기',
+    id:'project-status-board',
+    label:'프로젝트 현황 보기',
     radius:2.5*METRE,
     radiusMeters:2.5,
     x:1200,

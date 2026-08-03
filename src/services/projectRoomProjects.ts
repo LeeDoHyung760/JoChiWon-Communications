@@ -21,6 +21,9 @@ export interface Project{
   thumbnail?:string;
   createdAt:string;
   visibility?:'public'|'private';
+  sponsorClubId?:string;
+  sponsorClubName?:string;
+  sponsorClubInterests?:string[];
 }
 
 export interface ProjectApplication{
@@ -67,7 +70,19 @@ function readArray<T>(key:string,fallback:T[]){
 
 export function loadProjectRoomProjects(){
   const saved=readArray<Project>(PROJECTS_KEY,[]);
-  if(saved.length)return saved;
+  if(saved.length){
+    let changed=false;
+    const projects=saved.map(project=>{
+      if(!project.title.includes('여고'))return project;
+      const members=[...new Set([project.leaderId,...project.memberIds])];
+      while(members.length<3)members.push(`여고 프로젝트 팀원 ${members.length+1}`);
+      const next={...project,maxMembers:3,memberIds:members.slice(0,3),status:'active' as const};
+      if(project.maxMembers!==next.maxMembers||project.status!==next.status||project.memberIds.join('|')!==next.memberIds.join('|'))changed=true;
+      return next;
+    });
+    if(changed)localStorage.setItem(PROJECTS_KEY,JSON.stringify(projects));
+    return projects;
+  }
   localStorage.setItem(PROJECTS_KEY,JSON.stringify(seedProjects));
   return seedProjects;
 }
@@ -141,14 +156,30 @@ export function createProjectApplication(project:Project,profile:UserProfile,mes
   return [application,...applications];
 }
 
-export function suggestProjectCopy(place:string,purpose:string){
-  const focus=/사진/.test(purpose)?'사진 기록단':/인터뷰/.test(purpose)?'문화 인터뷰단':/축제/.test(purpose)?'축제 탐방단':'함께 탐험단';
-  const shortPlace=place.replace('국립세종','').replace('세종','');
-  const tags=unique([/사진/.test(purpose)?'사진':'탐방',/식물|자연|수목원/.test(`${place} ${purpose}`)?'자연':'문화',shortPlace,'기록']);
+export function suggestProjectCopy(place:string,purpose:string,activityTypes:string[]=[]){
+  const normalizedPlace=place.trim(),normalizedPurpose=purpose.trim().replace(/[.!?]+$/,'');
+  const context=`${normalizedPurpose} ${activityTypes.join(' ')}`;
+  const focus=/인터뷰/.test(context)?'이야기 기록단':/사진/.test(context)?'사진 기록단':/축제/.test(context)?'축제 탐방단':/조사/.test(context)?'현장 조사단':/코스|기획/.test(context)?'로컬 기획단':'함께 활동단';
+  const shortPlace=normalizedPlace.replace('국립세종','').replace(/^세종시?\s*/,'').trim()||normalizedPlace;
+  const activityCopy=activityTypes.length?activityTypes.slice(0,3).join('·'):'현장 탐방';
+  const tags=unique([...activityTypes,/식물|자연|수목원/.test(`${normalizedPlace} ${normalizedPurpose}`)?'자연':'문화',shortPlace,'기록']);
   return {
     title:`${shortPlace} ${focus}`.trim(),
-    summary:`${place}을(를) 함께 둘러보며 ${purpose||'새로운 장소와 이야기를'} 기록합니다.`,
+    summary:`${normalizedPlace}에서 ${activityCopy} 활동을 하며 ${normalizedPurpose||'새로운 장소와 이야기를 함께 발견하고 기록하는'} 프로젝트입니다.`,
     tags,
-    roles:['사진 촬영','현장 조사','일정 관리'],
   };
+}
+
+export function suggestProjectTraits(place:string,purpose:string,activityTypes:string[]=[]){
+  const context=`${place} ${purpose} ${activityTypes.join(' ')}`;
+  const suggested:string[]=[];
+  if(/사진|영상|기록/.test(context))suggested.push('사진 기록형');
+  if(/탐방|자연|산책|여행/.test(context))suggested.push('탐색형');
+  if(/조사|기획|제작|일정|지도/.test(context))suggested.push('계획형');
+  if(/축제|공연|체험/.test(context))suggested.push('자유형');
+  if(/휴식|여유|산책|자연/.test(context))suggested.push('여유형');
+  if(/코스|관리|정리|완성/.test(context))suggested.push('효율형');
+  if(/인터뷰|문화|이야기|소통/.test(context))suggested.push('대화 중심');
+  if(/조사|실행|탐방|제작|기록/.test(context))suggested.push('실행 중심');
+  return unique(suggested).slice(0,4).length?unique(suggested).slice(0,4):['실행 중심','대화 중심'];
 }

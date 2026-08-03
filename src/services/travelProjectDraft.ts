@@ -1,16 +1,25 @@
 export type TravelIdea={id:string;name:string;category:'place'|'theme'|'food'|'festival';emoji:string;votes:number};
 export type TravelRole={name:string;role:string};
+export type TravelMessage={id:string;author:string;text:string;createdAt:string};
 export type TravelProjectDraft={
   title:string;
   concept:string;
   ideas:TravelIdea[];
   roles:TravelRole[];
+  messages?:TravelMessage[];
+  courseOrder?:string[];
+  courseConfirmed?:boolean;
+  courseStartTime?:string;
+  courseDurations?:Record<string,number>;
+  courseActivityMap?:Record<string,string[]>;
+  courseTimes?:Record<string,string>;
   note:string;
   status:'draft'|'review-requested'|'approved';
   updatedAt:string;
 };
 
 const KEY='sejong-travel-project-draft-v1';
+const keyFor=(projectId?:string)=>projectId?`${KEY}:${projectId}`:KEY;
 
 export const DEFAULT_TRAVEL_DRAFT:TravelProjectDraft={
   title:'세종 야경 출사 여행',
@@ -34,14 +43,14 @@ export const DEFAULT_TRAVEL_DRAFT:TravelProjectDraft={
   updatedAt:new Date().toISOString(),
 };
 
-export function loadTravelProjectDraft():TravelProjectDraft{
+export function loadTravelProjectDraft(projectId?:string,fallback:TravelProjectDraft=DEFAULT_TRAVEL_DRAFT):TravelProjectDraft{
   try{
-    const value=localStorage.getItem(KEY);
-    return value?{...DEFAULT_TRAVEL_DRAFT,...JSON.parse(value)}:DEFAULT_TRAVEL_DRAFT;
-  }catch{return DEFAULT_TRAVEL_DRAFT}
+    const value=localStorage.getItem(keyFor(projectId));
+    return value?{...fallback,...JSON.parse(value)}:fallback;
+  }catch{return fallback}
 }
 
-export function saveTravelProjectDraft(draft:TravelProjectDraft){
-  localStorage.setItem(KEY,JSON.stringify({...draft,updatedAt:new Date().toISOString()}));
+export function saveTravelProjectDraft(draft:TravelProjectDraft,projectId?:string){
+  localStorage.setItem(keyFor(projectId),JSON.stringify({...draft,updatedAt:new Date().toISOString()}));
   window.dispatchEvent(new CustomEvent('sejong-travel-draft-changed'));
 }

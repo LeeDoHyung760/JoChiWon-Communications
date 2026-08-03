@@ -68,7 +68,6 @@ bunting('Bunting_North',-24,.6);bunting('Bunting_Center',-4,.75);bunting('Buntin
 // Human-scale lamps, benches and entrance portal.
 for(const side of [-1,1]) for(const z of [-27,-9,9,27]){const x=side*15.2;cyl(`LampPost_${side}_${z}`,.11,3.5,[x,1.8,z],M.metal,scene,10);ico(`Lamp_${side}_${z}`,.23,[x,3.65,z],M.lamp,scene,1);}
 for(const side of [-1,1]) for(const z of [-14,1,16]){const x=side*15;box(`Bench_${side}_${z}_Seat`,[2.8,.22,.7],[x,.65,z],M.wood2);box(`Bench_${side}_${z}_Back`,[2.8,.85,.16],[x,1.1,z+.34],M.wood2);for(const dx of [-1,1]) box(`Bench_${side}_${z}_Leg_${dx}`,[.16,.6,.5],[x+dx,.35,z],M.metal);}
-for(const r of [1.15,1.55]){const ring=new THREE.Mesh(new THREE.TorusGeometry(r,.12,10,36),M.portal);ring.name=`EntrancePortalRing_${r}`;ring.position.set(0,.22,27);ring.rotation.x=Math.PI/2;scene.add(ring);}cyl('EntrancePortalCore',.95,.08,[0,.2,27],M.portal,scene,36);
 const spawn=new THREE.Object3D();spawn.name='Spawn_ClubStreetFestival';spawn.position.set(0,.3,27);scene.add(spawn);
 for(const [name,x,z] of [['NorthExit',0,-29],['SouthEntrance',0,27],['Center',0,0]]){const o=new THREE.Object3D();o.name=`Navigation_${name}`;o.position.set(x,.3,z);scene.add(o);}
 
