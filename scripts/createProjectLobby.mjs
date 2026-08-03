@@ -89,11 +89,12 @@ rounded('Lobby_ProjectDoor_Right_Glow_Back',[.5,3.05,.07],[8.76,1.65,10.38],mate
 rounded('Lobby_ProjectDoor_Right_Glow_Front',[.5,3.05,.07],[8.76,1.65,16.62],material.violet,.03);
 rounded('Lobby_ProjectDoor_Right_Glow_Top',[.5,.07,6.2],[8.76,3.05,13.5],material.violet,.03);
 box('Lobby_ProjectDoor_Right_Threshold',[.72,.055,6.25],[9.0,.028,13.5],material.black);
-// Open sliding glass leaves make the doorway readable without blocking movement.
-rounded('Lobby_ProjectDoor_Glass_Back',[.08,2.72,1.22],[8.82,1.48,11.06],material.glass,.04);
-rounded('Lobby_ProjectDoor_Glass_Front',[.08,2.72,1.22],[8.82,1.48,15.94],material.glass,.04);
-rounded('Lobby_ProjectDoor_Handle_Back',[.11,.58,.07],[8.70,1.48,11.72],material.warm,.03);
-rounded('Lobby_ProjectDoor_Handle_Front',[.11,.58,.07],[8.70,1.48,15.28],material.warm,.03);
+// Keep the project-room sliding doors closed, with both leaves meeting at the
+// center of the doorway and their handles aligned along the center seam.
+rounded('Lobby_ProjectDoor_Glass_Back',[.08,2.72,3.04],[8.82,1.48,11.94],material.glass,.04);
+rounded('Lobby_ProjectDoor_Glass_Front',[.08,2.72,3.04],[8.82,1.48,15.06],material.glass,.04);
+rounded('Lobby_ProjectDoor_Handle_Back',[.11,.58,.07],[8.70,1.48,13.30],material.warm,.03);
+rounded('Lobby_ProjectDoor_Handle_Front',[.11,.58,.07],[8.70,1.48,13.70],material.warm,.03);
 
 // A short open-top connector makes the side-by-side layout unmistakable.
 // The project-room GLB begins at x=13 after its runtime transform.

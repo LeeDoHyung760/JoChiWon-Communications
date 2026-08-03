@@ -22,6 +22,8 @@ const characterSchema = z.object({
 });
 const profileSchema = z.object({
   nickname: z.string().trim().min(1).max(30),
+  residence: z.string().trim().min(1).max(30).optional(),
+  sejongVisitExperience: z.string().trim().min(1).max(30).optional(),
   mbti: z.string().trim().max(10),
   interests: shortList,
   usagePurposes: shortList,
@@ -68,7 +70,7 @@ accountRouter.put('/me/profile', async (req, res) => {
   }
   const user = await UserModel.findByIdAndUpdate(
     res.locals.authenticatedUserId,
-    { $set: { profile: parsed.data } },
+    { $set: { profile: parsed.data, onboardingCompleted: true } },
     { returnDocument: 'after', runValidators: true },
   ).select('profile');
   if (!user) return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: '사용자를 찾을 수 없습니다.' } });

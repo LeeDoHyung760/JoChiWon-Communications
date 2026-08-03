@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n WEB,SERVER -c green,cyan \"npm run dev:client\" \"npm run dev:server\"",
-    "dev:client": "vite --host 127.0.0.1 --force",
-    "dev:web": "vite --host 127.0.0.1 --force",
+    "dev:client": "vite --host localhost --force",
+    "dev:web": "vite --host localhost --force",
     "dev:server": "npm --prefix server run dev",
     "verify:providers": "npm --prefix server run verify:providers",
     "verify:direct-recommendation": "npm --prefix server run verify:direct-recommendation",

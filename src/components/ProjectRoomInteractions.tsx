@@ -1,5 +1,5 @@
-import { useEffect,useMemo,useState,type FormEvent } from 'react';
-import { Armchair,ArrowUpDown,Bot,CalendarDays,Check,ChevronRight,Clock3,Info,MapPin,Plus,RotateCcw,Search,Send,Sparkles,Trash2,UserPlus,Users,X } from 'lucide-react';
+import { useEffect,useMemo,useRef,useState,type FormEvent } from 'react';
+import { Armchair,ArrowUpDown,Bot,CalendarDays,Check,ChevronRight,Clock3,FolderOpen,Info,MapPin,Plus,RotateCcw,Search,Send,Sparkles,Trash2,UserPlus,Users,X } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { gameEvents } from '../game/events';
 import { isProjectRoomKioskInteraction,type ProjectRoomInteraction,type ProjectRoomInteractionId } from '../game/projectRoomInteractions';
@@ -19,13 +19,21 @@ import {
 import './ProjectRoomInteractions.css';
 import { loadTravelProjectDraft,saveTravelProjectDraft,type TravelIdea,type TravelProjectDraft } from '../services/travelProjectDraft';
 
-type Panel='board'|'recommendation'|'creation'|'course'|'detail'|'profile-send'|null;
+type Panel='kiosk-home'|'board'|'mine'|'recommendation'|'creation'|'course'|'detail'|'profile-send'|null;
 const filters=['전체','사진','탐방','문화','축제','자연','조사','인터뷰'];
 const places=['세종호수공원','국립세종수목원','베어트리파크','전통시장','공동캠퍼스','기타'];
 const activities=['사진','탐방','문화','축제','자연','조사','인터뷰','코스 기획'];
 const traits=['사진 기록형','탐색형','계획형','자유형','여유형','효율형','대화 중심','실행 중심'];
 const panelFor=(id:ProjectRoomInteractionId):Panel=>id==='project-board'?'board':id==='ai-recommendation-screen'?'recommendation':id==='collaboration-table'?'course':'creation';
-const formatDate=(value?:string)=>value?new Intl.DateTimeFormat('ko-KR',{month:'long',day:'numeric'}).format(new Date(`${value}T00:00:00`)):'일정 협의';
+const isRecruitmentPost=(project:Project)=>project.id.startsWith('recruitment-');
+const formatDate=(value?:string)=>{
+  const schedule=value?.trim();
+  if(!schedule)return '일정 협의';
+  const parsed=new Date(/^\d{4}-\d{2}-\d{2}$/.test(schedule)?`${schedule}T00:00:00`:schedule);
+  if(Number.isNaN(parsed.getTime()))return schedule;
+  try{return new Intl.DateTimeFormat('ko-KR',{month:'long',day:'numeric'}).format(parsed)}
+  catch{return schedule}
+};
 
 export function ProjectRoomInteractions({profile,active,onOpenChange,onNotice}:{profile:UserProfile;active:boolean;onOpenChange:(open:boolean)=>void;onNotice:(message:string)=>void}){
   const [nearby,setNearby]=useState<ProjectRoomInteraction|null>(null);
@@ -41,6 +49,7 @@ export function ProjectRoomInteractions({profile,active,onOpenChange,onNotice}:{
   const [kioskActive,setKioskActive]=useState(false);
   const [kioskScreenRect,setKioskScreenRect]=useState<{left:number;top:number;width:number;height:number}|null>(null);
   const [nearbySeat,setNearbySeat]=useState<{id:string;seated?:boolean}|null>(null);
+  const panelRef=useRef<HTMLElement>(null);
   const aiProfile=useMemo(()=>buildAiSejongProfile(profile),[profile]);
   const recommendations=useMemo(()=>recommendProjects(projects,profile),[profile,projects]);
 
@@ -51,14 +60,17 @@ export function ProjectRoomInteractions({profile,active,onOpenChange,onNotice}:{
       if(next!=='course')setReturnPanel(next as 'board'|'recommendation'|'creation');
       setPanel(next);
     };
-    const kioskMode=(enabled:boolean)=>setKioskActive(enabled);
+    const kioskMode=(enabled:boolean)=>{
+      setKioskActive(enabled);
+      setPanel(enabled?'kiosk-home':null);
+    };
     const kioskRect=(rect:{left:number;top:number;width:number;height:number}|null)=>setKioskScreenRect(rect);
     const seatProximity=(seat:{id:string;seated?:boolean}|null)=>setNearbySeat(seat);
-    const kioskSelection=(selection:'create'|'board'|'recommendation')=>{
+    const kioskSelection=(selection:'create'|'board'|'mine')=>{
       if(selection==='create'){setKioskActive(true);setReturnPanel('creation');setPanel('creation');return}
-      setKioskActive(false);
+      setKioskActive(true);
       if(selection==='board'){setReturnPanel('board');setPanel('board');return}
-      setReturnPanel('recommendation');setPanel('recommendation');
+      setPanel('mine');
     };
     gameEvents.on('project-room-interaction-proximity-changed',proximity);
     gameEvents.on('project-room-interaction-open',open);
@@ -77,26 +89,31 @@ export function ProjectRoomInteractions({profile,active,onOpenChange,onNotice}:{
   },[]);
   useEffect(()=>{if(!active){setNearby(null);setNearbySeat(null);setPanel(null);setSelected(null);setKioskActive(false);gameEvents.emit('project-room-focus-changed',undefined)}},[active]);
   useEffect(()=>onOpenChange(panel!==null||kioskActive),[kioskActive,onOpenChange,panel]);
+  useEffect(()=>{if(kioskActive)panelRef.current?.scrollTo({top:0,left:0})},[kioskActive,panel]);
   useEffect(()=>{
-    gameEvents.emit('project-room-focus-changed',panel==='creation'?'project-kiosk':undefined);
-  },[panel]);
+    if(!kioskActive)gameEvents.emit('project-room-focus-changed',panel==='creation'?'project-kiosk':undefined);
+  },[kioskActive,panel]);
   useEffect(()=>()=>{gameEvents.emit('project-room-focus-changed',undefined)},[]);
   useEffect(()=>{
     if(!panel)return;
     const escape=(event:KeyboardEvent)=>{
       if(event.key!=='Escape')return;
       event.preventDefault();
-      if(panel==='profile-send'||panel==='detail')setPanel(returnPanel);
+      if(kioskActive){
+        if(panel==='kiosk-home'){setPanel(null);setKioskActive(false);gameEvents.emit('project-room-focus-changed',undefined)}
+        else setPanel('kiosk-home');
+      }else if(panel==='profile-send'||panel==='detail')setPanel(returnPanel);
       else setPanel(null);
     };
     window.addEventListener('keydown',escape);
     return()=>window.removeEventListener('keydown',escape);
-  },[panel,returnPanel]);
+  },[kioskActive,panel,returnPanel]);
 
-  const filtered=projects.filter(project=>project.status==='recruiting')
+  const filtered=projects.filter(project=>isRecruitmentPost(project)&&project.status==='recruiting')
     .filter(project=>filter==='전체'||project.tags.includes(filter)||project.activityTypes.includes(filter))
     .filter(project=>!query.trim()||[project.title,project.summary,...project.tags,...project.placeIds].join(' ').toLowerCase().includes(query.trim().toLowerCase()));
   const isSent=(project:Project)=>applications.some(item=>item.projectId===project.id&&item.applicantId===profile.nickname);
+  const myProjects=projects.filter(project=>!isRecruitmentPost(project)&&(project.leaderId===profile.nickname||project.memberIds.includes(profile.nickname)));
   const showDetail=(project:Project,from:'board'|'recommendation'|'creation')=>{setSelected(project);setReturnPanel(from);setPanel('detail')};
   const showProfileSend=(project:Project,from:'board'|'recommendation')=>{if(isSent(project))return;setSelected(project);setReturnPanel(from);setMessage(aiProfile.oneLineAnalysis);setPanel('profile-send')};
   const sendProfile=()=>{
@@ -117,15 +134,17 @@ export function ProjectRoomInteractions({profile,active,onOpenChange,onNotice}:{
     {active&&!nearbySeat&&nearby&&!panel&&!kioskActive&&<button type="button" className="project-room-prompt" onClick={()=>gameEvents.emit(isProjectRoomKioskInteraction(nearby.id)?'project-room-kiosk-activate':'project-room-interaction-open',nearby.id)}>
       <span><Sparkles size={18}/></span><div><small>프로젝트실 상호작용</small><b>{nearby.label}</b></div><kbd>E</kbd><em>상호작용</em>
     </button>}
-    {active&&panel&&<div className={`project-room-overlay ${panel==='creation'?'is-kiosk-mode':''}`} role="dialog" aria-modal="true" aria-label="프로젝트실 기능 패널" onMouseDown={event=>{if(event.target===event.currentTarget)setPanel(null)}}>
-      <section className={`project-room-panel is-${panel}`} style={panel==='creation'&&kioskScreenRect?{position:'fixed',left:kioskScreenRect.left+2,top:kioskScreenRect.top+2,width:Math.max(1,kioskScreenRect.width-4),height:Math.max(1,kioskScreenRect.height-4)}:undefined}>
-        <button type="button" className="project-room-close" onClick={()=>panel==='detail'||panel==='profile-send'?setPanel(returnPanel):setPanel(null)} aria-label="패널 닫기"><X size={20}/></button>
+    {active&&panel&&(!kioskActive||kioskScreenRect)&&<div className={`project-room-overlay ${kioskActive?'is-kiosk-mode':''}`} role="dialog" aria-modal="true" aria-label="프로젝트실 기능 패널" onMouseDown={event=>{if(event.target===event.currentTarget&&!kioskActive)setPanel(null)}}>
+      <section ref={panelRef} className={`project-room-panel is-${panel}`} style={kioskActive&&kioskScreenRect?{position:'fixed',left:kioskScreenRect.left+2,top:kioskScreenRect.top+2,width:Math.max(1,kioskScreenRect.width-4),height:Math.max(1,kioskScreenRect.height-4)}:undefined}>
+        <button type="button" className="project-room-close" onClick={()=>{if(kioskActive){if(panel==='kiosk-home'){setPanel(null);setKioskActive(false);gameEvents.emit('project-room-focus-changed',undefined)}else setPanel('kiosk-home')}else if(panel==='detail'||panel==='profile-send')setPanel(returnPanel);else setPanel(null)}} aria-label={kioskActive&&panel!=='kiosk-home'?'키오스크 홈으로':'패널 닫기'}>{kioskActive&&panel!=='kiosk-home'?<ChevronRight className="kiosk-back-icon" size={20}/>:<X size={20}/>}</button>
+
+        {panel==='kiosk-home'&&<KioskHome profile={profile} onCreate={()=>{setReturnPanel('creation');setPanel('creation')}} onBrowse={()=>{setReturnPanel('board');setPanel('board')}} onMine={()=>setPanel('mine')}/>}
 
         {panel==='board'&&<>
-          <PanelHeader eyebrow="PROJECT BOARD" icon="📌" title="모집 중인 프로젝트" copy="관심 분야를 확인하고, 참여하고 싶은 팀에 내 체험 프로필을 전달하세요."/>
-          <div className="project-room-tools"><label><Search size={17}/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="프로젝트·장소·태그 검색"/></label><nav>{filters.map(item=><button type="button" className={filter===item?'active':''} onClick={()=>setFilter(item)} key={item}>{item}</button>)}</nav></div>
+          <PanelHeader eyebrow="RECRUITMENT BOARD" icon="📌" title="모집글 둘러보기" copy="함께할 사람을 찾는 모집글을 확인하고 내 체험 프로필로 참가를 신청하세요."/>
+          <div className="project-room-tools"><label><Search size={17}/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="모집글·장소·태그 검색"/></label><nav>{filters.map(item=><button type="button" className={filter===item?'active':''} onClick={()=>setFilter(item)} key={item}>{item}</button>)}</nav></div>
           <div className="project-board-list">{filtered.map(project=><ProjectCard key={project.id} project={project} recommendation={recommendations.find(item=>item.projectId===project.id)} sent={isSent(project)} onDetail={()=>showDetail(project,'board')} onSend={()=>showProfileSend(project,'board')}/>)}</div>
-          {!filtered.length&&<EmptyState text="검색 조건에 맞는 모집 프로젝트가 없어요."/>}
+          {!filtered.length&&<EmptyState text="검색 조건에 맞는 모집글이 없어요." hint="새 모집글 작성은 모집센터에서 할 수 있어요."/>}
         </>}
 
         {panel==='recommendation'&&<>
@@ -137,11 +156,16 @@ export function ProjectRoomInteractions({profile,active,onOpenChange,onNotice}:{
           })}</div>
         </>}
 
+        {panel==='mine'&&<section className="kiosk-my-projects">
+          <PanelHeader eyebrow="MY PROJECT" icon="📁" title="내 프로젝트" copy="내가 만든 프로젝트와 참여 현황을 확인하세요."/>
+          <div>{myProjects.length?myProjects.map(project=><button type="button" key={project.id} onClick={()=>{setSelected(project);setReturnPanel('mine');setPanel('detail')}}><span>{project.thumbnail??'💡'}</span><section><small>{project.leaderId===profile.nickname?'내가 만든 프로젝트':'참여 중인 프로젝트'}</small><b>{project.title}</b><em>{project.memberIds.length}/{project.maxMembers}명 · {project.tags.slice(0,2).join(' · ')}</em></section><ChevronRight/></button>):<EmptyState text="아직 참여 중인 프로젝트가 없어요." hint="모집글 신청이 승인되거나 프로젝트를 만들면 여기에 표시돼요."/>}</div>
+        </section>}
+
         {panel==='course'&&<CourseCollaborationTable profile={profile} onNotice={onNotice}/>}
 
         {panel==='creation'&&<ProjectCreationForm profile={profile} onCreated={project=>{const next=[project,...projects];setProjects(next);saveProjectRoomProjects(next);setCreated(project);onNotice('새 프로젝트를 모집 중으로 등록했어요.')}} onDetail={project=>showDetail(project,'creation')} created={created}/>}
 
-        {panel==='detail'&&selected&&<ProjectDetail project={selected} sent={isSent(selected)} onSend={()=>showProfileSend(selected,returnPanel==='recommendation'?'recommendation':'board')}/>}
+        {panel==='detail'&&selected&&<ProjectDetail project={selected} sent={isSent(selected)} canApply={returnPanel!=='mine'} onSend={()=>showProfileSend(selected,returnPanel==='recommendation'?'recommendation':'board')}/>}
 
         {panel==='profile-send'&&selected&&<section className="profile-send-modal">
           <PanelHeader eyebrow="PROFILE DELIVERY" icon="📨" title="내 체험 프로필 전달하기" copy="바로 가입되지 않으며, 팀장이 확인한 뒤 참여 여부를 결정합니다."/>
@@ -157,6 +181,18 @@ export function ProjectRoomInteractions({profile,active,onOpenChange,onNotice}:{
 
 function PanelHeader({eyebrow,icon,title,copy}:{eyebrow:string;icon:string;title:string;copy:string}){
   return <header className="project-panel-header"><span>{icon}</span><div><small>{eyebrow}</small><h2>{title}</h2><p>{copy}</p></div></header>;
+}
+
+function KioskHome({profile,onCreate,onBrowse,onMine}:{profile:UserProfile;onCreate:()=>void;onBrowse:()=>void;onMine:()=>void}){
+  return <section className="kiosk-touch-menu">
+    <header><small>PROJECT KIOSK</small><span>프로젝트실 키오스크</span><h2>{profile.nickname||'체험 탐험가'}님,<br/>무엇을 도와드릴까요?</h2><p>원하는 메뉴를 선택해 주세요.</p></header>
+    <div className="kiosk-touch-actions">
+      <button type="button" className="primary" onClick={onCreate}><i><Plus/></i><span><b>새 프로젝트 시작하기</b><small>새로운 프로젝트를 만들고 팀원을 모집해보세요.</small></span><ChevronRight/></button>
+      <button type="button" onClick={onBrowse}><i><Search/></i><span><b>모집글 둘러보기</b><small>함께할 사람을 찾는 글을 보고 참가를 신청하세요.</small></span><ChevronRight/></button>
+      <button type="button" onClick={onMine}><i><FolderOpen/></i><span><b>내 프로젝트</b><small>내가 만든 프로젝트 또는 참여 중인 팀을 확인해요.</small></span><ChevronRight/></button>
+    </div>
+    <footer><span>화면을 터치하여 메뉴를 선택하세요.</span><b>ⓘ 이용 안내</b></footer>
+  </section>;
 }
 
 type CoursePlace={id:string;name:string;time:string;duration:string;description:string;image:string;tags:string[]};
@@ -212,11 +248,12 @@ function CourseSecondaryTab({tab,profile}:{tab:'roles'|'schedule'|'info';profile
 
 function ProjectCard({project,recommendation,sent,onDetail,onSend}:{project:Project;recommendation?:AIProjectRecommendation;sent:boolean;onDetail:()=>void;onSend:()=>void}){
   const match=recommendation?.matchScore??Math.min(96,66+project.tags.length*5);
-  return <article className="project-board-card"><header><span style={{background:project.id.includes('garden')?'#5cae85':project.id.includes('festival')?'#8a6ad2':'#d38a53'}}>{project.thumbnail??'💡'}</span><div><small>{project.placeIds[0]} · 모집 중</small><h3>{project.title}</h3><p>{project.summary}</p></div><strong>{match}%<small>적합도</small></strong></header><div className="project-tags">{project.tags.map(tag=><i key={tag}>#{tag}</i>)}</div><dl><div><Users size={14}/><span><dt>참여 현황</dt><dd>{project.memberIds.length}/{project.maxMembers}명</dd></span></div><div><CalendarDays size={14}/><span><dt>일정</dt><dd>{formatDate(project.startDate)}</dd></span></div><div><Sparkles size={14}/><span><dt>원하는 성향</dt><dd>{project.preferredTraits.slice(0,2).join(' · ')}</dd></span></div></dl><p className="project-reason">추천 이유 · {recommendation?.reasons[0]??`${project.tags.slice(0,2).join('과 ')} 관심사를 프로젝트 활동으로 이어갈 수 있어요.`}</p><footer><button type="button" onClick={onDetail}>상세 보기 <ChevronRight size={13}/></button><button type="button" disabled={sent} onClick={onSend}>{sent?<><Check size={14}/> 팀장 확인 중</>:<><Send size={14}/> 프로필 전달하기</>}</button></footer></article>;
+  return <article className="project-board-card"><header><span style={{background:project.id.includes('garden')?'#5cae85':project.id.includes('festival')?'#8a6ad2':'#d38a53'}}>{project.thumbnail??'💡'}</span><div><small>{project.placeIds[0]} · 모집글</small><h3>{project.title}</h3><p>{project.summary}</p></div><strong>{match}%<small>적합도</small></strong></header><div className="project-tags">{project.tags.map(tag=><i key={tag}>#{tag}</i>)}</div><dl><div><Users size={14}/><span><dt>모집 현황</dt><dd>{project.memberIds.length}/{project.maxMembers}명</dd></span></div><div><CalendarDays size={14}/><span><dt>일정</dt><dd>{formatDate(project.startDate)}</dd></span></div><div><Sparkles size={14}/><span><dt>관심 태그</dt><dd>{project.tags.slice(0,2).join(' · ')}</dd></span></div></dl><p className="project-reason">추천 이유 · {recommendation?.reasons[0]??`${project.tags.slice(0,2).join('과 ')} 관심사가 잘 맞는 모집글이에요.`}</p><footer><button type="button" onClick={onDetail}>상세 보기 <ChevronRight size={13}/></button><button type="button" disabled={sent} onClick={onSend}>{sent?<><Check size={14}/> 승인 대기 중</>:<><Send size={14}/> 참가 신청</>}</button></footer></article>;
 }
 
-function ProjectDetail({project,sent,onSend}:{project:Project;sent:boolean;onSend:()=>void}){
-  return <section className="project-detail-panel"><PanelHeader eyebrow="PROJECT DETAIL" icon={project.thumbnail??'💡'} title={project.title} copy={project.summary}/><div className="project-detail-hero"><div><small>대표 장소</small><b><MapPin size={15}/>{project.placeIds.join(' · ')}</b></div><div><small>참여 현황</small><b><Users size={15}/>{project.memberIds.length}/{project.maxMembers}명</b></div><div><small>프로젝트 일정</small><b><CalendarDays size={15}/>{formatDate(project.startDate)}</b></div></div><article><small>프로젝트 목적</small><p>{project.description}</p></article><div className="project-detail-columns"><section><small>활동과 태그</small><div>{[...project.activityTypes,...project.tags].map(item=><span key={item}>#{item}</span>)}</div></section><section><small>팀장이 원하는 참여자</small><div>{project.preferredTraits.map(item=><span key={item}>#{item}</span>)}</div></section></div><footer><p>참가 확정이 아니라 체험 프로필을 팀장에게 먼저 전달합니다.</p><button type="button" disabled={sent} onClick={onSend}>{sent?'프로필 전달 완료 · 팀장 확인 중':'프로필 전달하기'}</button></footer></section>;
+function ProjectDetail({project,sent,canApply,onSend}:{project:Project;sent:boolean;canApply:boolean;onSend:()=>void}){
+  const recruitment=isRecruitmentPost(project);
+  return <section className="project-detail-panel"><PanelHeader eyebrow={recruitment?'RECRUITMENT DETAIL':'PROJECT DETAIL'} icon={project.thumbnail??'💡'} title={project.title} copy={project.summary}/><div className="project-detail-hero"><div><small>대표 장소</small><b><MapPin size={15}/>{project.placeIds.join(' · ')}</b></div><div><small>{recruitment?'모집 현황':'참여 현황'}</small><b><Users size={15}/>{project.memberIds.length}/{project.maxMembers}명</b></div><div><small>{recruitment?'모임 일정':'프로젝트 일정'}</small><b><CalendarDays size={15}/>{formatDate(project.startDate)}</b></div></div><article><small>{recruitment?'모집 내용':'프로젝트 목적'}</small><p>{project.description}</p></article><div className="project-detail-columns"><section><small>활동과 태그</small><div>{[...project.activityTypes,...project.tags].map(item=><span key={item}>#{item}</span>)}</div></section><section><small>{recruitment?'관심 태그':'팀장이 원하는 참여자'}</small><div>{(recruitment?project.tags:project.preferredTraits).map(item=><span key={item}>#{item}</span>)}</div></section></div><footer><p>{recruitment?'참가 신청 시 공개한 체험 프로필이 모집자에게 전달됩니다.':canApply?'참가 확정 전 체험 프로필을 팀장에게 전달합니다.':'현재 참여 중인 프로젝트의 상세 정보입니다.'}</p>{canApply&&<button type="button" disabled={sent} onClick={onSend}>{sent?'프로필 전달 완료 · 승인 대기 중':recruitment?'내 프로필로 참가 신청':'프로필 전달하기'}</button>}</footer></section>;
 }
 
 function ProjectCreationForm({profile,onCreated,onDetail,created}:{profile:UserProfile;onCreated:(project:Project)=>void;onDetail:(project:Project)=>void;created:Project|null}){
@@ -235,4 +272,4 @@ function ProjectCreationForm({profile,onCreated,onDetail,created}:{profile:UserP
   </section>;
 }
 
-function EmptyState({text}:{text:string}){return <div className="project-empty"><Search size={28}/><b>{text}</b><p>오른쪽 키오스크에서 새 프로젝트를 만들 수 있어요.</p></div>}
+function EmptyState({text,hint='오른쪽 키오스크에서 새 프로젝트를 만들 수 있어요.'}:{text:string;hint?:string}){return <div className="project-empty"><Search size={28}/><b>{text}</b><p>{hint}</p></div>}

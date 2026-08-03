@@ -45,6 +45,7 @@ const WORLD_WIDTH=2400;
 const WORLD_HEIGHT=1900;
 export const PROJECT_ROOM_WORLD_WIDTH=4700;
 export const PROJECT_ROOM_WORLD_HEIGHT=2400;
+export const RECRUITMENT_CENTER_WORLD_HEIGHT=2200;
 const CAMERA_ELEVATION=THREE.MathUtils.degToRad(33);
 const OVERVIEW_CAMERA_ELEVATION=THREE.MathUtils.degToRad(58);
 const GROUND_PROJECTION=Math.sin(CAMERA_ELEVATION);
@@ -190,6 +191,7 @@ const CAMPUS_FEATURE_PORTAL_DESTINATIONS:Record<CampusFeaturePortalId,Extract<Ma
 type StudentHallFeatureTarget={id:CampusFeaturePortalId;x:number;z:number;radius:number;label:string;description:string};
 type StudentHallBoardId='occupancy'|'activity';
 type StudentHallBoardScreenRect={left:number;top:number;width:number;height:number;quad?:readonly [{x:number;y:number},{x:number;y:number},{x:number;y:number},{x:number;y:number}]};
+type ProjectLobbyBoardScreenRect=StudentHallBoardScreenRect;
 type ResidentConfig={modelUrl:string;x:number;z:number;height:number;yaw:number;stationary?:boolean;patrol?:readonly {x:number;z:number}[];walkSpeed?:number};
 type WildlifeClueConfig={id:'bearA'|'bearB'|'cave'|'food'|'water';x:number;z:number;icon:string;label:string};
 type HabitatResourceId=Extract<WildlifeClueConfig['id'],'cave'|'food'|'water'>;
@@ -225,9 +227,11 @@ export type WorldMapRendererOptions={
   fixedCameraTarget?:boolean;
   centerInWorldCoordinates?:boolean;
   cameraDistance?:number;
+  cameraHorizontalDistance?:number;
   cameraFov?:number;
   cameraTargetHeight?:number;
   cameraFollowBounds?:{minX?:number;maxX?:number;minZ?:number;maxZ?:number};
+  flatGroundExtension?:{minX:number;maxX:number;minZ:number;maxZ:number};
   cameraDownScreenLimitZ?:number;
   characterHeight?:number;
   characterGroundClearance?:number;
@@ -236,6 +240,7 @@ export type WorldMapRendererOptions={
   groundFillColor?:number;
   greenhouse?:boolean;
   performanceMode?:boolean;
+  adaptivePixelRatio?:boolean;
   antialias?:boolean;
   balancedTextureQuality?:boolean;
   maxTextureSize?:number;
@@ -299,7 +304,7 @@ export function portalArrivalSpawn(options:WorldMapRendererOptions,sourceMapId:M
     yaw:Math.atan2(dx,dz),
   };
 }
-export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,cameraZoom:1.12,characterHeight:CHARACTER_HEIGHT,performanceMode:true,balancedTextureQuality:true,performancePixelRatio:1.1,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크',theme:'blue',chargeSeconds:3},fixedPortals:[{...CAMPUS_PORTAL_POSITION,destination:'campus',label:'공동캠퍼스',theme:'blue',chargeSeconds:3},{x:603,z:452,destination:'arts-center',label:'세종예술의전당',appearance:'standing',theme:'orange',fixedPosition:true,sharedPosition:false,chargeSeconds:3},{x:1219,z:1462,destination:'festival-experience',label:'축제부스',appearance:'standing',theme:'orange',fixedPosition:true,sharedPosition:false,chargeSeconds:3},{x:491,z:1556,destination:'food-experience',label:'먹거리 부스',appearance:'standing',theme:'mint',fixedPosition:true,sharedPosition:false,chargeSeconds:3}],lakeExperiences:[{id:'wind-hill',x:1908,z:549,label:'세종 추천 코스 게시판',description:'발견한 취향으로 코스를 살펴봐요',color:0xffffff}]};
+export const LAKE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:villageModelUrl,mapName:'세종호수공원',spawn:LAKE_PARK_SPAWN,guide:true,mapSign:true,overview:true,cameraZoom:1.12,characterHeight:CHARACTER_HEIGHT,performanceMode:true,adaptivePixelRatio:false,balancedTextureQuality:true,performancePixelRatio:1.1,portal:{...BEAR_TREE_PORTAL_POSITION,destination:'bear-tree-park',label:'베어트리파크',theme:'blue',chargeSeconds:3},fixedPortals:[{...CAMPUS_PORTAL_POSITION,destination:'campus',label:'공동캠퍼스',theme:'blue',chargeSeconds:3},{x:603,z:452,destination:'arts-center',label:'세종예술의전당',appearance:'standing',theme:'orange',fixedPosition:true,sharedPosition:false,chargeSeconds:3},{x:1219,z:1462,destination:'festival-experience',label:'축제부스',appearance:'standing',theme:'orange',fixedPosition:true,sharedPosition:false,chargeSeconds:3},{x:491,z:1556,destination:'food-experience',label:'먹거리 부스',appearance:'standing',theme:'mint',fixedPosition:true,sharedPosition:false,chargeSeconds:3}],lakeExperiences:[{id:'wind-hill',x:1908,z:549,label:'세종 추천 코스 게시판',description:'발견한 취향으로 코스를 살펴봐요',color:0xffffff}]};
 export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearTreeParkModelUrl,mapName:'베어트리파크',spawn:BEAR_TREE_PARK_SPAWN,portal:{x:980,z:1580,destination:'town',label:'세종호수공원',theme:'blue',fixedPosition:true,chargeSeconds:3,sharedPosition:false,positionEditable:true},fixedPortals:[{x:682,z:735,destination:'garden',label:'세종수목원',appearance:'white-circle',fixedPosition:true,chargeSeconds:3,positionEditable:true}],interaction:{x:1616,z:601,destination:'bear-play-zone',label:'AI 탐험 연구소',buttonLabel:'자연 탐험 시작하기',fixedPosition:true,chargeSeconds:3,positionEditable:true},cameraZoom:1.12,characterHeight:125,groundFillColor:0xb8a77e,sceneBackgroundColor:'#a9c4ad',toneMappingExposure:.84,lightingIntensityMultiplier:.76,performanceMode:true,balancedTextureQuality:false,maxTextureSize:512,performancePixelRatio:.75,simplifiedCollision:false,bearPhotoZone:true};
 export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={modelUrl:bearPlayZoneModelUrl,mapName:'AI 탐험 연구소',spawn:BEAR_PLAY_ZONE_SPAWN,interaction:{x:1200,z:1650,destination:'bear-tree-park',label:'베어트리파크',buttonLabel:'탐험 마치고 돌아가기',chargeSeconds:3},resident:{modelUrl:bearCubModelUrl,x:1125,z:1435,height:100,yaw:Math.PI,stationary:true},residentDecor:[{modelUrl:grizzlyBearModelUrl,x:1325,z:1410,height:155,yaw:-Math.PI/2,stationary:true}],wildlifeClues:[{id:'bearA',x:1325,z:1410,icon:'🐻',label:'불곰 조사'},{id:'bearB',x:1125,z:1435,icon:'🐻',label:'반달가슴곰 조사'}],cameraZoom:.86,characterHeight:140,groundFillColor:0xead9ad,performanceMode:true,balancedTextureQuality:true,performancePixelRatio:1.1};
 export const GARDEN_RENDERER_OPTIONS:WorldMapRendererOptions={
@@ -416,10 +421,10 @@ export const RECRUITMENT_CENTER_RENDERER_OPTIONS:WorldMapRendererOptions={
   modelUrl:recruitmentCenterModelUrl,
   mapName:'모집센터',
   spawn:RECRUITMENT_CENTER_SPAWN,
-  portal:{x:1200,z:1690,destination:'campus',label:'공동 캠퍼스로 돌아가기',appearance:'white-circle',theme:'mint',chargeSeconds:3,fixedPosition:true,sharedPosition:false,positionEditable:true},
+  portal:{x:1200,z:1690,destination:'campus',label:'공동 캠퍼스로 돌아가기',appearance:'energy-rift',theme:'mint',chargeSeconds:3,fixedPosition:true,sharedPosition:false,positionEditable:true},
   localNpcs:[{
     id:'recruitment-center-guide-chungnyeong',
-    nickname:'안내 데스크 충녕이',
+    nickname:'충녕이',
     status:'모집센터의 동행 모집과 참가 신청을 안내하는 중',
     x:990,
     z:1240,
@@ -435,8 +440,10 @@ export const RECRUITMENT_CENTER_RENDERER_OPTIONS:WorldMapRendererOptions={
   centerInWorldCoordinates:true,
   cameraElevationDeg:27,
   cameraDistance:1450,
+  cameraHorizontalDistance:1600,
   cameraFov:44,
-  cameraScreenOffsetY:55,
+  cameraScreenOffsetY:0,
+  flatGroundExtension:{minX:320,maxX:2080,minZ:1180,maxZ:RECRUITMENT_CENTER_WORLD_HEIGHT-35},
   characterHeight:150,
   characterGroundClearance:4,
   groundFillColor:0x8f7457,
@@ -464,8 +471,9 @@ export const PROJECT_ROOM_RENDERER_OPTIONS:WorldMapRendererOptions={
   centerInWorldCoordinates:true,
   projectRoomInteractions:true,
   cameraElevationDeg:25,
-  cameraDistance:1880,
+  cameraDistance:1400,
   cameraFov:46,
+  cameraFollowBounds:{maxZ:PROJECT_ROOM_SPAWN.z},
   characterHeight:170,
   groundFillColor:0x484945,
   groundingShadows:true,
@@ -1073,13 +1081,27 @@ class WorldCharacter{
 
   private createNameplate(name:string){
     const canvas=document.createElement('canvas');canvas.width=768;canvas.height=192;
-    const context=canvas.getContext('2d')!;context.fillStyle='rgba(255,255,255,.97)';context.strokeStyle='rgba(30,77,65,.34)';context.lineWidth=7;
-    context.beginPath();context.roundRect(7,7,754,178,89);context.fill();context.stroke();
-    context.fillStyle='#42b783';context.beginPath();context.arc(84,96,22,0,Math.PI*2);context.fill();
-    context.fillStyle='#173f38';context.font='900 68px "Noto Sans KR", sans-serif';context.textAlign='center';context.textBaseline='middle';context.fillText(name,440,98,570);
+    const context=canvas.getContext('2d')!,[displayName,role]=name.split(' · ',2);
+    context.shadowColor='rgba(7,31,25,.28)';context.shadowBlur=16;context.shadowOffsetY=8;
+    context.fillStyle='rgba(255,255,255,.99)';context.strokeStyle='rgba(22,77,63,.72)';context.lineWidth=8;
+    context.beginPath();context.roundRect(12,10,744,164,82);context.fill();context.stroke();
+    context.shadowColor='transparent';context.shadowBlur=0;context.shadowOffsetY=0;
+    context.fillStyle='#35b87e';context.beginPath();context.arc(76,92,22,0,Math.PI*2);context.fill();
+    context.fillStyle='#123d33';context.textBaseline='middle';
+    if(role){
+      context.font='900 72px "Noto Sans KR", sans-serif';context.textAlign='left';context.fillText(displayName,116,93,300);
+      context.font='900 43px "Noto Sans KR", sans-serif';const roleWidth=Math.min(context.measureText(role).width+54,310),roleX=724-roleWidth;
+      context.fillStyle='#ccefe0';context.strokeStyle='#4b9b7c';context.lineWidth=4;context.beginPath();context.roundRect(roleX,42,roleWidth,100,50);context.fill();context.stroke();
+      context.fillStyle='#123f34';context.textAlign='center';context.fillText(role,roleX+roleWidth/2,94,roleWidth-34);
+    }else{
+      context.font='900 68px "Noto Sans KR", sans-serif';context.textAlign='center';context.fillText(displayName,424,94,570);
+    }
     const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=textureAnisotropy;texture.minFilter=THREE.LinearMipmapLinearFilter;texture.magFilter=THREE.LinearFilter;
-    const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:true,depthWrite:false}));
-    sprite.position.y=this.height+25;sprite.scale.set(this.height>CHARACTER_HEIGHT?138:112,this.height>CHARACTER_HEIGHT?34:28,1);sprite.renderOrder=0;return sprite;
+    const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false,depthWrite:false,toneMapped:false}));
+    const isChungnyeong=this.model==='chungnyeong';
+    sprite.position.y=this.height+(isChungnyeong?58:this.height>CHARACTER_HEIGHT?46:34);
+    sprite.scale.set(isChungnyeong?205:this.height>CHARACTER_HEIGHT?150:120,isChungnyeong?52:this.height>CHARACTER_HEIGHT?38:30,1);
+    sprite.renderOrder=100;return sprite;
   }
 
   setMotion(motion:MotionState,fadeDuration=.12){
@@ -1249,6 +1271,13 @@ export class VillageMapRenderer{
   private studentHallAiTreeEffect?:THREE.Group;
   private studentHallBoardScreens=new Map<StudentHallBoardId,THREE.Mesh>();
   private lastStudentHallBoardRects=new Map<StudentHallBoardId,StudentHallBoardScreenRect>();
+  private projectLobbyBoardScreen?:THREE.Mesh;
+  private lastProjectLobbyBoardRect?:ProjectLobbyBoardScreenRect;
+  private projectLobbyBoardPosition?:{x:number;z:number;radius:number};
+  private projectLobbyBoardNearby=false;
+  private projectLobbyBoardFocused=false;
+  private projectLobbyBoardFocusView?:{target:THREE.Vector3;camera:THREE.Vector3;fov:number};
+  private projectLobbyBoardFocusTransition?:{target:THREE.Vector3;camera:THREE.Vector3;fov:number;elapsed:number};
   private studentHallBoardActive?:StudentHallBoardId;
   private studentHallBoardFocusView?:{target:THREE.Vector3;camera:THREE.Vector3;fov:number};
   private studentHallBoardFocusTransition?:{target:THREE.Vector3;camera:THREE.Vector3;fov:number;elapsed:number};
@@ -1444,6 +1473,7 @@ export class VillageMapRenderer{
     gameEvents.on('local-npc-talking',this.onLocalNpcTalking);
     if(options.projectRoomInteractions)gameEvents.on('project-room-focus-changed',this.onProjectRoomFocusChanged);
     if(options.projectRoomInteractions)gameEvents.on('project-room-kiosk-activate',this.enterProjectRoomKiosk);
+    if(options.projectRoomInteractions)gameEvents.on('project-lobby-board-focus-open',this.enterProjectLobbyBoardFocus);
     if(options.projectRoomInteractions)gameEvents.on('project-room-seat-toggle',this.toggleProjectRoomSeat);
     if(options.projectRoomInteractions)window.addEventListener('pointerdown',this.onProjectRoomKioskPointerDown,true);
     if(options.governmentCentralPlazaWebUi)gameEvents.on('government-webui-open',this.enterGovernmentWebUi);
@@ -1619,7 +1649,7 @@ export class VillageMapRenderer{
           const normal=safeSpawn.ground.normal.clone();
           const character=new WorldCharacter(
             this.scene,
-            `${npc.nickname} · ${this.options.mapName} NPC`,
+            `${npc.nickname} · ${npc.model==='chungnyeong'?'AI 안내 도우미':`${this.options.mapName} NPC`}`,
             npc.model,
             npc.appearance,
             npc.height??this.options.characterHeight??CHARACTER_HEIGHT,
@@ -2037,14 +2067,14 @@ export class VillageMapRenderer{
       const bounds=new THREE.Box3().setFromObject(object),center=bounds.getCenter(new THREE.Vector3());
       const outward=center.clone().sub(treeCenter);outward.y=0;
       if(outward.lengthSq()<.001)outward.set(0,0,1);else outward.normalize();
-      const forward=new THREE.Vector3(0,0,1).transformDirection(object.matrixWorld).normalize();
+      const inward=outward.clone().negate();
       const standScene=center.clone().addScaledVector(outward,82);
       seats.push({
         id:object.name,
         x:center.x,
         z:this.sceneToWorldZ(center.z),
         seatHeight:bounds.max.y,
-        yaw:Math.atan2(forward.x,forward.z),
+        yaw:Math.atan2(inward.x,inward.z),
         standX:standScene.x,
         standZ:this.sceneToWorldZ(standScene.z),
       });
@@ -2333,7 +2363,7 @@ export class VillageMapRenderer{
     }
     const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=textureAnisotropy;
     const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false,depthWrite:false}));
-    const compact=this.options.mapName==='베어트리파크'||['세종호수공원','공동캠퍼스','베어트리파크','공연 부스','먹거리 부스','축제 부스','세종 추천 코스 게시판'].includes(label);
+    const compact=this.options.mapName==='베어트리파크'||this.options.mapName==='모집센터'&&label.includes('공동 캠퍼스')||['세종호수공원','공동캠퍼스','베어트리파크','공연 부스','먹거리 부스','축제 부스','세종 추천 코스 게시판'].includes(label);
     sprite.scale.set(compact?125:250,compact?31:62,1);sprite.renderOrder=120;sprite.frustumCulled=false;
     return sprite;
   }
@@ -2637,8 +2667,33 @@ export class VillageMapRenderer{
     this.setProjectRoomCharactersVisible(true);
     gameEvents.emit('student-hall-board-focus-mode-changed',null);gameEvents.emit('game-input-lock',false);
   };
+  private enterProjectLobbyBoardFocus=()=>{
+    const mesh=this.projectLobbyBoardScreen;
+    if(!mesh||!(this.camera instanceof THREE.PerspectiveCamera)||this.projectLobbyBoardFocused)return;
+    mesh.geometry.computeBoundingBox();
+    const localBounds=mesh.geometry.boundingBox;if(!localBounds)return;
+    mesh.updateWorldMatrix(true,false);
+    const bounds=new THREE.Box3().setFromObject(mesh),center=bounds.getCenter(new THREE.Vector3()),size=bounds.getSize(new THREE.Vector3());
+    const localSize=localBounds.getSize(new THREE.Vector3());
+    const normal=(localSize.x<=localSize.y&&localSize.x<=localSize.z?new THREE.Vector3(1,0,0):localSize.y<=localSize.z?new THREE.Vector3(0,1,0):new THREE.Vector3(0,0,1)).transformDirection(mesh.matrixWorld).normalize();
+    if(normal.dot(this.camera.position.clone().sub(center))<0)normal.negate();
+    const fov=34,verticalFov=THREE.MathUtils.degToRad(fov),horizontalFov=2*Math.atan(Math.tan(verticalFov/2)*this.width/Math.max(1,this.height));
+    const boardWidth=Math.max(size.x,size.z),distance=Math.max(size.y/(2*Math.tan(verticalFov/2)),boardWidth/(2*Math.tan(horizontalFov/2)))*1.08;
+    this.projectLobbyBoardFocused=true;
+    this.projectLobbyBoardFocusView={target:center,camera:center.clone().addScaledVector(normal,Math.max(240,distance)),fov};
+    this.projectLobbyBoardFocusTransition={target:this.cameraTarget.clone(),camera:this.camera.position.clone(),fov:this.camera.fov,elapsed:0};
+    this.setProjectRoomCharactersVisible(false);
+    gameEvents.emit('project-lobby-board-focus-mode-changed',true);gameEvents.emit('game-input-lock',true);
+  };
+  private exitProjectLobbyBoardFocus=()=>{
+    if(!this.projectLobbyBoardFocused)return;
+    this.projectLobbyBoardFocused=false;this.projectLobbyBoardFocusView=undefined;this.projectLobbyBoardFocusTransition=undefined;
+    this.setProjectRoomCharactersVisible(true);
+    gameEvents.emit('project-lobby-board-focus-mode-changed',false);gameEvents.emit('game-input-lock',false);
+  };
   private onWorldPortalKeyDown=(event:KeyboardEvent)=>{
     const focused=document.activeElement as HTMLElement|null;
+    if(this.projectLobbyBoardFocused&&(event.key==='Escape'||event.code==='KeyE')){event.preventDefault();this.exitProjectLobbyBoardFocus();return}
     if(this.recruitmentKioskActive&&event.key==='Escape'){event.preventDefault();this.exitRecruitmentKiosk();return}
     if(this.studentHallBoardActive&&event.key==='Escape'){event.preventDefault();this.exitStudentHallBoardFocus();return}
     if(this.artsCenterPosterActive&&event.key==='Escape'){
@@ -2667,6 +2722,9 @@ export class VillageMapRenderer{
       return;
     }
     if(event.code!=='KeyE')return;
+    if(this.projectLobbyBoardNearby){
+      event.preventDefault();event.stopImmediatePropagation();this.enterProjectLobbyBoardFocus();return;
+    }
     if(this.recruitmentKioskNearby){
       event.preventDefault();event.stopImmediatePropagation();
       gameEvents.emit('recruitment-kiosk-open');
@@ -2842,6 +2900,8 @@ export class VillageMapRenderer{
     this.projectRoomKioskView=view;
     this.setProjectRoomCharactersVisible(false);
     this.renderer.domElement.style.cursor='pointer';
+    this.lastProjectRoomKioskScreenRect=undefined;
+    gameEvents.emit('project-room-kiosk-screen-rect',null);
     this.projectRoomKioskTransition={
       target:this.cameraTarget.clone(),
       camera:this.camera.position.clone(),
@@ -2922,12 +2982,23 @@ export class VillageMapRenderer{
       point.applyMatrix4(mesh.matrixWorld).project(this.camera);
       return {x:canvasBounds.left+(point.x+1)*.5*canvasBounds.width,y:canvasBounds.top+(1-point.y)*.5*canvasBounds.height};
     };
-    const points=[
-      toScreen(new THREE.Vector3(bounds.min.x,bounds.min.y,0)),
-      toScreen(new THREE.Vector3(bounds.max.x,bounds.min.y,0)),
-      toScreen(new THREE.Vector3(bounds.max.x,bounds.max.y,0)),
-      toScreen(new THREE.Vector3(bounds.min.x,bounds.max.y,0)),
-    ].sort((a,b)=>a.y-b.y);
+    const size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
+    const thinAxis=size.x<=size.y&&size.x<=size.z?'x':size.y<=size.z?'y':'z';
+    const corners=thinAxis==='x'
+      ?[
+        new THREE.Vector3(center.x,bounds.min.y,bounds.min.z),new THREE.Vector3(center.x,bounds.min.y,bounds.max.z),
+        new THREE.Vector3(center.x,bounds.max.y,bounds.max.z),new THREE.Vector3(center.x,bounds.max.y,bounds.min.z),
+      ]
+      :thinAxis==='y'
+        ?[
+          new THREE.Vector3(bounds.min.x,center.y,bounds.min.z),new THREE.Vector3(bounds.max.x,center.y,bounds.min.z),
+          new THREE.Vector3(bounds.max.x,center.y,bounds.max.z),new THREE.Vector3(bounds.min.x,center.y,bounds.max.z),
+        ]
+        :[
+          new THREE.Vector3(bounds.min.x,bounds.min.y,center.z),new THREE.Vector3(bounds.max.x,bounds.min.y,center.z),
+          new THREE.Vector3(bounds.max.x,bounds.max.y,center.z),new THREE.Vector3(bounds.min.x,bounds.max.y,center.z),
+        ];
+    const points=corners.map(toScreen).sort((a,b)=>a.y-b.y);
     const top=points.slice(0,2).sort((a,b)=>a.x-b.x),bottom=points.slice(2).sort((a,b)=>a.x-b.x);
     return [top[0],top[1],bottom[1],bottom[0]] as const;
   }
@@ -2945,6 +3016,15 @@ export class VillageMapRenderer{
     });
     if(changed)gameEvents.emit('student-hall-board-screen-rects',screens);
   }
+  private syncProjectLobbyBoardScreenRect(){
+    if(!this.projectLobbyBoardScreen)return;
+    const rect=this.projectedMeshScreenRect(this.projectLobbyBoardScreen),quad=this.projectedMeshScreenQuad(this.projectLobbyBoardScreen);
+    if(!rect||!quad||rect.width<2||rect.height<2)return;
+    const next={...rect,quad},previous=this.lastProjectLobbyBoardRect;
+    if(previous&&Math.abs(previous.left-next.left)<.5&&Math.abs(previous.top-next.top)<.5&&Math.abs(previous.width-next.width)<.5&&Math.abs(previous.height-next.height)<.5)return;
+    this.lastProjectLobbyBoardRect=next;
+    gameEvents.emit('project-lobby-board-screen-rect',next);
+  }
   private getProjectRoomKioskScreenRect(){
     if(!this.projectRoomKioskScreen)return undefined;
     return this.projectedMeshScreenRect(this.projectRoomKioskScreen);
@@ -2958,8 +3038,11 @@ export class VillageMapRenderer{
     gameEvents.emit('project-room-kiosk-screen-rect',rect);
   }
   private onProjectRoomKioskPointerDown=(event:PointerEvent)=>{
-    if(!isProjectRoomKioskInteraction(this.projectRoomFocus)||!this.projectRoomKioskScreen)return;
-    if(event.target instanceof Element&&event.target.closest('.project-room-panel.is-creation'))return;
+    if(!isProjectRoomKioskInteraction(this.projectRoomFocus)||!this.projectRoomKioskScreen||this.projectRoomKioskTransition)return;
+    // Once the projected React interface is open, every interaction must stay
+    // inside that HTML surface. Letting the capture listener continue for the
+    // browse or my-project pages would also click the canvas menu underneath.
+    if(event.target instanceof Element&&event.target.closest('.project-room-panel'))return;
     const rect=this.getProjectRoomKioskScreenRect();
     if(!rect||event.clientX<rect.left||event.clientX>rect.left+rect.width||event.clientY<rect.top||event.clientY>rect.top+rect.height)return;
     event.preventDefault();
@@ -2969,7 +3052,7 @@ export class VillageMapRenderer{
     if(x>420&&y<115){this.exitProjectRoomKiosk();return}
     if(y>=250&&y<=400){gameEvents.emit('project-room-kiosk-selection','create');return}
     if(y>=395&&y<=545){gameEvents.emit('project-room-kiosk-selection','board');return}
-    if(y>=535&&y<=690)gameEvents.emit('project-room-kiosk-selection','recommendation');
+    if(y>=535&&y<=690)gameEvents.emit('project-room-kiosk-selection','mine');
   };
   private createProjectRoomScreenTexture(kind:'board'|'recommendation'|'kiosk'){
     const dimensions=kind==='recommendation'?[1536,448]:kind==='board'?[1024,536]:[512,900];
@@ -3047,9 +3130,9 @@ export class VillageMapRenderer{
       text('체험 탐험가님, 무엇을 할까요?',36,154,29,'#ffffff',900);
       text('화면에서 원하는 기능을 선택하세요.',36,196,14,'#b0cec6',600);
       context.fillStyle='rgba(108,205,181,.22)';context.fillRect(34,231,width-68,1);
-      card(267,'＋','새 프로젝트 만들기','팀원과 활동 계획을 등록해요',true);
-      card(407,'📌','모집 프로젝트 보기','참여할 프로젝트를 찾아봐요');
-      card(547,'✨','AI 프로젝트 추천','내 기록과 잘 맞는 팀을 확인해요');
+      card(267,'＋','새 프로젝트 시작하기','새 프로젝트를 만들고 팀원을 모집해요',true);
+      card(407,'⌕','모집글 둘러보기','함께할 사람을 찾는 글을 살펴봐요');
+      card(547,'▱','내 프로젝트','내가 만든 프로젝트와 참여 현황을 확인해요');
       text('화면을 터치하거나 항목을 선택하세요',36,height-54,12,'#9bc3ba',600);
       rounded(width-82,height-78,48,34,9,'#123b34','#3f6e63');
       text('ESC',width-58,height-61,12,'#d8eee8',800,'center');
@@ -3096,7 +3179,7 @@ export class VillageMapRenderer{
         const screenNormal=new THREE.Vector3(0,0,1).transformDirection(target.matrixWorld).normalize();
         const view={
           target:kioskCenter.clone().add(new THREE.Vector3(0,15,0)),
-          camera:kioskCenter.clone().addScaledVector(screenNormal,800).add(new THREE.Vector3(0,65,0)),
+          camera:kioskCenter.clone().addScaledVector(screenNormal,900).add(new THREE.Vector3(0,60,0)),
         };
         this.projectRoomKioskScreens.set(config.kioskId,panel);
         this.projectRoomKioskViews.set(config.kioskId,view);
@@ -3107,6 +3190,19 @@ export class VillageMapRenderer{
       }
       model.traverse(object=>{if(hide.some(prefix=>object.name.startsWith(prefix)))object.visible=false});
     });
+    const lobbyBoard=model.getObjectByName('Lobby_AI_Board_Surface');
+    if(lobbyBoard instanceof THREE.Mesh){
+      this.projectLobbyBoardScreen=lobbyBoard;
+      const boardBounds=new THREE.Box3().setFromObject(lobbyBoard);
+      const boardCenter=boardBounds.getCenter(new THREE.Vector3()),boardSize=boardBounds.getSize(new THREE.Vector3());
+      this.projectLobbyBoardPosition={
+        x:boardCenter.x,
+        z:this.sceneToWorldZ(boardCenter.z),
+        radius:THREE.MathUtils.clamp(Math.max(boardSize.x,boardSize.z)*.9,320,520),
+      };
+      const authoredBoardParts=['Lobby_AI_Board_Title','Lobby_AI_Project_Card_','Lobby_AI_Project_Image_','Lobby_AI_Project_Title_','Lobby_AI_Project_Score_'];
+      model.traverse(object=>{if(authoredBoardParts.some(prefix=>object.name.startsWith(prefix)))object.visible=false});
+    }
   }
   private createRecruitmentKioskTexture(){
     const canvas=document.createElement('canvas');canvas.width=680;canvas.height=850;
@@ -3116,25 +3212,27 @@ export class VillageMapRenderer{
     },text=(value:string,x:number,y:number,size:number,color:string,weight=700,align:CanvasTextAlign='left')=>{
       context.font=`${weight} ${size}px "Noto Sans KR",sans-serif`;context.fillStyle=color;context.textAlign=align;context.textBaseline='middle';context.fillText(value,x,y);
     };
-    const gradient=context.createLinearGradient(0,0,680,850);gradient.addColorStop(0,'#f4faf7');gradient.addColorStop(1,'#dfeee8');
+    const gradient=context.createLinearGradient(0,0,680,850);gradient.addColorStop(0,'#fbfdfc');gradient.addColorStop(1,'#eef5f2');
     context.fillStyle=gradient;context.fillRect(0,0,680,850);
-    rounded(34,30,612,790,30,'rgba(255,255,255,.92)','#c9ddd5');
-    rounded(62,58,556,116,22,'#173f35');
-    text('모집센터 정보 키오스크',340,98,34,'#ffffff',900,'center');
-    text('공간 안내와 오늘의 정보를 확인하세요',340,141,19,'#b9d8cd',700,'center');
+    context.strokeStyle='#1f735f';context.lineWidth=7;context.lineCap='round';
+    context.beginPath();context.arc(91,101,18,0,Math.PI*2);context.moveTo(63,145);context.quadraticCurveTo(91,111,119,145);context.stroke();
+    context.beginPath();context.arc(113,105,14,0,Math.PI*2);context.moveTo(99,126);context.quadraticCurveTo(119,116,132,143);context.stroke();
+    text('모집센터 공용 키오스크',150,99,31,'#164f42',900);
+    text('누가 눌러도 같은 화면',150,137,17,'#66746f',700);
+    rounded(620,35,34,34,8,'#eef4f2','#cad8d3');text('×',637,52,22,'#6a827b',500,'center');
     const rows=[
-      ['01','캠퍼스 가이드','공간 소개 · 이용 방법'],
-      ['02','오늘의 일정','행사 · 모임 일정'],
-      ['03','캠퍼스 지도','주요 공간 · 이동 경로'],
-      ['04','공지사항','운영 · 이벤트 안내'],
-      ['05','도움말 / FAQ','자주 묻는 질문'],
+      ['01','모집 둘러보기','오늘 · 전체 · 인기 모집','⌕'],
+      ['02','오늘 일정','14:00 AI스터디 · 15:00 사진출사','▦'],
+      ['03','이용 방법','모집 작성 → 신청 → 승인 → 활동','?'],
+      ['04','공지사항','오늘 행사 · 점검 · 운영','◀'],
+      ['05','FAQ','프로젝트 · 승인 · 동아리','♡'],
     ];
-    rows.forEach(([number,title,copy],index)=>{
-      const y=202+index*112;rounded(62,y,556,88,18,index===0?'#e3f2ec':'#f8fbfa',index===0?'#55a68d':'#d7e4df');
-      rounded(80,y+17,54,54,15,index===0?'#2d8a70':'#dcebe5');text(number,107,y+44,17,index===0?'#fff':'#397662',900,'center');
-      text(title,158,y+31,23,'#173f35',900);text(copy,158,y+61,16,'#66857a',650);text('›',584,y+44,31,'#3a8a72',800,'center');
+    rows.forEach(([number,title,copy,icon],index)=>{
+      const y=190+index*108;rounded(55,y,570,86,17,'rgba(255,255,255,.9)','#d4dfdb');
+      rounded(75,y+14,58,58,13,'#237c66');text(number,104,y+43,17,'#fff',900,'center');
+      text(icon,165,y+43,29,'#247965',800,'center');text(title,202,y+30,21,'#172522',900);text(copy,202,y+59,14,'#697770',650);text('›',590,y+43,30,'#196c59',800,'center');
     });
-    text('가까이에서 E를 눌러 선택하고 편집하세요',340,785,17,'#50796b',800,'center');
+    text('ⓘ  화면을 터치해 메뉴를 선택해주세요!',340,800,16,'#377a69',800,'center');
     const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=textureAnisotropy;texture.minFilter=THREE.LinearMipmapLinearFilter;texture.magFilter=THREE.LinearFilter;texture.needsUpdate=true;
     this.recruitmentKioskTexture=texture;return texture;
   }
@@ -4177,7 +4275,12 @@ export class VillageMapRenderer{
         return normal.y>=MIN_WALKABLE_NORMAL&&!this.blockedMaterials.has(this.materialForHit(hit))?[{height:hit.point.y,normal}]:[];
       });
       const viable=initial?candidates.sort((a,b)=>b.height-a.height):candidates.filter(sample=>{const heightDelta=sample.height-currentHeight;return heightDelta<=maxStepHeight&&heightDelta>=-MAX_DROP_HEIGHT}).sort((a,b)=>Math.abs(a.height-currentHeight)-Math.abs(b.height-currentHeight));
-      if(!viable.length){if(index===0)return;continue}
+      if(!viable.length){
+        const extension=this.options.flatGroundExtension;
+        const extensionX=worldX+offsetX,extensionZ=worldZ+offsetZ;
+        if(extension&&extensionX>=extension.minX&&extensionX<=extension.maxX&&extensionZ>=extension.minZ&&extensionZ<=extension.maxZ){samples.push({height:currentHeight,normal:new THREE.Vector3(0,1,0)});continue}
+        if(index===0)return;continue;
+      }
       samples.push(viable[0]);
     }
     const minimumSamples=this.options.fastGroundSampling?1:(initial?3:offsets.length);
@@ -4227,6 +4330,8 @@ export class VillageMapRenderer{
   }
 
   private bodyPathClearFrom(startX:number,startZ:number,startGround:number,worldX:number,worldZ:number){
+    const extension=this.options.flatGroundExtension;
+    if(extension&&worldX>=extension.minX&&worldX<=extension.maxX&&worldZ>=extension.minZ&&worldZ<=extension.maxZ&&startZ>=extension.minZ-60&&worldZ>=startZ)return true;
     const startSceneZ=this.worldToSceneZ(startZ),endSceneZ=this.worldToSceneZ(worldZ);
     const penetration=(zone:{minX:number;maxX:number;minZ:number;maxZ:number},x:number,z:number)=>
       x>=zone.minX&&x<=zone.maxX&&z>=zone.minZ&&z<=zone.maxZ
@@ -4314,10 +4419,11 @@ export class VillageMapRenderer{
     if(activeSeat){
       const seat=activeSeat,characterHeight=this.options.characterHeight??CHARACTER_HEIGHT;
       this.localX=seat.x;this.localZ=seat.z;
-      // Food-map cafe chairs have thicker cushions than the auditorium seats.
-      // Lift only this map's seated avatar so the hips rest on the cushion.
+      // Cafe and project-room cushions sit higher than the auditorium seats.
+      // Apply map-specific lifts so the avatar's hips rest on the cushion top.
       const foodSeatLift=this.foodActiveSeat?22:0;
-      const position=this.localRenderPosition.set(seat.x,seat.seatHeight-characterHeight*.53+foodSeatLift,this.worldToSceneZ(seat.z));
+      const projectRoomSeatLift=this.projectRoomActiveSeat?24:0;
+      const position=this.localRenderPosition.set(seat.x,seat.seatHeight-characterHeight*.53+foodSeatLift+projectRoomSeatLift,this.worldToSceneZ(seat.z));
       const cameraGround=this.followTarget.set(seat.x,seat.seatHeight,this.worldToSceneZ(seat.z));
       this.localCharacter.update(position,this.localNormal,seat.yaw,'idle',delta);
       this.followCharacter(cameraGround,delta);if(this.artsCenterActiveSeat)this.syncArtsCenterStageScreenRect();this.adjustQuality(delta);this.renderAccumulator+=delta;
@@ -4467,6 +4573,14 @@ export class VillageMapRenderer{
       }
     }
     if(this.options.projectRoomInteractions){
+      if(this.projectLobbyBoardPosition){
+        const distance=Math.hypot(nextX-this.projectLobbyBoardPosition.x,nextZ-this.projectLobbyBoardPosition.z);
+        const nearby=distance<this.projectLobbyBoardPosition.radius+(this.projectLobbyBoardNearby?55:0);
+        if(nearby!==this.projectLobbyBoardNearby){
+          this.projectLobbyBoardNearby=nearby;
+          gameEvents.emit('project-lobby-board-proximity-changed',nearby);
+        }
+      }
       const closest=PROJECT_ROOM_INTERACTIONS
         .map(config=>{
           const position=this.projectRoomInteractionPositions.get(config.id)??config;
@@ -4627,6 +4741,17 @@ export class VillageMapRenderer{
         this.camera.aspect=this.width/Math.max(1,this.height);this.camera.lookAt(this.cameraTarget);this.camera.updateProjectionMatrix();
         return;
       }
+      if(this.projectLobbyBoardFocused&&this.projectLobbyBoardFocusView){
+        const view=this.projectLobbyBoardFocusView,transition=this.projectLobbyBoardFocusTransition;
+        if(transition){
+          transition.elapsed=Math.min(.62,transition.elapsed+delta);
+          const progress=transition.elapsed/.62,eased=progress*progress*(3-2*progress);
+          this.cameraTarget.lerpVectors(transition.target,view.target,eased);this.camera.position.lerpVectors(transition.camera,view.camera,eased);this.camera.fov=THREE.MathUtils.lerp(transition.fov,view.fov,eased);
+          if(progress>=1)this.projectLobbyBoardFocusTransition=undefined;
+        }else{this.cameraTarget.copy(view.target);this.camera.position.copy(view.camera);this.camera.fov=view.fov}
+        this.camera.aspect=this.width/Math.max(1,this.height);this.camera.lookAt(this.cameraTarget);this.camera.updateProjectionMatrix();
+        return;
+      }
       if(this.observatoryTelescopeActive){
         const view=this.observatoryTelescopeView,transition=this.observatoryTelescopeTransition;
         if(!view)return;
@@ -4674,7 +4799,7 @@ export class VillageMapRenderer{
           if(progress>=1)this.projectRoomKioskTransition=undefined;
         }else this.cameraTarget.copy(target);
         this.camera.aspect=this.width/Math.max(1,this.height);
-        this.camera.fov=transition?THREE.MathUtils.lerp(transition.fov,35,transition.elapsed/.75):35;
+        this.camera.fov=transition?THREE.MathUtils.lerp(transition.fov,37,transition.elapsed/.75):37;
         const cameraPosition=view?.camera??this.boundsCenter.set(1900,250,this.worldToSceneZ(535)+430);
         if(transition){
           const progress=transition.elapsed/.75;
@@ -4683,7 +4808,10 @@ export class VillageMapRenderer{
         }else this.camera.position.copy(cameraPosition);
         this.camera.lookAt(this.cameraTarget);
         this.camera.updateProjectionMatrix();
-        this.syncProjectRoomKioskScreenRect();
+        // The canvas texture remains visible while the camera approaches the
+        // kiosk. Mount the interactive DOM only after the view has settled so
+        // it does not visibly stretch from a distant screen into place.
+        if(!this.projectRoomKioskTransition)this.syncProjectRoomKioskScreenRect();
         return;
       }
       if(this.foodTruckKioskId&&this.foodTruckKioskView){
@@ -4698,7 +4826,7 @@ export class VillageMapRenderer{
       if(this.options.fixedCameraTarget&&!this.mapBounds.isEmpty())this.mapBounds.getCenter(this.cameraTarget);
       const distance=this.options.cameraDistance??CAMERA_DISTANCE;
       const azimuth=THREE.MathUtils.degToRad(this.options.cameraAzimuthDeg??0);
-      const horizontalDistance=Math.cos(elevation)*distance;
+      const horizontalDistance=this.options.cameraHorizontalDistance??Math.cos(elevation)*distance;
       this.camera.aspect=this.width/Math.max(1,this.height);
       this.camera.fov=this.options.cameraFov??42;
       this.camera.position.set(
@@ -4736,6 +4864,7 @@ export class VillageMapRenderer{
   }
 
   private adjustQuality(delta:number){
+    if(this.options.adaptivePixelRatio===false)return;
     if(delta<=0||delta>.1)return;
     this.qualityElapsed+=delta;this.qualityFrameTime+=delta;this.qualityFrames++;
     if(this.qualityElapsed<2)return;
@@ -4751,6 +4880,7 @@ export class VillageMapRenderer{
   private render(){
     this.resize();if(this.destroyed)return;this.renderer.render(this.scene,this.camera);
     this.syncStudentHallBoardScreenRects();
+    this.syncProjectLobbyBoardScreenRect();
     if(this.clubBoothCardAnchors.length){
       const rect=this.renderer.domElement.getBoundingClientRect();
       gameEvents.emit('club-booth-card-screen-positions',this.clubBoothCardAnchors.map(object=>{
@@ -4797,6 +4927,9 @@ export class VillageMapRenderer{
     if(this.options.studentHallFeatures)gameEvents.off('student-hall-board-focus-close',this.exitStudentHallBoardFocus);
     if(this.options.campusFeaturePortals||this.options.studentHallFeatures)gameEvents.emit('campus-feature-portal-proximity-changed',null);
     if(this.options.studentHallFeatures)gameEvents.emit('student-hall-board-screen-rects',null);
+    if(this.projectLobbyBoardScreen)gameEvents.emit('project-lobby-board-screen-rect',null);
+    if(this.projectLobbyBoardNearby)gameEvents.emit('project-lobby-board-proximity-changed',false);
+    if(this.projectLobbyBoardFocused){gameEvents.emit('project-lobby-board-focus-mode-changed',false);gameEvents.emit('game-input-lock',false)}
     if(this.studentHallBoardActive){gameEvents.emit('student-hall-board-focus-mode-changed',null);gameEvents.emit('game-input-lock',false)}
     gameEvents.off('game-input-lock',this.onGameInputLock);
     if(this.options.mapName==='축제부스')gameEvents.off('festival-stage-focus-changed',this.onFestivalStageFocusChanged);
@@ -4806,6 +4939,7 @@ export class VillageMapRenderer{
     gameEvents.off('local-npc-talking',this.onLocalNpcTalking);
     if(this.options.projectRoomInteractions)gameEvents.off('project-room-focus-changed',this.onProjectRoomFocusChanged);
     if(this.options.projectRoomInteractions)gameEvents.off('project-room-kiosk-activate',this.enterProjectRoomKiosk);
+    if(this.options.projectRoomInteractions)gameEvents.off('project-lobby-board-focus-open',this.enterProjectLobbyBoardFocus);
     if(this.options.projectRoomInteractions)gameEvents.off('project-room-seat-toggle',this.toggleProjectRoomSeat);
     if(this.options.projectRoomInteractions)window.removeEventListener('pointerdown',this.onProjectRoomKioskPointerDown,true);
     if(this.options.foodTruckExperience)gameEvents.off('food-truck-kiosk-activate',this.enterFoodTruckKiosk);
@@ -4831,6 +4965,7 @@ export class VillageMapRenderer{
     this.projectRoomScreenTextures.forEach(texture=>texture.dispose());
     this.projectRoomScreenTextures=[];
     this.studentHallFeatureTargets=[];this.studentHallAiTreeEffect=undefined;this.studentHallBoardScreens.clear();this.lastStudentHallBoardRects.clear();
+    this.projectLobbyBoardScreen=undefined;this.lastProjectLobbyBoardRect=undefined;this.projectLobbyBoardPosition=undefined;this.projectLobbyBoardNearby=false;this.projectLobbyBoardFocused=false;this.projectLobbyBoardFocusView=undefined;this.projectLobbyBoardFocusTransition=undefined;
     this.governmentWebUiOutlines.forEach(outline=>{outline.geometry.dispose();(outline.material as THREE.Material).dispose()});
     this.governmentWebUiOutlines.clear();this.governmentWebUiPositions.clear();this.governmentWebUiViews.clear();this.governmentWebUiScreens.clear();
     this.governmentWebUiTextures.forEach(texture=>texture.dispose());this.governmentWebUiTextures=[];

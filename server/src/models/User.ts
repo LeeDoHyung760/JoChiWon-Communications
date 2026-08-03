@@ -67,6 +67,8 @@ const userSchema = new Schema(
 
     profile: {
       nickname: { type: String, trim: true, maxlength: 30 },
+      residence: { type: String, trim: true, maxlength: 30 },
+      sejongVisitExperience: { type: String, trim: true, maxlength: 30 },
       mbti: { type: String, trim: true, maxlength: 10 },
       interests: { type: [String], default: [] },
       usagePurposes: { type: [String], default: [] },

@@ -104,13 +104,12 @@ const schema = z.object({
   KAKAO_LOGIN_SCOPES: z
     .string()
     .trim()
-    .min(1)
-    .default('account_email,birthyear,birthday'),
+    .default(''),
 
   KAKAO_SERVICE_TERMS: z
     .string()
     .trim()
-    .default('user_age_check'),
+    .default(''),
 
   KAKAO_LOCAL_BASE_URL: z
     .string()
