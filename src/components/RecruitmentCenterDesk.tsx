@@ -23,6 +23,21 @@ type SortMode='모집 중'|'인기'|'최신'|'내 관심사';
 const GUIDE_ID='recruitment-center-guide-chungnyeong';
 
 const userId=(profile:UserProfile)=>profile.nickname.trim()||'anonymous';
+const localChatResponse=(message:string,players:PlayerState[],projects:Project[],profile:UserProfile):ChungnyeongChatResponse=>{
+  const text=message.toLocaleLowerCase('ko-KR');
+  if(/만들|생성|프로젝트실/.test(text))return {message:'프로젝트 생성은 프로젝트실에서 진행됩니다.',intent:'GUIDE_SPACE',cards:[{type:'space',id:'project-room',title:'프로젝트실',description:'팀을 만들고 역할과 일정을 정하는 공간이에요.',matchScore:null,tags:['프로젝트 생성','팀 활동'],actions:['TRAVEL']}],suggestedReplies:['프로젝트실로 안내해줘'],source:'rules'};
+  if(/신청|승인|상태|현황/.test(text))return {message:'저장된 신청 내역을 기준으로 현재 상태를 확인했어요.',intent:'CHECK_APPLICATION',cards:[],suggestedReplies:['모집 중인 활동 보여줘','함께할 사람 찾아줘'],source:'rules'};
+  if(/사람|친구|팀원|함께할/.test(text)){
+    const words=['사진','자연','수목원','축제','AI','카페','여행','공연'].filter(word=>text.includes(word.toLocaleLowerCase('ko-KR')));
+    const ranked=[...players].sort((a,b)=>{
+      const score=(player:PlayerState)=>(player.matchProfile?.interests??[]).filter(interest=>[...words,...profile.interests].some(word=>interest.includes(word)||word.includes(interest))).length;
+      return score(b)-score(a);
+    }).slice(0,3);
+    return {message:ranked.length?'현재 접속 중인 공개 프로필에서 함께하기 좋은 분들을 찾았어요.':'현재 공개 프로필로 대화 가능한 사용자가 없어요. 잠시 후 다시 찾아봐 주세요.',intent:'FIND_PERSON',cards:ranked.map((player,index)=>{const interests=player.matchProfile?.interests??[];const shared=interests.filter(interest=>[...words,...profile.interests].some(word=>interest.includes(word)||word.includes(interest)));return {type:'person',id:player.id,title:player.nickname,description:`현재 같은 공간에서 활동 중 · ${player.matchProfile?.chatEnabled===false?'대화 쉬는 중':'대화 신청 가능'}`,matchScore:Math.min(95,78+shared.length*5-index*2),tags:(shared.length?shared:interests).slice(0,3),actions:player.matchProfile?.chatEnabled===false?['PROFILE']:['PROFILE','CHAT_REQUEST']}}),suggestedReplies:['다른 사람 찾아줘','모집 활동도 보여줘'],source:'rules'};
+  }
+  const openProjects=projects.filter(project=>project.status==='recruiting').slice(0,3);
+  return {message:'저장된 공개 모집에서 지금 참여할 수 있는 활동을 찾았어요.',intent:'FIND_RECRUITMENT',cards:openProjects.map(project=>({type:'recruitment',id:project.id,title:project.title,description:`${project.memberIds.length}/${project.maxMembers}명 참여 중 · ${project.summary}`,matchScore:null,tags:project.tags.slice(0,3),actions:['DETAIL','PROFILE_REQUEST']})),suggestedReplies:['내 관심사에 맞는 모집 보여줘','함께할 사람 찾아줘'],source:'rules'};
+};
 
 export function RecruitmentCenterDesk({profile,players,onOpenChange,onNotice,onProfile,onTravelProjectRoom,onEditInterests}:{
   profile:UserProfile;
@@ -103,7 +118,7 @@ export function RecruitmentCenterDesk({profile,players,onOpenChange,onNotice,onP
     if(/관심사|프로필/.test(message)&&/수정|변경/.test(message)){close();onEditInterests();return}
     setChatInput('');setChatError('');setChatMessages(current=>[...current,{role:'user',text:message}]);setChatBusy(true);
     try{const result=await chatWithChungnyeong(message);setChatMessages(current=>[...current,{role:'assistant',text:result.message,result}])}
-    catch(error){setChatError(error instanceof Error?error.message:'충녕이와 연결하지 못했어요.')}
+    catch(error){console.warn('[chungnyeong chat fallback]',error instanceof Error?error.message:'unknown');const result=localChatResponse(message,players,projects,profile);setChatMessages(current=>[...current,{role:'assistant',text:result.message,result}]);setChatError('')}
     finally{setChatBusy(false)}
   };
   const submitChat=(event:FormEvent)=>{event.preventDefault();void askChat(chatInput)};
