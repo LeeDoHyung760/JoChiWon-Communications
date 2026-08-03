@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { useState,type CSSProperties,type FormEvent } from 'react';
 import { API_BASE_URL } from '../config/api';
+import { inferCampusTopicProfile,recordCampusProfileSignal } from '../services/campusProfileSignals';
 
 type ActivityVoter={userId:string;name:string};
 export type ClubActivityBoard={
@@ -86,15 +87,17 @@ export function CampusClubRoom({
     const result=await request('activity-vote','PUT',{kind,option});
     if(!result)return;
     saveGovernmentContext(kind,option);
+    const topic=inferCampusTopicProfile(option);
+    recordCampusProfileSignal(currentUser.name,{mapId:'club-street-festival',zone:'동아리 거리제',action:`${kind}-vote`,subject:`${club.id}-${option}`,title:kind==='place'?'가고 싶은 장소 투표':'여행 주제 투표',note:`${club.name}에서 ${option}을 선택했어요`,point:5,keywords:[kind==='place'?'장소를 고르는':'의견을 나누는',...topic.keywords],axes:{...topic.axes,relation:3,explore:kind==='place'?3:1}});
     onNotice(`${option} 선택을 저장했어요. 정부청사에서 함께 장소를 정할 때 이어서 볼 수 있어요.`);
   };
   const submitTheme=async(event:FormEvent)=>{
     event.preventDefault();const text=themeIdea.trim();if(!text)return;
-    if(await request('theme-ideas','POST',{text})){setThemeIdea('');onNotice('축제 테마 아이디어를 등록했어요.')}
+    if(await request('theme-ideas','POST',{text})){const topic=inferCampusTopicProfile(text);recordCampusProfileSignal(currentUser.name,{mapId:'club-street-festival',zone:'동아리 거리제',action:'theme-idea',subject:`${club.id}-${text}`,title:'동아리 테마 아이디어 제안',note:`“${text}” 아이디어를 멤버들과 나눴어요`,point:8,keywords:['아이디어 제안자','문화 기획',...topic.keywords],axes:{...topic.axes,culture:Math.max(5,topic.axes.culture??0),relation:5,record:3}});setThemeIdea('');onNotice('축제 테마 아이디어를 등록했어요.')}
   };
   const submitPlace=async(event:FormEvent)=>{
     event.preventDefault();const name=placeName.trim(),reason=placeReason.trim();if(!name||!reason)return;
-    if(await request('place-cards','POST',{name,reason})){setPlaceName('');setPlaceReason('');onNotice('추천 장소 카드를 공유했어요.')}
+    if(await request('place-cards','POST',{name,reason})){const topic=inferCampusTopicProfile(name,reason);recordCampusProfileSignal(currentUser.name,{mapId:'club-street-festival',zone:'동아리 거리제',action:'share-place',subject:`${club.id}-${name}`,title:'추천 장소 카드 공유',note:`${name}을 추천하고 이유를 기록했어요`,point:8,keywords:['장소 큐레이터','추천을 나누는',...topic.keywords],axes:{...topic.axes,explore:5,record:5,relation:3}});setPlaceName('');setPlaceReason('');onNotice('추천 장소 카드를 공유했어요.')}
   };
   const makeIntro=()=>{
     const keyTopics=board.topicVotes.slice().sort((a,b)=>b.voters.length-a.voters.length).filter(item=>item.voters.length).slice(0,2).map(item=>item.option);
@@ -103,7 +106,7 @@ export function CampusClubRoom({
   };
   const shareIntro=async()=>{
     const text=introCopy.trim();if(!text)return;
-    if(await request('intro-copies','POST',{text}))onNotice('소개 문구를 동아리 활동판에 저장했어요.');
+    if(await request('intro-copies','POST',{text})){recordCampusProfileSignal(currentUser.name,{mapId:'club-street-festival',zone:'동아리 거리제',action:'club-intro',subject:club.id,title:'동아리 소개 문구 작성',note:`${club.name}의 활동을 소개하는 문구를 함께 완성했어요`,point:7,keywords:['공동 기록자','표현하는 사람'],axes:{record:7,relation:4,culture:2}});onNotice('소개 문구를 동아리 활동판에 저장했어요.')}
   };
   const openActivity=(id:ActivityFocus)=>{setFocus(id);setTab('activities')};
   const submitPost=(event:FormEvent)=>{event.preventDefault();const value=post.trim();if(!value)return;setPosts(current=>[value,...current]);setPost('')};
@@ -125,7 +128,7 @@ export function CampusClubRoom({
         </div>
       </div>}
       {tab==='notices'&&<div className="club-room-notices"><article><Bell size={15}/><div><b>이번 달 정기 모임 안내</b><p>토요일 오후 2시, 학생회관 앞에서 만나요.</p><small>운영자 · 고정 공지</small></div></article><article><Bell size={15}/><div><b>사진과 여행 후기 공유 방법</b><p>활동 후 앨범과 게시판에 자유롭게 기록해 주세요.</p><small>3일 전</small></div></article></div>}
-      {tab==='chat'&&<div className="club-room-chat"><MessageCircle size={34}/><h3>동아리 단체 채팅</h3><p>멤버들과 다음 활동과 장소를 실시간으로 이야기해요.</p><button type="button" onClick={onOpenChat}>단체 채팅방 열기 <Send size={14}/></button></div>}
+      {tab==='chat'&&<div className="club-room-chat"><MessageCircle size={34}/><h3>동아리 단체 채팅</h3><p>멤버들과 다음 활동과 장소를 실시간으로 이야기해요.</p><button type="button" onClick={()=>{recordCampusProfileSignal(currentUser.name,{mapId:'club-street-festival',zone:'동아리 거리제',action:'club-chat',subject:club.id,title:'동아리 대화 참여',note:`${club.name} 멤버들과 다음 활동을 이야기했어요`,point:5,keywords:['공동체형','대화에 열린'],axes:{relation:6}});onOpenChat()}}>단체 채팅방 열기 <Send size={14}/></button></div>}
       {tab==='album'&&<div className="club-room-album"><header><div><Image size={16}/><span><b>함께 만든 사진 앨범</b><small>활동의 순간을 차곡차곡 모아요.</small></span></div><button type="button" onClick={()=>setAlbumCount(count=>count+1)}><Camera size={13}/> 사진 업로드</button></header><div>{Array.from({length:albumCount},(_,index)=><figure key={index}><span>{['🌿','☕','🌙','📷'][index%4]}</span><figcaption>{['수목원 산책','감성 카페 탐방','야간축제 기록','새로운 활동 사진'][index%4]}</figcaption></figure>)}</div></div>}
       {tab==='board'&&<div className="club-room-board"><form onSubmit={submitPost}><input value={post} onChange={event=>setPost(event.target.value)} placeholder="동아리 멤버들과 나눌 이야기를 적어보세요."/><button>등록</button></form>{posts.map((item,index)=><article key={`${item}-${index}`}><b>{item}</b><small>{index===0?'방금 전':`${index+1}일 전`} · 댓글 {index+2}</small></article>)}</div>}
       {tab==='members'&&<div className="club-room-members">{club.members.length?club.members.map((member,index)=><article key={member.userId}><span>{member.name.slice(0,1)}</span><div><b>{member.name}</b><small>{index===0?'운영자':'동아리 멤버'} · 현재 활동 중</small></div><i/></article>):<p>첫 멤버를 기다리고 있어요.</p>}</div>}

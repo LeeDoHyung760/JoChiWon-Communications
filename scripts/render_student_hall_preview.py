@@ -43,6 +43,8 @@ scene.render.image_settings.file_format = "PNG"
 scene.render.filepath = str(OUTPUT)
 scene.render.film_transparent = False
 scene.render.image_settings.color_mode = "RGBA"
+if scene.world is None:
+    scene.world = bpy.data.worlds.new("Student Hall Preview World")
 scene.world.color = (0.035, 0.04, 0.05)
 scene.view_settings.look = "AgX - Medium High Contrast"
 bpy.ops.render.render(write_still=True)

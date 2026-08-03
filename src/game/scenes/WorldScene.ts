@@ -2,14 +2,14 @@ import Phaser from 'phaser';import type { UserProfile } from '../../types';impor
 import { mapAssetManifest } from '../../data/mapAssetManifest';
 import { characterSettings } from '../character/characterSettings';
 import { directionFromMovement,directionYaw,jumpInputBlocked,motionState,movementInputBlocked,movementYaw,normalizedMovement,shortestAngleDelta } from '../character/characterMotion';
-import { BEAR_PLAY_ZONE_SPAWN,BEAR_TREE_PARK_SPAWN,CAMPUS_SPAWN,GARDEN_SPAWN,GOVERNMENT_CENTRAL_PLAZA_SPAWN,GOVERNMENT_OBSERVATORY_SPAWN,GOVERNMENT_SPAWN,LAKE_PARK_SPAWN,PROJECT_ROOM_SPAWN,PROJECT_ROOM_WORLD_HEIGHT,RECRUITMENT_CENTER_SPAWN,SEJONG_SMART_CITY_SPAWN,STUDENT_HALL_SPAWN,type VillageMapRenderer } from '../renderers/VillageMapRenderer';
+import { BEAR_PLAY_ZONE_SPAWN,BEAR_TREE_PARK_SPAWN,CAMPUS_SPAWN,GARDEN_SPAWN,GOVERNMENT_CENTRAL_PLAZA_SPAWN,GOVERNMENT_OBSERVATORY_SPAWN,GOVERNMENT_SPAWN,LAKE_PARK_SPAWN,PROJECT_ROOM_SPAWN,PROJECT_ROOM_WORLD_HEIGHT,PROJECT_ROOM_WORLD_WIDTH,RECRUITMENT_CENTER_SPAWN,SEJONG_SMART_CITY_SPAWN,STUDENT_HALL_SPAWN,type VillageMapRenderer } from '../renderers/VillageMapRenderer';
 import type { GameReturnState } from '../gameReturnState';
 import { saveLocalPlayerResumeState } from '../playerResumeState';
 interface Remote { avatar:AvatarContainer; targetX:number; targetY:number; targetYaw:number; state:PlayerState;lastAnimationAt:number }
 interface SceneData {profile:UserProfile;mapId?:MapId;worldRenderers?:Partial<Record<MapId,VillageMapRenderer>>;ensureWorldRenderer?:(mapId:MapId)=>VillageMapRenderer|undefined;initialSpawn?:{x:number;z:number;yaw:number}}
 const labels:Record<MapId,string>={town:'세종호수공원','arts-center':'세종예술의전당','festival-experience':'축제 부스','food-experience':'먹거리 부스','club-street-festival':'동아리 거리제','bear-tree-park':'베어트리파크','bear-play-zone':'AI 탐험 연구소',garden:'수목원',campus:'공동캠퍼스','student-hall':'학생회관','recruitment-center':'모집센터','project-room':'프로젝트실',government:'정부청사','government-central-plaza':'중앙광장','government-policy-hall':'정책 체험관','government-observatory':'전망대','sejong-smart-city':'세종 스마트시티 국가시범도시','jochwon-station':'조치원역','traditional-market':'세종전통시장','jochwon-park':'조치원공원','college-street':'대학로'};
 const MAIN={width:2400,height:1900};const DETAIL={width:1600,height:1100};
-const PROJECT_ROOM_SIZE={width:MAIN.width,height:PROJECT_ROOM_WORLD_HEIGHT};
+const PROJECT_ROOM_SIZE={width:PROJECT_ROOM_WORLD_WIDTH,height:PROJECT_ROOM_WORLD_HEIGHT};
 type DetailMapId=Exclude<MapId,'town'|'arts-center'|'festival-experience'|'food-experience'|'club-street-festival'|'bear-tree-park'|'bear-play-zone'|'garden'|'campus'|'student-hall'|'recruitment-center'|'project-room'|'government'|'government-central-plaza'|'government-observatory'|'sejong-smart-city'>;
 type IllustratedDetailMapId=keyof typeof mapAssetManifest;
 export class WorldScene extends Phaser.Scene{

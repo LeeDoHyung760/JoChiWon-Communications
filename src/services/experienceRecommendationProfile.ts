@@ -7,6 +7,7 @@ import { loadBearHabitatProgress } from './bearHabitatDecision';
 import { buildAiSejongProfile } from './aiSejongProfile';
 import {loadGeneratedExperienceProfile} from './experienceHarness';
 import {recordProfileVisit} from './profileProgress';
+import {loadCampusProfileSignals} from './campusProfileSignals';
 
 const LAKE_INTEREST_KEY='sejong-lake-interest-profile-v1';
 const MAP_RECORD_PREFIX='sejong-map-experience-v1:';
@@ -128,6 +129,7 @@ export function buildExperienceRecommendationProfile(profile:UserProfile):Public
   const aiSejongProfile=buildAiSejongProfile(profile);
   const generatedExperience=loadGeneratedExperienceProfile();
   if(generatedExperience){experienceRecords.push(...generatedExperience.tags.map(tag=>`AI 공연 취향: ${tag}`),`AI 체험 분석: ${generatedExperience.summary}`);preferredPlaceCategories.push('문화시설')}
+  loadCampusProfileSignals(profile.nickname).slice(0,8).forEach(signal=>experienceRecords.push(`캠퍼스 성향: ${signal.keywords[0]??signal.title}`));
   try{
     const lake=JSON.parse(localStorage.getItem(LAKE_INTEREST_KEY)??'null') as {savedContentIds?:unknown;activities?:unknown;foodShopIds?:unknown;foodPlaceInterests?:unknown;foodInterests?:unknown;shopInterests?:unknown;festivalTheme?:unknown;likedCourseTitles?:unknown;tasteInsights?:unknown}|null;
     const savedIds=Array.isArray(lake?.savedContentIds)?lake.savedContentIds.filter((value):value is string=>typeof value==='string'):[];

@@ -297,7 +297,7 @@ export default function App() {
       campus:{mapId:'campus',x:1200,z:1500,yaw:Math.PI},
       'student-hall':{mapId:'student-hall',x:1200,z:1510,yaw:Math.PI},
       'recruitment-center':{mapId:'recruitment-center',x:1200,z:1535,yaw:Math.PI},
-      'project-room':{mapId:'project-room',x:1200,z:1550,yaw:Math.PI},
+      'project-room':{mapId:'project-room',x:1220,z:1690,yaw:Math.PI},
       government:{mapId:'government',x:1200,z:1500,yaw:Math.PI},
       'government-central-plaza':{mapId:'government-central-plaza',x:1200,z:1530,yaw:0},
       'government-observatory':{mapId:'government-observatory',x:1200,z:1380,yaw:Math.PI},

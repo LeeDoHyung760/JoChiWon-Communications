@@ -415,6 +415,114 @@
   .campus-board-feed{grid-template-columns:1fr}
 }
 
+/* Student hall: private recommendations float above the 3D world. */
+.campus-hub-overlay.is-student-hall-hud{
+  padding:18px 5vw 28px 18px;
+  place-items:end;
+  background:linear-gradient(90deg,transparent 0 57%,rgba(7,17,14,.12));
+  backdrop-filter:none;
+  pointer-events:none;
+}
+.is-student-hall-hud .campus-building-page.is-people{
+  width:min(365px,31vw);
+  height:min(760px,calc(100dvh - 36px));
+  pointer-events:auto;
+  overflow:visible;
+  border:1px solid rgba(158,240,208,.7);
+  border-radius:22px;
+  background:linear-gradient(145deg,rgba(13,22,19,.78),rgba(26,34,31,.66));
+  box-shadow:0 28px 70px rgba(0,0,0,.36),inset 0 0 42px rgba(135,241,199,.035),0 0 30px rgba(73,226,168,.09);
+  color:#f5fbf8;
+  backdrop-filter:blur(17px) saturate(1.15);
+  align-self:end;
+  justify-self:end;
+}
+.is-student-hall-hud .is-people .campus-hub-header{display:none}
+.is-student-hall-hud .is-people .campus-hub-body{height:100%;display:block}
+.is-student-hall-hud .is-people .campus-hub-content{height:100%;padding:0;overflow:hidden;background:transparent}
+.student-match-panel{height:100%;padding:23px 16px 12px;display:flex;flex-direction:column}
+.student-match-header{padding:0 12px 15px;border-bottom:1px solid rgba(152,223,197,.25)}
+.student-match-header>div{display:flex;align-items:center;gap:11px}
+.student-match-header>div>span{width:35px;height:35px;display:grid;place-items:center;border:1px solid rgba(137,231,197,.36);border-radius:11px;background:rgba(67,159,126,.14);color:#87e6bd;box-shadow:0 0 16px rgba(78,225,169,.11)}
+.student-match-header h2{margin:0;color:#f7fbf9;font-size:19px;letter-spacing:-.045em;text-shadow:0 2px 9px #000}
+.student-match-header p{margin:6px 0 0;display:flex;align-items:center;gap:5px;color:#b8d8cc;font-size:10px}
+.student-match-header p svg{color:#72d5aa}
+.student-match-list{min-height:0;padding:9px 2px 4px;display:flex;flex:1;flex-direction:column;gap:8px;overflow:auto;scrollbar-width:thin;scrollbar-color:rgba(108,188,158,.42) transparent}
+.student-match-empty{min-height:220px;margin:auto 4px;padding:28px 20px;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;border:1px dashed rgba(137,213,184,.32);border-radius:18px;background:rgba(255,255,255,.035);color:#dcebe5}
+.student-match-empty>svg{width:31px;height:31px;margin-bottom:14px;color:#78d8b1}
+.student-match-empty>b{font-size:14px}.student-match-empty>p{max-width:280px;margin:9px 0 15px;color:#a9c8bc;font-size:10px;line-height:1.65}
+.student-match-empty>div{display:flex;justify-content:center;flex-wrap:wrap;gap:5px}.student-match-empty>div span{padding:5px 7px;border-radius:7px;background:rgba(112,206,169,.12);color:#bce7d5;font-size:8px}
+.student-match-card{padding:11px 11px 8px;border:1px solid rgba(153,208,187,.32);border-radius:14px;background:linear-gradient(125deg,rgba(31,39,36,.84),rgba(20,27,24,.68));box-shadow:inset 0 1px rgba(255,255,255,.025),0 9px 19px rgba(0,0,0,.12)}
+.student-match-person{display:flex;align-items:center;gap:10px}
+.student-match-avatar{width:56px;height:56px;display:grid;place-items:center;flex:none;overflow:hidden;border:1px solid rgba(195,233,219,.19);border-radius:50%;background:radial-gradient(circle at 50% 32%,#9c9387,#323532 68%);box-shadow:0 5px 14px rgba(0,0,0,.25)}
+.student-match-avatar .avatar{margin:-13px 0 -18px;transform:scale(.76)}
+.student-match-identity{min-width:0;flex:1}
+.student-match-identity h3{margin:0;color:#f4f8f6;font-size:14px;letter-spacing:-.025em}
+.student-match-identity small{display:block;margin-top:7px;color:#72bc9c;font-size:8px;font-weight:850}
+.student-match-person>strong{align-self:flex-start;color:#84e89b;font-size:22px;line-height:1;text-shadow:0 0 14px rgba(117,235,147,.28)}
+.student-match-person>strong em{font-size:12px;font-style:normal}
+.student-match-tags{min-height:37px;margin:-14px 0 6px;padding-left:66px;display:flex;align-content:flex-start;flex-wrap:wrap;gap:4px}
+.student-match-tags span{padding:4px 6px;border-radius:6px;background:rgba(255,255,255,.055);color:#dce9e4;font-size:8px;line-height:1}
+.student-match-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.student-match-actions button{height:30px;border:1px solid rgba(160,198,184,.16);border-radius:9px;background:rgba(255,255,255,.045);color:#f1f6f4;font-size:9px;font-weight:850}
+.student-match-actions button.primary{border-color:rgba(83,178,140,.34);background:linear-gradient(135deg,#387d65,#3a936f);box-shadow:0 4px 12px rgba(24,109,78,.18)}
+.student-match-actions button:disabled{opacity:.65}
+.student-listen{width:100%;height:24px;margin-top:5px;display:flex;align-items:center;justify-content:center;gap:6px;border:0;border-top:1px solid rgba(149,205,184,.14);background:transparent;color:#c3dbd1;font-size:8px}
+.student-listen svg{color:#79cfad}.student-listen.is-playing{color:#8ee5bf}
+.student-match-footer{position:relative;min-height:43px;padding:9px 48px 0 8px;display:flex;align-items:flex-start;border-top:1px solid rgba(152,223,197,.2);color:#a7c4b9;font-size:8px}
+.student-match-footer>span{display:flex;align-items:center;gap:5px;line-height:1.4}
+.student-match-footer>button{position:absolute;right:4px;bottom:-6px;width:40px;height:40px;display:grid;place-items:center;border:1px solid rgba(164,235,209,.67);border-radius:50%;background:rgba(17,26,22,.7);color:#eefaf5;box-shadow:0 0 17px rgba(102,226,178,.1)}
+@media(max-width:900px){
+  .campus-hub-overlay.is-student-hall-hud{padding:12px;background:rgba(6,15,12,.22);place-items:center}
+  .is-student-hall-hud .campus-building-page.is-people{width:min(390px,calc(100vw - 24px));height:min(730px,calc(100dvh - 24px));border-radius:20px;align-self:center;justify-self:center}
+}
+@media(max-height:650px) and (min-width:901px){
+  .student-match-panel{padding-top:14px}.student-match-header{padding-bottom:9px}.student-match-list{gap:6px}
+  .student-match-card{padding-top:8px}.student-match-avatar{width:48px;height:48px}.student-match-tags{margin-top:-10px;padding-left:58px}.student-listen{display:none}
+}
+
+/* Student hall recommendation dock: light, edge-aligned information panel. */
+.campus-hub-overlay.is-student-hall-hud{
+  padding:18px 0 18px 18px;
+  background:linear-gradient(90deg,transparent 0 72%,rgba(44,105,82,.08));
+}
+.is-student-hall-hud .campus-building-page.is-people{
+  width:min(390px,34vw);
+  height:min(720px,calc(100dvh - 36px));
+  border:1px solid rgba(92,176,143,.52);
+  border-right:0;
+  border-radius:24px 0 0 24px;
+  background:linear-gradient(155deg,rgba(252,255,253,.97),rgba(235,247,241,.95));
+  box-shadow:-20px 24px 60px rgba(26,70,54,.2),inset 0 1px rgba(255,255,255,.9);
+  color:#173d30;
+  backdrop-filter:blur(19px) saturate(1.08);
+}
+.student-match-panel{padding:22px 18px 13px}
+.student-match-header{padding:0 8px 16px;border-bottom-color:rgba(58,130,102,.18)}
+.student-match-header>div>span{border-color:#b8dfd0;background:#e5f5ee;color:#278761;box-shadow:none}
+.student-match-header h2{color:#173d30;font-size:20px;text-shadow:none}
+.student-match-header p{color:#66877a}.student-match-header p svg{color:#318e6b}
+.student-match-list{padding:11px 0 6px;gap:10px;scrollbar-color:rgba(69,148,117,.28) transparent}
+.student-match-empty{border-color:#c9dfd6;background:rgba(255,255,255,.55);color:#285343}.student-match-empty>svg{color:#31926c}.student-match-empty>p{color:#68877a}.student-match-empty>div span{background:#e4f2ec;color:#3f715e}
+.student-match-card{padding:12px;border-color:#cce1d8;border-radius:17px;background:rgba(255,255,255,.82);box-shadow:0 8px 21px rgba(35,84,65,.075)}
+.student-match-avatar{width:52px;height:52px;border-color:#c9ddd5;background:radial-gradient(circle at 50% 30%,#e9f3ef,#91aa9f 72%);box-shadow:0 4px 12px rgba(37,78,63,.13)}
+.student-match-identity h3{color:#244a3d}.student-match-identity small{color:#39906e}
+.student-match-person>strong{color:#2b9d64;font-size:21px;text-shadow:none}
+.student-match-tags{margin:-12px 0 7px;padding-left:62px}
+.student-match-tags span{background:#eaf3ef;color:#466b5d}
+.student-match-actions button{border-color:#cbded7;background:#fff;color:#315d4d}
+.student-match-actions button:hover{border-color:#77b69e;background:#f0f8f4}
+.student-match-actions button.primary{border-color:#348d6b;background:linear-gradient(135deg,#3d9b77,#2f8463);color:#fff;box-shadow:0 5px 13px rgba(37,124,91,.18)}
+.student-listen{border-top-color:#d8e8e2;color:#55786b}.student-listen svg{color:#318e6b}.student-listen.is-playing{color:#207653}
+.student-match-footer{border-top-color:#cde1d8;color:#66877a}
+.student-match-footer>button{border-color:#94c9b5;background:#fff;color:#285e49;box-shadow:0 6px 16px rgba(33,91,68,.13)}
+.student-match-footer>button:hover{background:#e7f4ee;color:#18704e}
+
+@media(max-width:900px){
+  .campus-hub-overlay.is-student-hall-hud{padding:12px;background:rgba(18,51,39,.18)}
+  .is-student-hall-hud .campus-building-page.is-people{width:min(390px,calc(100vw - 24px));height:min(730px,calc(100dvh - 24px));border-right:1px solid rgba(92,176,143,.52);border-radius:22px}
+}
+
 /* Stronger visual hierarchy for student recommendations and board */
 .campus-building-page.is-people .campus-student-people.is-preview{grid-template-columns:repeat(2,minmax(0,1fr))}
 .campus-building-page.is-people .campus-person-card{border-color:#d4e4de}

@@ -2,6 +2,7 @@ import { CalendarDays,Check,Heart,MapPin,Search,Send,Users,X } from 'lucide-reac
 import { useMemo,useState,type ReactNode } from 'react';
 import { API_BASE_URL } from '../config/api';
 import type { UserProfile } from '../types';
+import { inferCampusTopicProfile,recordCampusProfileSignal } from '../services/campusProfileSignals';
 
 type RecruitmentApplication={id:string;userId:string;name:string;introduction:string;interests:string[];travelStyle:string;status:'pending'|'accepted'|'rejected';createdAt:string};
 type Recruitment={id:string;author:string;title:string;content:string;likes:number;likedBy:string[];createdAt:string;applications?:RecruitmentApplication[]};
@@ -52,6 +53,8 @@ export function CampusRecruitmentCenter({items,loading,userId,profile,composer,o
     const next=[...applied,selected.id];
     setApplied(next);
     localStorage.setItem(`campus-recruit-applications:${userId}`,JSON.stringify(next));
+    const topic=inferCampusTopicProfile(selected.title,selected.description,selected.region,...selected.tags);
+    recordCampusProfileSignal(profile.nickname,{mapId:'recruitment-center',zone:'모집센터',action:'apply-recruitment',subject:selected.id,title:'동행 모집 참가 신청',note:`${selected.title}에 내 프로필을 보내고 함께하기로 했어요`,point:10,keywords:['적극적 참여','동행에 열린',...topic.keywords],axes:{...topic.axes,relation:8,explore:2}});
     onNotice(`${selected.title}에 내 프로필 카드를 보냈어요. 모집자의 승인을 기다려 주세요.`);
     setSelected(null);
   };
@@ -65,15 +68,18 @@ export function CampusRecruitmentCenter({items,loading,userId,profile,composer,o
     onNotice(status==='accepted'?`${application.name}님의 참가를 수락했어요. 단체 채팅이 준비됐습니다.`:`${application.name}님의 참가 신청을 거절했어요.`);
   };
   const toggleExampleLike=(id:string,title:string)=>{
+    const nextLiked=!likedExamples.includes(id),card=examples.find(item=>item.id===id);
     setLikedExamples(current=>current.includes(id)?current.filter(value=>value!==id):[...current,id]);
+    if(nextLiked&&card){const topic=inferCampusTopicProfile(card.title,card.description,card.region,...card.tags);recordCampusProfileSignal(profile.nickname,{mapId:'recruitment-center',zone:'모집센터',action:'save-recruitment',subject:id,title:'관심 동행 모집 저장',note:`${title} 모집을 관심 목록에 담았어요`,point:5,keywords:['동행 관심',...topic.keywords],axes:{...topic.axes,relation:3}})}
     onNotice(`${title}을 관심 목록에 ${likedExamples.includes(id)?'제외했어요.':'저장했어요.'}`);
   };
+  const chooseInterest=(value:string)=>{setInterest(value);if(value!=='전체'){const topic=inferCampusTopicProfile(value);recordCampusProfileSignal(profile.nickname,{mapId:'recruitment-center',zone:'모집센터',action:'interest-filter',subject:value,title:'동행 관심 분야 탐색',note:`${value} 분야의 모집을 찾아봤어요`,point:2,keywords:[`${value} 관심`,...topic.keywords],axes:{...topic.axes,explore:1}})}};
   return <>
     <div className="campus-section-title campus-recruit-title"><div><small>④ 모집센터 · 열린 동행 모집</small><h2>지금 함께할 사람을 찾아보세요</h2><p>검색하고 관심 분야를 고른 뒤, 마음에 맞는 모집에 내 프로필로 신청할 수 있어요.</p></div></div>
     <section className="campus-recruit-discovery">
       <div className="campus-recruit-search"><Search size={19}/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="수목원, 카페, 사진처럼 검색해 보세요" aria-label="모집글 검색"/>{query&&<button type="button" onClick={()=>setQuery('')} aria-label="검색어 지우기"><X size={15}/></button>}</div>
       <div className="campus-recruit-interest-head"><div><b>관심 분야</b><small>분야를 누르면 모집글이 바로 바뀝니다.</small></div></div>
-      <nav className="campus-recruit-interest" aria-label="관심 분야">{interests.map(item=><button type="button" className={interest===item?'active':''} onClick={()=>setInterest(item)} key={item}>{item}</button>)}</nav>
+      <nav className="campus-recruit-interest" aria-label="관심 분야">{interests.map(item=><button type="button" className={interest===item?'active':''} onClick={()=>chooseInterest(item)} key={item}>{item}</button>)}</nav>
       <div className="campus-recruit-more-filters"><label>인원<select value={headcount} onChange={event=>setHeadcount(event.target.value)}><option>전체 인원</option><option>2명</option><option>3~4명</option><option>5명 이상</option></select></label><label>날짜<select value={date} onChange={event=>setDate(event.target.value)}><option>날짜 전체</option><option>오늘</option><option>이번 주말</option><option>날짜 협의</option></select></label><label>지역<select value={region} onChange={event=>setRegion(event.target.value)}><option>지역 전체</option><option>국립세종수목원</option><option>세종 호수공원</option><option>나성동</option><option>어진동</option></select></label><span>{cards.length}개의 모집글</span></div>
     </section>
     {composer&&<section className="campus-recruit-composer-wrap"><header><b>새 모집글 작성</b><small>누구와 어디서 무엇을 하고 싶은지 알려주세요.</small></header>{composer}</section>}

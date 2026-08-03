@@ -1,8 +1,8 @@
 import { useEffect,useMemo,useState,type FormEvent } from 'react';
-import { ArrowUpDown,Bot,CalendarDays,Check,ChevronRight,Clock3,Info,MapPin,Plus,RotateCcw,Search,Send,Sparkles,Trash2,UserPlus,Users,X } from 'lucide-react';
+import { Armchair,ArrowUpDown,Bot,CalendarDays,Check,ChevronRight,Clock3,Info,MapPin,Plus,RotateCcw,Search,Send,Sparkles,Trash2,UserPlus,Users,X } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { gameEvents } from '../game/events';
-import type { ProjectRoomInteraction,ProjectRoomInteractionId } from '../game/projectRoomInteractions';
+import { isProjectRoomKioskInteraction,type ProjectRoomInteraction,type ProjectRoomInteractionId } from '../game/projectRoomInteractions';
 import { buildAiSejongProfile } from '../services/aiSejongProfile';
 import {
   createProjectApplication,
@@ -40,6 +40,7 @@ export function ProjectRoomInteractions({profile,active,onOpenChange,onNotice}:{
   const [created,setCreated]=useState<Project|null>(null);
   const [kioskActive,setKioskActive]=useState(false);
   const [kioskScreenRect,setKioskScreenRect]=useState<{left:number;top:number;width:number;height:number}|null>(null);
+  const [nearbySeat,setNearbySeat]=useState<{id:string;seated?:boolean}|null>(null);
   const aiProfile=useMemo(()=>buildAiSejongProfile(profile),[profile]);
   const recommendations=useMemo(()=>recommendProjects(projects,profile),[profile,projects]);
 
@@ -52,6 +53,7 @@ export function ProjectRoomInteractions({profile,active,onOpenChange,onNotice}:{
     };
     const kioskMode=(enabled:boolean)=>setKioskActive(enabled);
     const kioskRect=(rect:{left:number;top:number;width:number;height:number}|null)=>setKioskScreenRect(rect);
+    const seatProximity=(seat:{id:string;seated?:boolean}|null)=>setNearbySeat(seat);
     const kioskSelection=(selection:'create'|'board'|'recommendation')=>{
       if(selection==='create'){setKioskActive(true);setReturnPanel('creation');setPanel('creation');return}
       setKioskActive(false);
@@ -63,15 +65,17 @@ export function ProjectRoomInteractions({profile,active,onOpenChange,onNotice}:{
     gameEvents.on('project-room-kiosk-mode-changed',kioskMode);
     gameEvents.on('project-room-kiosk-screen-rect',kioskRect);
     gameEvents.on('project-room-kiosk-selection',kioskSelection);
+    gameEvents.on('project-room-seat-proximity-changed',seatProximity);
     return()=>{
       gameEvents.off('project-room-interaction-proximity-changed',proximity);
       gameEvents.off('project-room-interaction-open',open);
       gameEvents.off('project-room-kiosk-mode-changed',kioskMode);
       gameEvents.off('project-room-kiosk-screen-rect',kioskRect);
       gameEvents.off('project-room-kiosk-selection',kioskSelection);
+      gameEvents.off('project-room-seat-proximity-changed',seatProximity);
     };
   },[]);
-  useEffect(()=>{if(!active){setNearby(null);setPanel(null);setSelected(null);setKioskActive(false);gameEvents.emit('project-room-focus-changed',undefined)}},[active]);
+  useEffect(()=>{if(!active){setNearby(null);setNearbySeat(null);setPanel(null);setSelected(null);setKioskActive(false);gameEvents.emit('project-room-focus-changed',undefined)}},[active]);
   useEffect(()=>onOpenChange(panel!==null||kioskActive),[kioskActive,onOpenChange,panel]);
   useEffect(()=>{
     gameEvents.emit('project-room-focus-changed',panel==='creation'?'project-kiosk':undefined);
@@ -107,7 +111,10 @@ export function ProjectRoomInteractions({profile,active,onOpenChange,onNotice}:{
   return <>
     {active&&<div className="project-room-active-marker" aria-hidden="true"/>}
     {active&&kioskActive&&<div className="project-room-kiosk-active-marker" aria-hidden="true"/>}
-    {active&&nearby&&!panel&&!kioskActive&&<button type="button" className="project-room-prompt" onClick={()=>gameEvents.emit(nearby.id==='project-kiosk'?'project-room-kiosk-activate':'project-room-interaction-open',nearby.id==='project-kiosk'?undefined:nearby.id)}>
+    {active&&nearbySeat&&!panel&&!kioskActive&&<button type="button" className="project-room-prompt" onClick={()=>gameEvents.emit('project-room-seat-toggle')}>
+      <span><Armchair size={18}/></span><div><small>프로젝트실 휴식 공간</small><b>{nearbySeat.seated?'소파에서 일어나기':'소파에 앉기'}</b></div><kbd>E</kbd><em>상호작용</em>
+    </button>}
+    {active&&!nearbySeat&&nearby&&!panel&&!kioskActive&&<button type="button" className="project-room-prompt" onClick={()=>gameEvents.emit(isProjectRoomKioskInteraction(nearby.id)?'project-room-kiosk-activate':'project-room-interaction-open',nearby.id)}>
       <span><Sparkles size={18}/></span><div><small>프로젝트실 상호작용</small><b>{nearby.label}</b></div><kbd>E</kbd><em>상호작용</em>
     </button>}
     {active&&panel&&<div className={`project-room-overlay ${panel==='creation'?'is-kiosk-mode':''}`} role="dialog" aria-modal="true" aria-label="프로젝트실 기능 패널" onMouseDown={event=>{if(event.target===event.currentTarget)setPanel(null)}}>

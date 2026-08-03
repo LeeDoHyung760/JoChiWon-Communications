@@ -1,5 +1,7 @@
 import { ArrowRight,Calendar,MapPin,MessageCircle,Plus,Sparkles,Users,X } from 'lucide-react';
 import { useState,type FormEvent } from 'react';
+import type { UserProfile } from '../types';
+import { inferCampusTopicProfile,recordCampusProfileSignal } from '../services/campusProfileSignals';
 
 type Project={
   id:string;emoji:string;title:string;goal:string;capacity:number;members:string[];
@@ -13,24 +15,26 @@ const initialProjects:Project[]=[
 type DetailTab='overview'|'members'|'chat'|'memo'|'places'|'schedule';
 const detailTabs:Array<{id:DetailTab;label:string}>=[{id:'overview',label:'프로젝트 설명'},{id:'members',label:'참여자 목록'},{id:'chat',label:'채팅'},{id:'memo',label:'공유 메모'},{id:'places',label:'추천 장소'},{id:'schedule',label:'인공지능 추천 일정'}];
 
-export function CampusProjectRoom({onGovernment,onNotice}:{onGovernment:()=>void;onNotice:(message:string)=>void}){
+export function CampusProjectRoom({profile,onGovernment,onNotice}:{profile:UserProfile;onGovernment:()=>void;onNotice:(message:string)=>void}){
   const [projects,setProjects]=useState(initialProjects);
   const [selected,setSelected]=useState<Project|null>(null);
   const [detailTab,setDetailTab]=useState<DetailTab>('overview');
   const [composer,setComposer]=useState(false);
   const [title,setTitle]=useState(''),[goal,setGoal]=useState(''),[capacity,setCapacity]=useState(4);
   const [memo,setMemo]=useState('사진 촬영 후 근처 카페에서 서로의 사진을 골라보기');
-  const createProject=(event:FormEvent)=>{event.preventDefault();if(!title.trim()||!goal.trim())return;const created:Project={id:`project-${Date.now()}`,emoji:'💡',title:title.trim(),goal:goal.trim(),capacity,members:['나'],tags:['새 프로젝트','함께 계획'],description:`${goal.trim()}을 목표로 함께 만드는 프로젝트입니다.`};setProjects(current=>[created,...current]);setSelected(created);setComposer(false);setTitle('');setGoal('');onNotice('새 프로젝트를 만들었어요.')};
-  const join=(project:Project)=>{if(project.members.includes('나')||project.members.length>=project.capacity)return;const updated={...project,members:[...project.members,'나']};setProjects(current=>current.map(item=>item.id===project.id?updated:item));setSelected(updated);onNotice(`${project.title}에 참여했어요.`)};
+  const createProject=(event:FormEvent)=>{event.preventDefault();if(!title.trim()||!goal.trim())return;const created:Project={id:`project-${Date.now()}`,emoji:'💡',title:title.trim(),goal:goal.trim(),capacity,members:['나'],tags:['새 프로젝트','함께 계획'],description:`${goal.trim()}을 목표로 함께 만드는 프로젝트입니다.`},topic=inferCampusTopicProfile(created.title,created.goal);setProjects(current=>[created,...current]);setSelected(created);setComposer(false);recordCampusProfileSignal(profile.nickname,{mapId:'project-room',zone:'프로젝트실',action:'create-project',subject:created.id,title:'새 공동 프로젝트 설계',note:`${created.title}의 목표와 참여 방식을 직접 정했어요`,point:12,keywords:['함께 설계하는','계획형','모임 주도형',...topic.keywords],axes:{...topic.axes,relation:8,explore:5,record:2}});setTitle('');setGoal('');onNotice('새 프로젝트를 만들었어요.')};
+  const join=(project:Project)=>{if(project.members.includes('나')||project.members.length>=project.capacity)return;const updated={...project,members:[...project.members,'나']},topic=inferCampusTopicProfile(project.title,project.goal,...project.tags);setProjects(current=>current.map(item=>item.id===project.id?updated:item));setSelected(updated);recordCampusProfileSignal(profile.nickname,{mapId:'project-room',zone:'프로젝트실',action:'join-project',subject:project.id,title:'공동 프로젝트 참여',note:`${project.title}의 목표를 함께 완성하기로 했어요`,point:9,keywords:['협업형','꾸준한 참여',...topic.keywords],axes:{...topic.axes,relation:8,explore:2}});onNotice(`${project.title}에 참여했어요.`)};
+  const saveMemo=()=>{if(!selected)return;recordCampusProfileSignal(profile.nickname,{mapId:'project-room',zone:'프로젝트실',action:'save-memo',subject:selected.id,title:'프로젝트 공유 메모 작성',note:`${selected.title}의 계획과 아이디어를 기록했어요`,point:6,keywords:['기록 담당','꼼꼼한 계획'],axes:{record:6,relation:3}});onNotice('공유 메모를 저장했어요.')};
+  const savePlace=(name:string)=>{if(!selected)return;const topic=inferCampusTopicProfile(name,selected.goal);recordCampusProfileSignal(profile.nickname,{mapId:'project-room',zone:'프로젝트실',action:'save-place',subject:`${selected.id}-${name}`,title:'프로젝트 장소 저장',note:`${name}을 ${selected.title}의 후보 장소로 골랐어요`,point:6,keywords:['장소 큐레이터',...topic.keywords],axes:{...topic.axes,explore:4,record:2}});onNotice(`${name}을(를) 프로젝트에 저장했어요.`)};
   if(selected)return <section className="campus-project-detail">
     <header><button type="button" onClick={()=>setSelected(null)}><X size={14}/> 닫기</button><span>{selected.emoji}</span><div><small>함께 만드는 프로젝트</small><h2>{selected.title}</h2><p>{selected.goal} · {selected.members.length}/{selected.capacity}명 참여</p></div></header>
     <nav>{detailTabs.map(item=><button type="button" key={item.id} className={detailTab===item.id?'active':''} onClick={()=>setDetailTab(item.id)}>{item.label}</button>)}</nav>
     <div className="campus-project-detail-body">
       {detailTab==='overview'&&<article className="project-overview"><small>프로젝트 목표</small><h3>{selected.goal}</h3><p>{selected.description}</p><div>{selected.tags.map(tag=><span key={tag}>#{tag}</span>)}</div><button type="button" disabled={selected.members.includes('나')||selected.members.length>=selected.capacity} onClick={()=>join(selected)}>{selected.members.includes('나')?'참여 중':selected.members.length>=selected.capacity?'모집 완료':'프로젝트 참여하기'}</button></article>}
       {detailTab==='members'&&<article className="project-member-list">{selected.members.map((member,index)=><div key={member}><span>{member.slice(0,1)}</span><b>{member}</b><small>{index===0?'프로젝트 리더':'참여자'} · 활동 중</small><i/></div>)}</article>}
-      {detailTab==='chat'&&<article className="project-chat-preview"><MessageCircle size={31}/><h3>프로젝트 채팅</h3><p>참여자들과 일정, 준비물, 장소를 함께 조율해요.</p><button type="button" onClick={()=>onNotice('프로젝트 그룹 채팅을 열었어요.')}>프로젝트 채팅 시작</button></article>}
-      {detailTab==='memo'&&<article className="project-shared-memo"><small>모든 참여자가 함께 편집하는 메모</small><textarea value={memo} onChange={event=>setMemo(event.target.value)}/><button type="button" onClick={()=>onNotice('공유 메모를 저장했어요.')}>메모 저장</button></article>}
-      {detailTab==='places'&&<article className="project-place-list">{[['국립세종수목원','프로젝트 목표와 가장 잘 맞는 장소'],['이응다리','이동 중 함께 둘러보기 좋은 장소'],['세종호수공원','일정을 마무리하며 쉬기 좋은 장소']].map(([name,copy],index)=><div key={name}><span><MapPin size={15}/></span><div><b>{index+1}. {name}</b><small>{copy}</small></div><button type="button" onClick={()=>onNotice(`${name}을(를) 프로젝트에 저장했어요.`)}>저장</button></div>)}</article>}
+      {detailTab==='chat'&&<article className="project-chat-preview"><MessageCircle size={31}/><h3>프로젝트 채팅</h3><p>참여자들과 일정, 준비물, 장소를 함께 조율해요.</p><button type="button" onClick={()=>{recordCampusProfileSignal(profile.nickname,{mapId:'project-room',zone:'프로젝트실',action:'project-chat',subject:selected.id,title:'프로젝트 대화 시작',note:`${selected.title} 참여자들과 계획을 조율했어요`,point:6,keywords:['협업 대화','의견을 나누는'],axes:{relation:6,record:1}});onNotice('프로젝트 그룹 채팅을 열었어요.')}}>프로젝트 채팅 시작</button></article>}
+      {detailTab==='memo'&&<article className="project-shared-memo"><small>모든 참여자가 함께 편집하는 메모</small><textarea value={memo} onChange={event=>setMemo(event.target.value)}/><button type="button" onClick={saveMemo}>메모 저장</button></article>}
+      {detailTab==='places'&&<article className="project-place-list">{[['국립세종수목원','프로젝트 목표와 가장 잘 맞는 장소'],['이응다리','이동 중 함께 둘러보기 좋은 장소'],['세종호수공원','일정을 마무리하며 쉬기 좋은 장소']].map(([name,copy],index)=><div key={name}><span><MapPin size={15}/></span><div><b>{index+1}. {name}</b><small>{copy}</small></div><button type="button" onClick={()=>savePlace(name)}>저장</button></div>)}</article>}
       {detailTab==='schedule'&&<article className="project-ai-schedule"><header><Sparkles size={18}/><div><small>인공지능 일정 도우미</small><b>참여자 취향을 반영한 추천 일정</b></div></header>{[['14:00','학생회관에서 만나기'],['14:30',selected.goal],['16:30','사진과 기록 함께 정리'],['17:00','카페에서 다음 활동 정하기']].map(([time,activity])=><div key={time}><time>{time}</time><span>{activity}</span></div>)}<button type="button" onClick={onGovernment}>함께 코스 완성하기 <ArrowRight size={14}/></button></article>}
     </div>
   </section>;
