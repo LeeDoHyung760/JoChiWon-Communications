@@ -21,15 +21,15 @@ const material = (name, color, roughness = .65, metalness = 0, emissive = 0x0000
   return value;
 };
 const M = {
-  floor: material('Natural_Oak_Floor', 0xb98b5d, .7), trim: material('Ivory_Limestone', 0xe5ddd2, .42),
-  green: material('Deep_Green_Fabric', 0x20372a, .9), green2: material('Forest_Green_Shadow', 0x12241a, .72),
-  wood: material('Smoked_Oak', 0x8d5f3c, .56), woodDark: material('Dark_Walnut', 0x4e3425, .52),
-  top: material('Calacatta_Stone', 0xf0ebe3, .25, .02), screen: material('Screen_Dark', 0x101d18, .22, .1),
-  black: material('Monitor_Black', 0x171918, .32, .12), paper: material('Brochure_Paper', 0xe8dfcb, .88),
-  gold: material('Champagne_Brass', 0xc5a16b, .25, .62), pot: material('Travertine_Pot', 0xa79b87, .7),
-  leaf: material('Plant_Leaf', 0x416227, .86), leaf2: material('Plant_Leaf_Dark', 0x274522, .86),
-  soil: material('Potting_Soil', 0x2c2118, 1), glow: material('Warm_LED', 0xffd29b, .35, 0, 0xff9c46, 3.2),
-  glass: material('Smoked_Glass', 0x78948a, .12, .08), bronze: material('Brushed_Bronze', 0x594534, .26, .52),
+  floor: material('Natural_Oak_Floor', 0xc99d70, .7), trim: material('Ivory_Limestone', 0xeee8df, .42),
+  green: material('Deep_Green_Fabric', 0x3b614c, .9), green2: material('Forest_Green_Shadow', 0x294838, .72),
+  wood: material('Smoked_Oak', 0xaa7954, .56), woodDark: material('Dark_Walnut', 0x75523d, .52),
+  top: material('Calacatta_Stone', 0xf6f2ec, .25, .02), screen: material('Screen_Dark', 0x1b3029, .22, .1),
+  black: material('Monitor_Black', 0x292e2c, .32, .12), paper: material('Brochure_Paper', 0xf1eadb, .88),
+  gold: material('Champagne_Brass', 0xd4b57f, .25, .62), pot: material('Travertine_Pot', 0xb9ae9b, .7),
+  leaf: material('Plant_Leaf', 0x648a46, .86), leaf2: material('Plant_Leaf_Dark', 0x426b3b, .86),
+  soil: material('Potting_Soil', 0x493a2d, 1), glow: material('Warm_LED', 0xffdcae, .35, 0, 0xffad62, 3.2),
+  glass: material('Smoked_Glass', 0x91aaa1, .12, .08), bronze: material('Brushed_Bronze', 0x796552, .26, .52),
 };
 
 function mesh(name, geometry, mat, position = [0, 0, 0], parent = scene) {
@@ -131,16 +131,39 @@ for (const [side, x] of [['Left', -4.85], ['Right', 3.75]]) {
   rounded(`Console_${side}_Lower_Stone`, [1.24, .055, .38], [0, .18, 0], M.trim, .035, consoleGroup);
 }
 
-// Freestanding information kiosk at far right, outside the main approach lane.
-const kiosk = new THREE.Group(); kiosk.name = 'Recruitment_Info_Kiosk'; kiosk.position.set(7.05, .38, .45); kiosk.rotation.y = -.12; scene.add(kiosk);
-rounded('Kiosk_Base', [1.92, .14, 1.04], [0, .07, 0], M.bronze, .16, kiosk);
-rounded('Kiosk_Floating_Plinth', [1.55, .10, .78], [0, .20, 0], M.gold, .12, kiosk);
-rounded('Kiosk_Body', [1.58, 3.12, .38], [0, 1.84, 0], M.bronze, .25, kiosk);
-rounded('Kiosk_Screen_Frame', [1.39, 2.72, .065], [0, 1.98, .22], M.gold, .17, kiosk);
-rounded('Kiosk_Screen', [1.25, 2.56, .035], [0, 1.98, .275], M.screen, .14, kiosk);
+// A full-size but slim self-service kiosk. The web UI is placed over its flat
+// screen, so the shell uses a single shallow body without a bulky rear layer.
+const kiosk = new THREE.Group(); kiosk.name = 'Recruitment_Info_Kiosk'; kiosk.position.set(6.55, .38, .35); kiosk.rotation.y = -.10; scene.add(kiosk);
+rounded('Kiosk_Base', [1.94, .14, .66], [0, .07, 0], M.black, .045, kiosk);
+rounded('Kiosk_Body', [1.72, 2.34, .24], [0, 1.31, 0], M.top, .055, kiosk);
+rounded('Kiosk_Screen_Frame', [1.48, 1.82, .035], [0, 1.56, .15], M.black, .025, kiosk);
+// Leave the display completely flat and blank. The four recruitment actions
+// are rendered by the connected web UI, so no GLB controls may protrude in
+// front of this surface.
+rounded('Kiosk_Screen', [1.36, 1.70, .008], [0, 1.56, .161], M.screen, .015, kiosk);
+
+// Only two shallow physical slots remain below the web display.
+rounded('Kiosk_Receipt_Slot', [.48, .07, .018], [-.34, .39, .135], M.black, .018, kiosk);
+rounded('Kiosk_Card_Reader', [.34, .09, .018], [.37, .39, .135], M.black, .022, kiosk);
+box('Kiosk_Card_Reader_LED', [.10, .018, .006], [.37, .45, .147], M.green, kiosk);
 
 plant('Plant_Tall_Left', [-6.45, .38, -2.85], 1.10, true);
 plant('Plant_Desk_Left', [-3.55, 1.83, -.05], .66, false);
+
+// Keep the architecture spacious while bringing the reception furniture back
+// to a human scale. The original desk top was about 1.7 m high; scaling the
+// furniture groups to 62% makes it a practical counter height without changing
+// the platform, back wall, gameplay anchors, or walking area.
+const furnitureScale = .62;
+[
+  'Recruitment_Reception_Desk',
+  'Recruitment_Brochure_Rack',
+  'Luxury_Side_Console_Left',
+  'Luxury_Side_Console_Right',
+  'Plant_Tall_Left',
+  'Plant_Desk_Left',
+].forEach(name => scene.getObjectByName(name)?.scale.setScalar(furnitureScale));
+scene.getObjectByName('Plant_Desk_Left')?.position.set(-2.45, 1.08, -.05);
 
 // Gameplay anchors and a broad unobstructed spawn/interaction lane.
 marker('Spawn_RecruitmentCenter', [0, .40, 5.35]);

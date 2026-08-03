@@ -1,0 +1,26 @@
+/* Match the focused DOM surface to the idle canvas texture on the physical kiosk. */
+.game-page .recruitment-kiosk-web.is-kiosk-surface{display:flex;flex-direction:column;border:0;border-radius:2.8cqw;background:linear-gradient(145deg,#f4faf7,#dfeee8);box-shadow:inset 0 0 0 .35cqw #c9ddd5;color:#173f35}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-header{position:relative;height:15%;margin:3.5% 4% 0;padding:1.8cqh 3cqw;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:2.8cqw;background:#173f35;color:#fff;text-align:center}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-header h2{margin:0;font-size:3.7cqw;line-height:1.15;letter-spacing:-.04em}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-header p{margin:.7cqh 0 0;color:#b9d8cd;font-size:1.85cqw;font-weight:700}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-header>button{position:absolute;top:1.4cqh;right:1.5cqw;width:5.5cqw;height:5.5cqw;padding:0;display:grid;place-items:center;border:1px solid rgba(255,255,255,.2);border-radius:1.3cqw;background:rgba(255,255,255,.08);color:#fff;cursor:pointer}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-header>button svg{width:2.8cqw;height:2.8cqw}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-menu{min-height:0;flex:1;padding:2.7cqh 4% 2.1cqh;box-sizing:border-box;display:flex;flex-direction:column}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-menu nav{display:grid;gap:1.25cqh}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-menu nav>button{min-height:10.4cqh;padding:1.25cqh 2.1cqw;display:grid;grid-template-columns:7.8cqw minmax(0,1fr) 3cqw;align-items:center;gap:2.1cqw;border:1px solid #d7e4df;border-radius:2.35cqw;background:#f8fbfa;color:#173f35;text-align:left;cursor:pointer;transition:border-color .15s ease,background .15s ease,translate .15s ease}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-menu nav>button:hover{translate:0 -.3cqh;border-color:#55a68d;background:#eef7f3}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-menu nav>button.active{border-color:#55a68d;background:#e3f2ec}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-menu nav i{width:7.8cqw;height:7.8cqw;display:grid;place-items:center;border-radius:2cqw;background:#dcebe5;color:#397662;font-size:2.05cqw;font-style:normal;font-weight:950}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-menu nav>button.active i{background:#2d8a70;color:#fff}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-menu nav span{min-width:0;display:grid;gap:.35cqh}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-menu nav b{font-size:2.6cqw;line-height:1.15}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-menu nav small{color:#66857a;font-size:1.75cqw;font-weight:650}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-menu nav strong{color:#3a8a72;font-size:4cqw;font-weight:800;text-align:center}
+.game-page .is-kiosk-surface .recruitment-kiosk-screen-menu footer{margin-top:auto;padding-top:1.5cqh;color:#50796b;font-size:1.65cqw;font-weight:800;text-align:center}
+
+.game-page .is-kiosk-surface .recruitment-kiosk-detail-screen{min-height:0;flex:1;padding:2.2cqh 4% 3cqh;box-sizing:border-box;display:flex;flex-direction:column;gap:1.3cqh}
+.game-page .is-kiosk-surface .recruitment-kiosk-menu-back{align-self:flex-start;padding:1cqh 1.8cqw;border:1px solid #bcd2ca;border-radius:1.5cqw;background:#fff;color:#286d59;font-size:1.7cqw;font-weight:900;cursor:pointer}
+.game-page .is-kiosk-surface .recruitment-kiosk-detail{flex:1;padding:2.5cqw;border:1px solid #c9ddd5;border-radius:2.3cqw;background:#fff;box-shadow:none}
+.game-page .is-kiosk-surface .recruitment-kiosk-detail>footer{margin-top:auto;padding-top:1.3cqh;border-top:1px solid #d7e0dc}
+.game-page .is-kiosk-surface .recruitment-kiosk-detail header button,.game-page .is-kiosk-surface .recruitment-kiosk-detail footer button{background:#edf3f0}
+.game-page .is-kiosk-surface .recruitment-kiosk-detail>ul li{border:1px solid #dae3df;background:#edf2f0}

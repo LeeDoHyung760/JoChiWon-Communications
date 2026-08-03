@@ -4,8 +4,8 @@ Run:
   blender --background --python scripts/create_sejong_smartcity_exhibition.py
 
 The design follows the supplied visual direction: white architectural panels,
-dark slatted ceiling, blue edge lighting, a central future-map wall, interactive
-kiosks and themed AI/mobility/energy exhibits.
+dark slatted ceiling, blue edge lighting, a central future-map wall, and themed
+AI/mobility/energy exhibits.
 """
 
 from pathlib import Path
@@ -180,10 +180,8 @@ for x in (-11.5, 11.5):
         cyan_soft,
     )
 
-# Back wall title and skyline trace.
+# Back wall graphic and skyline trace. Keep the wall free of lettering.
 cube("Main_Title_Backdrop", (0, 17.98, 8.38), (8.45, 0.04, 1.52), trim, 0.14)
-text_mesh("Main_Title", "세종 스마트시티 국가시범도시", (0, 17.88, 8.85), 0.86, white_bright)
-text_mesh("Main_Subtitle", "AI와 데이터로 연결된 미래도시 · 세종 5-1 생활권", (0, 17.87, 7.95), 0.34, white_bright)
 skyline = [(-7.8, 17.96, 7.0), (-7.2, 17.96, 7.0), (-7.2, 17.96, 7.5), (-6.8, 17.96, 7.5),
            (-6.8, 17.96, 6.9), (-6.1, 17.96, 6.9), (-6.1, 17.96, 7.9), (-5.6, 17.96, 7.9),
            (-5.6, 17.96, 7.1), (-4.8, 17.96, 7.1), (-4.8, 17.96, 8.2), (-4.25, 17.96, 8.2),
@@ -231,9 +229,8 @@ def screen_ui(name, center, width, height, color=cyan):
 cube("Future_Map_Frame", (0, 17.82, 4.55), (8.1, 0.26, 2.55), white_bright, 0.38)
 cube("Future_Map_Frame_Glow", (0, 17.50, 4.55), (7.83, 0.045, 2.28), cyan_soft, 0.30)
 cube("Future_Map_Surface", (0, 17.42, 4.55), (7.50, 0.045, 2.02), white, 0.24)
-themes = [("AI 도시", -5.7), ("자율주행", -2.85), ("스마트 에너지", 0), ("AI 행정", 2.85), ("스마트 헬스케어", 5.7)]
-for index, (label, x) in enumerate(themes):
-    text_mesh(f"Map_Theme_{index}", label, (x, 17.32, 6.0), 0.22, black_text)
+theme_positions = (-5.7, -2.85, 0, 2.85, 5.7)
+for index, x in enumerate(theme_positions):
     cylinder(f"Map_Theme_Pin_{index}", (x, 17.28, 5.55), 0.045, 0.05, cyan, 16, rotation=(math.pi / 2, 0, 0))
     curve(f"Map_Theme_Line_{index}", [(x, 17.28, 5.53), (x, 17.28, 3.35)], 0.012, cyan_soft)
 for i in range(34):
@@ -247,28 +244,23 @@ curve("Wall_City_River", [(-7.1, 17.17, 3.05), (-4, 17.15, 3.35), (-1.5, 17.16, 
 
 # Left AI exhibit.
 cube("AI_Exhibit_Wall", (-11.2, 9.4, 5.25), (3.45, 0.28, 4.5), white_bright, 0.28)
-text_mesh("AI_Title", "AI 도시", (-13.7, 9.05, 8.6), 0.62, black_text, "LEFT")
-text_mesh("AI_Subtitle", "데이터가 연결된 지능형 도시", (-13.7, 9.04, 7.92), 0.25, black_text, "LEFT")
-for index, label in enumerate(("AI 기반 도시 운영", "스마트 안전", "실시간 교통 분석", "예측 행정 서비스")):
+for index in range(4):
     z = 7.05 - index * 0.73
     cube(f"AI_Icon_{index}", (-13.35, 9.00, z), (0.25, 0.035, 0.25), white, 0.08)
     curve(f"AI_Icon_Ring_{index}", [
         (-13.35 + math.cos(i * math.tau / 20) * 0.13, 8.95, z + math.sin(i * math.tau / 20) * 0.13)
         for i in range(20)
     ], 0.018, blue_text, True)
-    text_mesh(f"AI_Label_{index}", label, (-12.85, 8.96, z), 0.20, black_text, "LEFT")
 cube("AI_Screen_Frame", (-10.2, 8.96, 5.45), (1.55, 0.14, 2.1), trim, 0.18)
 cube("AI_Screen", (-10.2, 8.78, 5.45), (1.42, 0.025, 1.97), screen, 0.12)
 screen_ui("AI_Screen_UI", (-10.2, 8.70, 5.45), 2.6, 3.5)
 
 # Right mobility and energy exhibits.
-for name, title, subtitle, x, accent_kind in (
-    ("Mobility", "자율주행 (BRT, UAM)", "더 빠르고 안전한 미래 교통", 8.6, "mobility"),
-    ("Energy", "스마트 에너지", "지속가능한 에너지 자립 도시", 12.4, "energy"),
+for name, x, accent_kind in (
+    ("Mobility", 8.6, "mobility"),
+    ("Energy", 12.4, "energy"),
 ):
     cube(name + "_Wall", (x, 9.4, 5.3), (1.75, 0.28, 4.5), white_bright, 0.26)
-    text_mesh(name + "_Title", title, (x - 1.35, 9.04, 8.5), 0.34, black_text, "LEFT")
-    text_mesh(name + "_Subtitle", subtitle, (x - 1.35, 9.03, 8.0), 0.18, black_text, "LEFT")
     cube(name + "_Screen_Frame", (x, 8.96, 5.9), (1.42, 0.13, 1.65), trim, 0.15)
     cube(name + "_Screen", (x, 8.79, 5.9), (1.32, 0.025, 1.55), screen, 0.11)
     screen_ui(name + "_UI", (x, 8.71, 5.9), 2.35, 2.6, cyan)
@@ -287,21 +279,6 @@ for name, title, subtitle, x, accent_kind in (
     for row in range(3):
         sphere(name + f"_Bullet_{row}", (x - 1.18, 8.92, 3.55 - row * 0.45), 0.055, blue_text)
         cube(name + f"_BulletLine_{row}", (x + 0.1, 8.93, 3.55 - row * 0.45), (0.85, 0.02, 0.025), blue_text, 0.01)
-
-
-def kiosk(name, x, y, rotation_z=0.0):
-    cube(name + "_Base", (x, y, 0.32), (0.82, 0.66, 0.32), white_bright, 0.12, (0, 0, rotation_z))
-    cube(name + "_Stem", (x, y, 1.25), (0.42, 0.40, 0.78), white_bright, 0.10, (0, 0, rotation_z))
-    screen_obj = cube(name + "_Screen", (x, y - 0.18, 2.18), (0.86, 0.10, 0.62), screen, 0.13, (math.radians(22), 0, rotation_z))
-    cube(name + "_ScreenGlow", (x, y - 0.30, 2.20), (0.68, 0.025, 0.42), screen_mid, 0.08, (math.radians(22), 0, rotation_z))
-    for i in range(3):
-        cube(name + f"_UI_{i}", (x - 0.35 + i * 0.34, y - 0.34, 2.16), (0.09, 0.015, 0.09), cyan, 0.03, (math.radians(22), 0, rotation_z))
-    return screen_obj
-
-
-kiosk("AI_Kiosk", -10.4, 3.5)
-kiosk("Mobility_Kiosk", 8.7, 3.6)
-kiosk("Energy_Kiosk", 12.2, 2.4)
 
 # Central interactive future-map table.
 cube("Central_Table_Platform", (0, -3.4, 0.18), (4.6, 3.6, 0.18), floor, 0.36)
@@ -357,7 +334,7 @@ scene = bpy.context.scene
 scene["asset_title_ko"] = "세종 스마트시티 국가시범도시 전시관"
 scene["asset_title_en"] = "Sejong National Pilot Smart City Exhibition"
 scene["reference_style"] = "bright white smart-city experience center"
-scene["interaction_surfaces"] = "Central_Table_Screen, AI_Kiosk_Screen, Mobility_Kiosk_Screen, Energy_Kiosk_Screen"
+scene["interaction_surfaces"] = "Central_Table_Screen"
 scene["is_survey_grade"] = False
 
 # Preview lighting: soft museum ambience with cool display accents.

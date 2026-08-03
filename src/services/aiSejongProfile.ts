@@ -4,6 +4,7 @@ import { dominantEmotion,parseGreenhouseProgress,recommendRepresentativePlant } 
 import { loadBearHabitatProgress } from './bearHabitatDecision';
 import {loadGeneratedExperienceProfile} from './experienceHarness';
 import {buildFoodTasteProfile} from './foodTasteProfile';
+import {campusSignalKeywords} from './campusProfileSignals';
 
 type ProfileInterest={emoji:string;label:string};
 export type AiSejongProfile={
@@ -56,7 +57,8 @@ function lakeInterests(){
 export function buildAiSejongProfile(profile:UserProfile):AiSejongProfile{
   const generatedExperience=loadGeneratedExperienceProfile();
   const foodTaste=buildFoodTasteProfile();
-  const interests=[...new Map([...lakeInterests(),...foodTaste.insights.map(item=>({emoji:'🍽️',label:item.label})),...(generatedExperience?.tags??[]).map(label=>({emoji:'🎭',label}))].map(item=>[item.label,item])).values()].slice(0,6);
+  const campusInterests=campusSignalKeywords(profile.nickname).map(label=>({emoji:/자연/.test(label)?'🌿':/문화|축제/.test(label)?'🎭':/먹거리|카페/.test(label)?'🍽️':/기록/.test(label)?'📸':/교류|동행|대화|모임/.test(label)?'🤝':'🧭',label}));
+  const interests=[...new Map([...campusInterests,...lakeInterests(),...foodTaste.insights.map(item=>({emoji:'🍽️',label:item.label})),...(generatedExperience?.tags??[]).map(label=>({emoji:'🎭',label}))].map(item=>[item.label,item])).values()].slice(0,6);
   const greenhouse=parseGreenhouseProgress(localStorage.getItem(`greenhouse-progress-v1:${userKey(profile.nickname)}`));
   const emotionCounts=[...greenhouse.collected.reduce((counts,item)=>{
     if(item.selectedEmotion)counts.set(item.selectedEmotion,(counts.get(item.selectedEmotion)??0)+1);

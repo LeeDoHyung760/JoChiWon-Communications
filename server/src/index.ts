@@ -27,6 +27,7 @@ import { profileRouter } from './routes/profile.js';
 import { jointCampusRecommendationsRouter } from './routes/jointCampusRecommendations.js';
 import { loadOrSeedWorldRespawnPosition } from './models/WorldRespawnPosition.js';
 import { FIXED_LAKE_RESPAWN } from '../../shared/socket-events.js';
+import { chungnyeongRouter } from './routes/chungnyeong.js';
 
 const app = express();
 app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }));
@@ -43,6 +44,7 @@ app.use('/api/ai', placeRecommendationsRouter);
 app.use('/api/ai', jointCampusRecommendationsRouter);
 app.use('/api/account', accountRouter);
 app.use('/api/profile', profileRouter);
+app.use('/api/chungnyeong', chungnyeongRouter);
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (typeof error === 'object' && error !== null && 'type' in error && error.type === 'entity.too.large') {
     return res.status(413).json({ success: false, error: { code: 'REQUEST_TOO_LARGE', message: '요청 본문이 너무 큽니다.' } });

@@ -14,6 +14,8 @@ import gardenWorldUrl from '../assets/maps/garden.glb?url';
 import campusWorldUrl from '../assets/maps/new-campus-floor.glb?url';
 import studentHallWorldUrl from '../assets/maps/student-hall.glb?url';
 import studentHallPreview from '../assets/maps/student-hall-preview.png';
+import recruitmentCenterWorldUrl from '../assets/maps/recruitment-center.glb?url';
+import recruitmentCenterPreview from '../assets/maps/recruitment-center-preview.png';
 import governmentWorldUrl from '../assets/maps/sejong-gov.glb?url';
 import projectRoomWorldUrl from '../assets/maps/project-room.glb?url';
 import projectRoomPreview from '../assets/maps/project-room-preview.png';
@@ -56,6 +58,7 @@ const guideWorldCatalog:WorldPlace[]=[
   {name:'국립세종수목원',description:'온실 속 식물을 직접 찾아 촬영하고 식물도감과 대표 식물을 만드는 기록 월드예요.',people:'식물 기록',emoji:'🌱',image:gardenMapPreview,modelUrl:gardenWorldUrl,modelSize:'8.2MB',accent:'#36a168',mapId:'garden',points:['온실별 대표 식물 발견과 촬영','식물도감·사진·메모 기록','대표 식물 선택과 취향 분석']},
   {name:'공동캠퍼스',description:'현재 캠퍼스 맵을 걸으며 학생회관·동아리관·모집센터를 방문하고 비슷한 이웃과 활동을 시작해요.',people:'이웃 연결',emoji:'🎓',image:campusMapPreview,modelUrl:campusWorldUrl,modelSize:'22.7MB',accent:'#dd7b25',mapId:'campus',points:['학생회관에서 추천 이웃 확인','동아리관 가입과 단체 채팅','모집센터와 프로젝트실 입장']},
   {name:'학생회관',description:'공동캠퍼스에서 만난 이웃과 함께 머물며 대화하고 쉬어 갈 수 있는 단층 커뮤니티 로비예요.',people:'커뮤니티 로비',emoji:'🏛️',image:studentHallPreview,modelUrl:studentHallWorldUrl,modelSize:'2.3MB',accent:'#4b9279',mapId:'student-hall',points:['중앙 원형 소파와 휴게 공간','현재 활동 중인 캠퍼스 이웃 확인','공동캠퍼스로 바로 돌아가는 포털']},
+  {name:'모집센터',description:'공동캠퍼스에서 관심사가 맞는 동행과 활동을 찾고, 내 프로필로 참가를 신청하는 모집 공간이에요.',people:'동행 모집',emoji:'📣',image:recruitmentCenterPreview,modelUrl:recruitmentCenterWorldUrl,modelSize:'3.7MB',accent:'#7f8ed8',mapId:'recruitment-center',points:['열린 동행 모집글과 관심 분야 확인','내 프로필로 참가 신청하기','안내 데스크와 키오스크 둘러보기']},
   {name:'정부청사',description:'기존 대화를 유지하며 함께 장소와 조건을 고르고 실제 세종 방문 코스를 완성해요.',people:'방문 계획',emoji:'🗺️',image:governmentMapPreview,modelUrl:governmentWorldUrl,modelSize:'3.9MB',accent:'#8155c3',mapId:'government',points:['도시 테마 전시와 대형 지도 탐색','공통 장소·시간·이동 방법 선택','AI 코스 생성·수정·공동 저장']},
   {name:'세종 스마트시티 국가시범도시',description:'정부청사에서 연결되는 밝은 미래도시 전시관에서 AI, 자율주행, 에너지 서비스를 체험해요.',people:'미래도시 탐험',emoji:'🌐',image:sejongSmartCityPreview,modelUrl:sejongSmartCityWorldUrl,modelSize:'12MB',accent:'#18a8db',mapId:'sejong-smart-city',points:['중앙 스마트시티 미래지도 테이블','AI·자율주행·스마트 에너지 전시 존','정부청사로 돌아가는 이동 포털']},
   {name:'정부청사 중앙광장',description:'행정중심도시의 열린 광장을 걸으며 AI 세종 추천센터와 도시 안내 시설을 둘러보는 공간이에요.',people:'도시 안내',emoji:'🏙️',image:governmentCentralPlazaPreview,modelUrl:governmentCentralPlazaWorldUrl,modelSize:'13MB',accent:'#3979a8',mapId:'government-central-plaza',points:['열린 중앙광장과 행정 상징 공간','AI 세종 추천센터 키오스크','정부청사로 돌아가는 이동 포털']},
@@ -73,6 +76,7 @@ const GUIDE_WORLD_ORDER:MapId[]=[
   'garden',
   'campus',
   'student-hall',
+  'recruitment-center',
   'project-room',
   'club-street-festival',
   'government',

@@ -17,6 +17,7 @@ from mathutils import Vector
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "src/assets/maps/student-hall.glb"
 BLEND_OUTPUT = ROOT / "src/assets/maps/student-hall-source.blend"
+TREE_ASSET = ROOT / "src/assets/maps/student-hall-center-tree.glb"
 KOREAN_FONT = Path("/System/Library/Fonts/AppleSDGothicNeo.ttc")
 
 
@@ -197,6 +198,17 @@ def potted_plant(name, location, size=1.0):
              (0.10 * size, 0.28 * size, 0.055 * size), foliage)
 
 
+def import_center_tree():
+    """Keep the original detailed lobby tree instead of rebuilding its shape."""
+    if not TREE_ASSET.exists():
+        raise FileNotFoundError(f"Missing original center tree asset: {TREE_ASSET}")
+    existing = set(bpy.context.scene.objects)
+    bpy.ops.import_scene.gltf(filepath=str(TREE_ASSET))
+    imported = [obj for obj in bpy.context.scene.objects if obj not in existing]
+    for index, obj in enumerate(imported):
+        obj.name = "OriginalCenterTree" if index == 0 else f"OriginalCenterTree_{index}"
+
+
 def railing(name, x0, x1, y, z):
     rail_mat = bronze
     for x in [x0 + i * 1.45 for i in range(int((x1 - x0) / 1.45) + 1)] + [x1]:
@@ -205,18 +217,6 @@ def railing(name, x0, x1, y, z):
         rail = cylinder(name + "_rail", ((x0 + x1) / 2, y, z + dz),
                         0.035, x1 - x0, rail_mat, 10)
         rail.rotation_euler[1] = math.pi / 2
-
-
-def wall_board(name, center_x, title, rows):
-    board = cube(name, (center_x, 8.48, 2.35), (2.35, 0.10, 1.60), warm_white, 0.16)
-    y_face = 8.36
-    for index, (label, color) in enumerate(rows):
-        z = 2.92 - index * 0.53
-        sphere(name + f"_dot_{index}", (center_x - 1.70, y_face, z),
-               (0.14, 0.045, 0.14), color)
-        if index < len(rows) - 1:
-            cube(name + f"_line_{index}", (center_x, y_face - 0.006, z - 0.25),
-                 (1.90, 0.006, 0.008), line_gray)
 
 
 reset_scene()
@@ -230,7 +230,6 @@ sage_light = mat("Sage upholstery", (0.22, 0.38, 0.17), 0.48)
 rug_mat = mat("Woven sage rug", (0.16, 0.28, 0.18), 0.88)
 cream = mat("Sand upholstery", (0.47, 0.38, 0.28), 0.46)
 charcoal = mat("Lettering", (0.16, 0.19, 0.16), 0.72)
-line_gray = mat("Board dividers", (0.58, 0.56, 0.52), 0.9)
 bronze = mat("Warm metal", (0.24, 0.19, 0.13), 0.34, 0.35)
 wood = mat("Natural oak", (0.27, 0.14, 0.065), 0.42)
 glass = mat("Window glass", (0.37, 0.55, 0.68), 0.18, 0.05)
@@ -239,18 +238,24 @@ soil = mat("Potting soil", (0.12, 0.075, 0.035), 1.0)
 stem_mat = mat("Plant stems", (0.18, 0.27, 0.09), 0.9)
 foliage = mat("Plant leaves", (0.27, 0.42, 0.11), 0.86)
 foliage_dark = mat("Plant leaves dark", (0.13, 0.30, 0.08), 0.88)
-blue_light = mat("Portal glow", (0.05, 0.50, 1.00), 0.22, emission=(0.05, 0.45, 1.0))
 bulb = mat("Warm lights", (1.0, 0.74, 0.39), 0.2, emission=(1.0, 0.55, 0.18))
 
 # Shell: 26 m wide x 18 m deep, single floor, open front for gameplay.
 cube("Floor", (0, 0, -0.16), (13, 9, 0.16), floor_mat)
 cube("BackWall", (0, 8.86, 3.20), (13, 0.14, 3.20), wall_mat)
-cube("LeftWall", (-12.86, 2.1, 3.20), (0.14, 6.75, 3.20), wall_mat)
-cube("RightWall", (12.86, 2.1, 3.20), (0.14, 6.75, 3.20), wall_mat)
+# The side walls reach the front edge of the floor.  Each wall is split around
+# a long window band so the relocated glazing is a real opening rather than a
+# blue surface placed over an opaque wall.
+for side, label in ((-1, "Left"), (1, "Right")):
+    x = side * 12.86
+    cube(label + "WallFront", (x, -5.0, 3.20), (0.14, 4.0, 3.20), wall_mat)
+    cube(label + "WallBack", (x, 7.9, 3.20), (0.14, 1.1, 3.20), wall_mat)
+    cube(label + "WallWindowBase", (x, 2.9, 0.70), (0.14, 3.9, 0.70), wall_mat)
+    cube(label + "WallWindowHeader", (x, 2.9, 6.10), (0.14, 3.9, 0.30), wall_mat)
 cube("CeilingBack", (0, 6.7, 6.40), (13, 2.3, 0.14), warm_white)
 cube("BackBaseboard", (0, 8.66, 0.16), (12.72, 0.08, 0.16), charcoal, 0.025)
-cube("LeftBaseboard", (-12.68, 2.1, 0.16), (0.08, 6.55, 0.16), charcoal, 0.025)
-cube("RightBaseboard", (12.68, 2.1, 0.16), (0.08, 6.55, 0.16), charcoal, 0.025)
+cube("LeftBaseboard", (-12.68, 0, 0.16), (0.08, 9.0, 0.16), charcoal, 0.025)
+cube("RightBaseboard", (12.68, 0, 0.16), (0.08, 9.0, 0.16), charcoal, 0.025)
 
 # Architectural rhythm and accent columns.
 for x in (-7.0, -3.9, 3.9, 7.0):
@@ -258,12 +263,20 @@ for x in (-7.0, -3.9, 3.9, 7.0):
 for x in (-4.38, 4.38):
     cube("SagePier", (x, 8.15, 3.20), (0.28, 0.62, 3.20), sage, 0.05)
 
-# Large single-floor windows, clear of the information boards.
-for x in (-11.25, -7.95, 7.95, 11.25):
-    cube("LobbyWindow", (x, 8.70, 4.55), (1.25, 0.045, 1.25), glass)
-    cube("WindowMullion", (x, 8.61, 4.55), (0.045, 0.075, 1.30), charcoal)
-    cube("WindowMullion", (x, 8.61, 3.30), (1.29, 0.075, 0.045), charcoal)
-    cube("WindowMullion", (x, 8.61, 5.80), (1.29, 0.075, 0.045), charcoal)
+# Move the windows off the information wall and onto both side walls.
+for side, label in ((-1, "Left"), (1, "Right")):
+    x = side * 12.84
+    for pane_index, y in enumerate((0.30, 2.90, 5.50)):
+        cube(f"{label}LobbyWindow_{pane_index}", (x, y, 3.60),
+             (0.045, 1.25, 2.15), glass)
+        cube(f"{label}WindowMullion_{pane_index}", (side * 12.70, y, 3.60),
+             (0.075, 0.045, 2.20), charcoal)
+    for y in (-1.0, 1.60, 4.20, 6.80):
+        cube(label + "WindowRail", (side * 12.70, y, 3.60),
+             (0.075, 0.045, 2.20), charcoal)
+    for z in (1.40, 5.80):
+        cube(label + "WindowRail", (side * 12.70, 2.90, z),
+             (0.075, 3.90, 0.045), charcoal)
 
 # Center wall signage and simple people pictogram.
 text_obj("KoreanTitle", "학생회관", (0, 8.67, 4.45), 0.55, sage)
@@ -283,11 +296,10 @@ for i in range(13):
         stem = cylinder("TrailingStem", (x, 8.10, 2.94), 0.012, 0.68, stem_mat, 7)
         stem.rotation_euler[0] = 0.10
 
-# Information boards.
-wall_board("OccupancyBoard", -9.75, "현재 접속 중인 사람",
-           [("준서", sage_light), ("연지", sage_light), ("기국", sage_light), ("민주", sage)])
-wall_board("ClubBoard", 9.75, "추천 동아리 / 모임",
-           [("사진 기록 동아리", sage), ("자연 탐방 모임", sage_light), ("축제 탐방 팀", sage)])
+# Fill the two outer rear-wall bays with information-board surfaces. Their
+# content remains blank because the in-game UI is layered on top at runtime.
+cube("OccupancyBoard", (-9.75, 8.48, 3.18), (2.30, 0.10, 2.78), warm_white, 0.12)
+cube("ClubBoard", (9.75, 8.48, 3.18), (2.30, 0.10, 2.78), warm_white, 0.12)
 
 # Central rug, segmented circular seating, cushions and planter.
 cylinder("RoundRug", (0, -1.10, 0.035), 5.65, 0.07, rug_mat, 64)
@@ -310,42 +322,29 @@ for index, (a0, a1) in enumerate(
     cushion.rotation_euler[2] = mid + math.pi / 2
 cylinder("CenterPlanter", (0, -0.20, 0.48), 0.78, 0.82, ceramic, 40)
 cylinder("CenterSoil", (0, -0.20, 0.90), 0.64, 0.08, soil, 32)
-cylinder("CenterTreeTrunk", (0, -0.20, 1.72), 0.16, 1.65, wood, 14)
-for i, (radius, height, spread) in enumerate(
-    ((0.58, 2.35, 0.28), (0.66, 2.72, 0.18), (0.55, 3.02, 0.08),
-     (0.48, 3.30, 0.03), (0.44, 2.58, 0.58), (0.42, 2.90, 0.50),
-     (0.40, 2.48, 0.78), (0.38, 2.82, 0.76), (0.34, 3.12, 0.62))):
-    angle = i * 2.399
-    canopy = sphere(
-        f"CenterTreeCanopy_{i}",
-        (math.cos(angle) * spread, -0.20 + math.sin(angle) * spread, height),
-        (radius * 0.74, radius * 0.58, radius), foliage if i % 2 else foliage_dark, 18, 12
-    )
-    canopy.rotation_euler[2] = angle
+import_center_tree()
 for x in (-4.75, 4.75):
     cylinder("Ottoman", (x, -1.08, 0.40), 0.50, 0.72, cream, 28)
     cylinder("OttomanBase", (x, -1.08, 0.10), 0.34, 0.16, charcoal, 24)
 
-# Side lounge furniture, all on the accessible ground floor.
+# Side lounge furniture, moved away from the information boards and aligned
+# along the side walls to leave the full rear display area unobstructed.
 for side in (-1, 1):
-    x = side * 8.4
-    cube("SideSofa", (x, 5.75, 0.52), (1.45, 0.56, 0.40), cream, 0.16)
-    cube("SideSofaBack", (x, 6.23, 0.98), (1.45, 0.15, 0.58), sage_light, 0.14)
-    cylinder("CafeTable", (side * 10.55, 4.15, 0.45), 0.58, 0.08, wood, 28)
-    cylinder("CafeTableLeg", (side * 10.55, 4.15, 0.22), 0.08, 0.44, bronze, 12)
-    cube("SideChair", (side * 10.55, 5.45, 0.48), (0.62, 0.53, 0.38), sage_light, 0.14)
-    cube("SideChairBack", (side * 10.55, 5.88, 0.94), (0.62, 0.13, 0.55), cream, 0.12)
-    potted_plant("SidePlant", (side * 11.75, 6.75, 0.0), 0.82)
+    cube("SideSofa", (side * 11.35, 1.90, 0.52), (0.56, 1.45, 0.40), cream, 0.16)
+    cube("SideSofaBack", (side * 11.78, 1.90, 0.98), (0.15, 1.45, 0.58),
+         sage_light, 0.14)
+    cylinder("CafeTable", (side * 10.25, -1.80, 0.45), 0.58, 0.08, wood, 28)
+    cylinder("CafeTableLeg", (side * 10.25, -1.80, 0.22), 0.08, 0.44, bronze, 12)
+    cube("SideChair", (side * 11.35, -1.80, 0.48), (0.53, 0.62, 0.38),
+         sage_light, 0.14)
+    cube("SideChairBack", (side * 11.78, -1.80, 0.94), (0.13, 0.62, 0.55),
+         cream, 0.12)
+    potted_plant("SidePlant", (side * 11.70, -4.65, 0.0), 0.82)
     potted_plant("LobbyPlant", (side * 3.55, 7.45, 0.0), 0.92)
 
 # Warm wall lights.
 for x in (-2.9, 2.9):
     cube("WallSconce", (x, 8.58, 4.72), (0.10, 0.09, 0.22), bulb, 0.04)
-
-# A subtle spawn/interaction marker from the concept art.
-cylinder("PortalOuter", (0, -7.45, 0.025), 0.72, 0.035, blue_light, 48)
-cylinder("PortalCutout", (0, -7.45, 0.05), 0.53, 0.045, floor_mat, 48)
-cylinder("PortalInner", (0, -7.45, 0.065), 0.40, 0.025, blue_light, 48)
 
 # Named empty marks a practical player spawn point.
 bpy.ops.object.empty_add(type="PLAIN_AXES", location=(0, -6.65, 0.05))
