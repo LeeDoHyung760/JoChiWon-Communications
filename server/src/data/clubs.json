@@ -32,5 +32,147 @@
       }
     ],
     "createdAt": "2026-07-30T02:49:57.247Z"
+  },
+  {
+    "id": "2f200e43-05cf-4ac6-b321-7c48e040f296",
+    "name": "독서 동아리",
+    "description": "한 달에 한 권을 읽고 가볍게 이야기해요.",
+    "category": "독서",
+    "color": "#647ca8",
+    "ownerId": "club-street-operator",
+    "ownerName": "동아리 거리제 운영팀",
+    "activity": "월간 독서 모임",
+    "location": "공동캠퍼스",
+    "schedule": "일정 협의",
+    "capacity": 12,
+    "tags": [
+      "독서",
+      "대화"
+    ],
+    "activityBoard": {
+      "placeVotes": [
+        {
+          "option": "국립세종수목원",
+          "voters": []
+        },
+        {
+          "option": "세종호수공원",
+          "voters": []
+        },
+        {
+          "option": "이응다리",
+          "voters": []
+        },
+        {
+          "option": "조치원전통시장",
+          "voters": []
+        }
+      ],
+      "topicVotes": [
+        {
+          "option": "야간축제",
+          "voters": []
+        },
+        {
+          "option": "식물사진",
+          "voters": []
+        },
+        {
+          "option": "카페투어",
+          "voters": []
+        },
+        {
+          "option": "스마트도시 탐방",
+          "voters": []
+        }
+      ],
+      "themeIdeas": [],
+      "placeCards": [],
+      "introCopies": []
+    },
+    "members": [
+      {
+        "userId": "club-street-operator",
+        "name": "동아리 거리제 운영팀",
+        "joinedAt": "2026-08-03T15:48:18.716Z"
+      },
+      {
+        "userId": "community-user-김민주",
+        "name": "김민주",
+        "joinedAt": "2026-08-03T15:48:18.846Z"
+      }
+    ],
+    "createdAt": "2026-08-03T15:48:18.716Z"
+  },
+  {
+    "id": "7169282d-5d64-42b2-aa94-187aa700e19b",
+    "name": "자전거 동아리",
+    "description": "안전하고 즐거운 세종 라이딩 코스를 달려요.",
+    "category": "운동",
+    "color": "#42a18b",
+    "ownerId": "club-street-operator",
+    "ownerName": "동아리 거리제 운영팀",
+    "activity": "주말 라이딩",
+    "location": "세종호수공원",
+    "schedule": "일정 협의",
+    "capacity": 20,
+    "tags": [
+      "자전거",
+      "여행"
+    ],
+    "activityBoard": {
+      "placeVotes": [
+        {
+          "option": "국립세종수목원",
+          "voters": []
+        },
+        {
+          "option": "세종호수공원",
+          "voters": []
+        },
+        {
+          "option": "이응다리",
+          "voters": []
+        },
+        {
+          "option": "조치원전통시장",
+          "voters": []
+        }
+      ],
+      "topicVotes": [
+        {
+          "option": "야간축제",
+          "voters": []
+        },
+        {
+          "option": "식물사진",
+          "voters": []
+        },
+        {
+          "option": "카페투어",
+          "voters": []
+        },
+        {
+          "option": "스마트도시 탐방",
+          "voters": []
+        }
+      ],
+      "themeIdeas": [],
+      "placeCards": [],
+      "introCopies": []
+    },
+    "members": [
+      {
+        "userId": "club-street-operator",
+        "name": "동아리 거리제 운영팀",
+        "joinedAt": "2026-08-03T15:48:30.299Z"
+      },
+      {
+        "userId": "community-user-김민주",
+        "name": "김민주",
+        "joinedAt": "2026-08-03T15:48:30.438Z"
+      }
+    ],
+    "createdAt": "2026-08-03T15:48:30.299Z"
   }
 ]

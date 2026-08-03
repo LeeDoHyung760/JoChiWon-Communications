@@ -11,7 +11,9 @@ import './ProjectLobbyBoardZoom.css';
 
 type ScreenPoint={x:number;y:number};
 type ScreenRect={left:number;top:number;width:number;height:number;quad?:readonly [ScreenPoint,ScreenPoint,ScreenPoint,ScreenPoint]};
-const BOARD_WIDTH=1600,BOARD_HEIGHT=1040;
+// Keep the HTML surface in the same aspect ratio as Lobby_AI_Board_Surface
+// (6.75 x 3.5). A mismatched ratio makes the projected UI look stretched.
+const BOARD_WIDTH=1920,BOARD_HEIGHT=996;
 const images=[gardenPreview,festivalPreview,smartCityPreview];
 
 const perspectiveMatrix=(quad:ScreenRect['quad'])=>{
@@ -64,8 +66,9 @@ export function ProjectLobbyBoard({active,profile}:{active:boolean;profile:UserP
     {icon:FolderPlus,label:'오늘 생성된 프로젝트',value:data.createdToday,unit:'개',tone:'purple'},
   ];
   return <>{nearby&&!focused&&<button type="button" className="project-lobby-board-prompt" onClick={()=>gameEvents.emit('project-lobby-board-focus-open')}><span>📺</span><div><small>프로젝트실 전광판</small><b>가까이에서 전광판 보기</b></div><kbd>E</kbd><em>확대</em></button>}
+  {focused&&<div className="project-lobby-board-focused-marker" aria-hidden="true"/>}
   {focused&&<div className="project-lobby-board-close-hint"><kbd>E</kbd><span>또는</span><kbd>ESC</kbd><b>돌아가기</b></div>}
-  <div className="project-lobby-board-layer" aria-hidden="true"><section className="project-lobby-board" style={boardStyle(rect)}>
+  <div className={`project-lobby-board-layer${focused?' is-zoomed':''}`} aria-hidden="true"><section className="project-lobby-board" style={boardStyle(rect)}>
     <div className="project-live-screen">
       <header className="project-live-header"><div><h1>프로젝트실 전광판 <em>(PROJECT LIVE)</em></h1><p>{profile.nickname||'체험 탐험가'}님, 프로젝트실의 실시간 현황과 주요 소식을 확인하세요.</p></div><span><Radio/> LIVE</span></header>
       <main className="project-live-grid">

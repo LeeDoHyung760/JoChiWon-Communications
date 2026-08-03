@@ -145,6 +145,7 @@ export function GamePage({profile,returnState,onExit,onEditProfile,onOpenCommuni
  {currentMapId==='campus'&&<nav className="campus-portal-editors" aria-label="공동캠퍼스 포탈 위치 편집">{([['people','학생회관'],['clubs','동아리관'],['recruit','모집센터'],['government','프로젝트실']] as const).map(([portal,label])=><button type="button" className="portal-position-editor" key={portal} onClick={()=>{gameEvents.emit('campus-feature-portal-place-at-player',portal);setNotice(`${label} 포탈을 현재 위치로 옮겼어요.`)}}><span>🌀</span><div><small>현재 위치로 이동</small><b>{label}</b></div><MapPin size={16}/></button>)}</nav>}
  {currentMapId==='bear-tree-park'&&<nav className="bear-tree-portal-editors" aria-label="베어트리파크 포탈 위치 편집">{([['town','세종호수공원'],['garden','세종수목원'],['bear-play-zone','AI 탐험 연구소']] as const).map(([destination,label])=><button type="button" className="portal-position-editor" key={destination} onClick={()=>{gameEvents.emit('bear-tree-portal-place-at-player',destination);setNotice(`${label} 포탈을 현재 위치로 옮겼어요.`)}}><span>🌀</span><div><small>포탈 위치 편집</small><b>{label}</b></div><MapPin size={16}/></button>)}</nav>}
  {currentMapId==='food-experience'&&<button type="button" className="portal-position-editor arts-center-portal-editor" onClick={()=>{gameEvents.emit('primary-portal-place-at-player');setNotice('세종호수공원 포탈을 현재 위치로 옮겼어요.')}}><span>🌀</span><div><small>포탈 위치 편집</small><b>현재 위치로 포탈 이동</b></div><MapPin size={16}/></button>}
+ {currentMapId==='club-street-festival'&&<button type="button" className="portal-position-editor festival-portal-editor" onClick={()=>{gameEvents.emit('primary-portal-place-at-player');setNotice('공동캠퍼스 포탈을 현재 위치로 옮겼어요.')}}><span>🌀</span><div><small>공동캠퍼스 포탈 위치 편집</small><b>현재 위치로 포탈 이동</b></div><MapPin size={16}/></button>}
  {currentMapId==='recruitment-center'&&<button type="button" className="portal-position-editor arts-center-portal-editor" onClick={()=>{gameEvents.emit('primary-portal-place-at-player');setNotice('공동캠퍼스 귀환 포탈을 현재 위치로 옮겼어요.')}}><span>🌀</span><div><small>포탈 위치 편집</small><b>공동캠퍼스 귀환 포탈 이동</b></div><MapPin size={16}/></button>}
  {bearPhotoNearby&&!bearPhotoMode&&<button type="button" className="bear-photo-enter-button" onClick={()=>gameEvents.emit('bear-photo-enter')}><span>📸</span><div><small>곰 가족 포토존</small><b>포토존 사진찍기</b></div><MapPin size={18}/></button>}
  {guideNearby&&!guideConversation&&!encounter&&!campusHubOpen&&!aiProfileOpen&&!projectRoomPanelOpen&&<button type="button" className="encounter-start-prompt" onClick={startGuideChat}><span><i/> 세종호수공원 NPC</span><b>충녕이에게 말을 걸어 보세요</b><kbd>T</kbd><strong>대화하기</strong></button>}
@@ -176,7 +177,7 @@ export function GamePage({profile,returnState,onExit,onEditProfile,onOpenCommuni
   {<ArtsCenterStageVideo/>}
  {<StudentHallBoards active={location==='학생회관'} profile={profile} players={players.filter(player=>player.mapId==='student-hall')} groups={groups} messages={messages}/>}
  {<ProjectLobbyBoard active={location==='프로젝트실'} profile={profile}/>}
- {<ClubStreetExperience active={location==='동아리 거리제'} onNotice={setNotice}/>}
+ {<ClubStreetExperience active={location==='동아리 거리제'} profile={profile} onNotice={setNotice}/>}
  {<RecruitmentCenterDesk
    profile={profile}
    players={players}
