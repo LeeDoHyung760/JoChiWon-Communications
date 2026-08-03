@@ -117,8 +117,12 @@ authRouter.get('/kakao', (req, res) => {
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
-    scope: kakaoLoginScopes().join(','),
+    // The start button is an explicit account-login action. Do not silently
+    // reuse a Kakao browser session and skip the authentication screen.
+    prompt: 'login',
   });
+  const loginScopes = kakaoLoginScopes();
+  if (loginScopes.length) authorizationParams.set('scope', loginScopes.join(','));
   const serviceTerms = kakaoServiceTerms();
   if (serviceTerms.length) authorizationParams.set('service_terms', serviceTerms.join(','));
   const url =

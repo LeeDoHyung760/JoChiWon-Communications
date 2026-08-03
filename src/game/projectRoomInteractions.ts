@@ -46,7 +46,7 @@ export const PROJECT_ROOM_INTERACTIONS:ProjectRoomInteraction[]=[
   },
   {
     id:'project-kiosk',
-    label:'새 프로젝트 만들기',
+    label:'키오스크 사용하기',
     radius:2.6*METRE,
     radiusMeters:2.6,
     x:1915,
@@ -55,7 +55,7 @@ export const PROJECT_ROOM_INTERACTIONS:ProjectRoomInteraction[]=[
   },
   {
     id:'lobby-kiosk-1',
-    label:'새 프로젝트 만들기',
+    label:'키오스크 사용하기',
     radius:2.6*METRE,
     radiusMeters:2.6,
     x:1200,
@@ -64,7 +64,7 @@ export const PROJECT_ROOM_INTERACTIONS:ProjectRoomInteraction[]=[
   },
   {
     id:'lobby-kiosk-2',
-    label:'새 프로젝트 만들기',
+    label:'키오스크 사용하기',
     radius:2.6*METRE,
     radiusMeters:2.6,
     x:1500,

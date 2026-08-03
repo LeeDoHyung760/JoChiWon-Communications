@@ -14,13 +14,15 @@ npm run dev
 
 기본 주소:
 
-- 프론트엔드: `http://127.0.0.1:5173`
+- 프론트엔드: `http://localhost:5173`
 - 백엔드: `http://localhost:3001`
 - 서버 상태: `GET http://localhost:3001/health`
 - Provider 상태: `GET http://localhost:3001/api/health/providers`
 - Kakao 로그인 진단: `GET http://localhost:3001/api/auth/kakao/diagnostics`
 
 환경변수를 변경하면 실행 중인 서버를 다시 시작해야 합니다.
+
+카카오 로그인은 기본적으로 별도 동의 권한 없이 사용자 ID만 요청합니다. 이메일, 생년, 생일 또는 카카오싱크 약관을 사용하는 앱은 카카오 개발자 콘솔에서 해당 항목을 승인·등록한 뒤 `KAKAO_LOGIN_SCOPES`, `KAKAO_SERVICE_TERMS`에 명시하세요.
 
 ## 현재 데이터 흐름
 
@@ -731,4 +733,3 @@ Cookie: auth_session=...
 - 실제 Socket.IO 클라이언트를 실행하는 연령 우회 통합 테스트는 추가 보강이 필요합니다.
 - 운영 환경의 관심사 캐시는 메모리 Map 대신 Redis 사용을 권장합니다.
 - `DirectRoom.roomId`는 기존 프로젝트 구조를 유지하기 위해 MongoDB ObjectId가 아니라 UUID 문자열입니다.
-
