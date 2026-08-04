@@ -46,6 +46,7 @@ const WORLD_HEIGHT=1900;
 export const PROJECT_ROOM_WORLD_WIDTH=4700;
 export const PROJECT_ROOM_WORLD_HEIGHT=2400;
 export const RECRUITMENT_CENTER_WORLD_HEIGHT=2200;
+export const SEJONG_SMART_CITY_WORLD_HEIGHT=2800;
 const CAMERA_ELEVATION=THREE.MathUtils.degToRad(33);
 const OVERVIEW_CAMERA_ELEVATION=THREE.MathUtils.degToRad(58);
 const GROUND_PROJECTION=Math.sin(CAMERA_ELEVATION);
@@ -263,6 +264,7 @@ export type WorldMapRendererOptions={
   groundObjectPrefixes?:string[];
   bearPhotoZone?:boolean;
   projectRoomInteractions?:boolean;
+  smartCityWebUi?:boolean;
   governmentCentralPlazaWebUi?:boolean;
   recruitmentKioskWeb?:boolean;
   studentHallFeatures?:boolean;
@@ -591,21 +593,55 @@ export const SEJONG_SMART_CITY_RENDERER_OPTIONS:WorldMapRendererOptions={
     chargeSeconds:3,
     fixedPosition:true,
     sharedPosition:false,
+    positionEditable:true,
   },
   perspectiveCamera:true,
   fixedCameraTarget:false,
   centerInWorldCoordinates:true,
   cameraElevationDeg:27,
-  cameraAzimuthDeg:180,
+  cameraAzimuthDeg:0,
   cameraDistance:1650,
   cameraFov:46,
+  // Keep the current exhibition framing when the player walks into the large
+  // foreground plaza; only the avatar continues toward the bottom edge.
+  cameraFollowBounds:{maxZ:SEJONG_SMART_CITY_SPAWN.z+220},
   characterHeight:150,
+  // The authored showroom floor stops just past the entrance even though the
+  // foreground plaza remains visible. Treat that plaza as a continuation of
+  // the entrance floor so players can walk toward the bottom of the screen.
+  flatGroundExtension:{minX:35,maxX:WORLD_WIDTH-35,minZ:1500,maxZ:SEJONG_SMART_CITY_WORLD_HEIGHT-35},
   groundFillColor:0x686969,
   groundingShadows:true,
   performanceMode:true,
   balancedTextureQuality:true,
   performancePixelRatio:1,
-  simplifiedCollision:true,
+  smartCityWebUi:true,
+  // Keep every structural wall in the authored GLB. Only the graphics and
+  // dashboard contents attached to those walls are replaced by HTML.
+  simplifiedCollision:false,
+  hiddenObjectPrefixes:[
+    'Main_Title_Backdrop',
+    'Back_Wall_Skyline',
+    'Future_Map_',
+    'Map_Theme_',
+    'Wall_City_',
+    'AI_Icon_',
+    'AI_Screen',
+    'Mobility_Screen',
+    'Mobility_UI_',
+    'Mobility_Bullet_',
+    'Mobility_BulletLine_',
+    'Energy_Screen',
+    'Energy_UI_',
+    'Energy_Bullet_',
+    'Energy_BulletLine_',
+    'Energy_Panel_',
+    'Energy_Turbine_',
+    'Energy_Hub_',
+    'Table_Map_',
+    'Screen_BRT',
+    'UAM_',
+  ],
 };
 export const SEJONG_ARTS_CENTER_RENDERER_OPTIONS:WorldMapRendererOptions={
   modelUrl:sejongArtsCenterModelUrl,
@@ -1281,6 +1317,10 @@ export class VillageMapRenderer{
   private lastStudentHallBoardRects=new Map<StudentHallBoardId,StudentHallBoardScreenRect>();
   private projectLobbyBoardScreen?:THREE.Mesh;
   private lastProjectLobbyBoardRect?:ProjectLobbyBoardScreenRect;
+  private smartCityScreen?:THREE.Mesh;
+  private lastSmartCityScreenRect?:ProjectLobbyBoardScreenRect;
+  private smartCityTableNearby=false;
+  private smartCityTablePosition?:{x:number;z:number;radius:number};
   private projectLobbyBoardPosition?:{x:number;z:number;radius:number};
   private projectLobbyBoardNearby=false;
   private projectLobbyBoardFocused=false;
@@ -1584,6 +1624,7 @@ export class VillageMapRenderer{
       if(this.mapMeshes.length>1)this.mapMeshes.forEach(mesh=>{const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];materials.forEach(material=>this.classifyMaterial(material))});
       this.scene.add(model);
       this.mapModel=model;
+      if(this.options.smartCityWebUi)this.setupSmartCityWebUi(model);
       if(this.options.studentHallFeatures)this.setupStudentHallFeatures(model);
       if(this.options.mapName==='동아리 거리제'){
         this.clubBoothCardAnchors=['ClubBooth_L1_CanvasRoof','ClubBooth_R1_CanvasRoof','ClubBooth_L2_CanvasRoof','ClubBooth_R2_CanvasRoof','ClubBooth_L3_CanvasRoof','ClubBooth_R3_CanvasRoof','ClubBooth_L4_CanvasRoof','ClubBooth_R4_CanvasRoof','ClubBooth_L5_CanvasRoof','ClubBooth_R5_CanvasRoof'].map(name=>model.getObjectByName(name)).filter((object):object is THREE.Object3D=>!!object);
@@ -1689,6 +1730,7 @@ export class VillageMapRenderer{
           ??this.sampleVisibleSurfaceGround(this.portalPosition.x,this.portalPosition.z)
           ??this.sampleGround(this.portalPosition.x,this.portalPosition.z,0,true);
         this.portalRoot=this.createPortal({...this.options.portal,...this.portalPosition},portalGround?.height??this.localGround);
+        if(this.clubBoothCardAnchors.length)this.clubBoothCardAnchors.sort((a,b)=>a.getWorldPosition(new THREE.Vector3()).distanceToSquared(this.portalRoot!.getWorldPosition(new THREE.Vector3()))-b.getWorldPosition(new THREE.Vector3()).distanceToSquared(this.portalRoot!.getWorldPosition(new THREE.Vector3())));
       }
       this.options.fixedPortals?.forEach(config=>{
         Object.assign(config,savedPortalPosition(config,this.options.mapName));
@@ -2758,6 +2800,15 @@ export class VillageMapRenderer{
       stool.position.z=-.55+(stool.position.z+.55)*.86;
     }
   }
+  private setupSmartCityWebUi(model:THREE.Object3D){
+    model.updateMatrixWorld(true);
+    const screen=model.getObjectByName('Central_Table_Screen');
+    const platform=model.getObjectByName('Central_Table_Platform')??screen;
+    if(!(screen instanceof THREE.Mesh)||!platform){console.warn('[미래 세종관] 중앙 테이블 스크린을 찾지 못했습니다.');return}
+    this.smartCityScreen=screen;screen.visible=false;
+    const center=new THREE.Box3().setFromObject(platform).getCenter(new THREE.Vector3());
+    this.smartCityTablePosition={x:center.x,z:this.sceneToWorldZ(center.z)+175,radius:285};
+  }
   private onWorldPortalKeyDown=(event:KeyboardEvent)=>{
     const focused=document.activeElement as HTMLElement|null;
     if(this.projectLobbyBoardFocused&&(event.key==='Escape'||event.code==='KeyE')){event.preventDefault();this.exitProjectLobbyBoardFocus();return}
@@ -2789,6 +2840,9 @@ export class VillageMapRenderer{
       return;
     }
     if(event.code!=='KeyE')return;
+    if(this.smartCityTableNearby){
+      event.preventDefault();event.stopImmediatePropagation();gameEvents.emit('smart-city-experience-open');return;
+    }
     if(this.projectLobbyBoardNearby){
       event.preventDefault();event.stopImmediatePropagation();this.enterProjectLobbyBoardFocus();return;
     }
@@ -3264,6 +3318,14 @@ export class VillageMapRenderer{
     texture.magFilter=THREE.LinearFilter;
     this.projectRoomScreenTextures.push(texture);
     return texture;
+  }
+  private syncSmartCityScreenRect(){
+    if(!this.smartCityScreen)return;
+    const rect=this.projectedMeshScreenRect(this.smartCityScreen),quad=this.projectedMeshScreenQuad(this.smartCityScreen);
+    if(!rect||!quad||rect.width<2||rect.height<2)return;
+    const next={...rect,quad},previous=this.lastSmartCityScreenRect;
+    if(previous&&Math.abs(previous.left-next.left)<.5&&Math.abs(previous.top-next.top)<.5&&Math.abs(previous.width-next.width)<.5&&Math.abs(previous.height-next.height)<.5)return;
+    this.lastSmartCityScreenRect=next;gameEvents.emit('smart-city-screen-rect',next);
   }
   private setupProjectRoomScreens(model:THREE.Object3D){
     // Make both lobby kiosks easier to see and use while preserving their
@@ -4753,6 +4815,14 @@ export class VillageMapRenderer{
         gameEvents.emit('government-webui-proximity-changed',nearby??null);
       }
     }
+    if(this.options.smartCityWebUi&&this.smartCityTablePosition){
+      const distance=Math.hypot(nextX-this.smartCityTablePosition.x,nextZ-this.smartCityTablePosition.z);
+      const nearby=distance<this.smartCityTablePosition.radius+(this.smartCityTableNearby?55:0);
+      if(nearby!==this.smartCityTableNearby){
+        this.smartCityTableNearby=nearby;
+        gameEvents.emit('smart-city-table-proximity-changed',nearby);
+      }
+    }
     if(this.options.recruitmentKioskWeb&&this.recruitmentKioskPosition){
       const distance=Math.hypot(nextX-this.recruitmentKioskPosition.x,nextZ-this.recruitmentKioskPosition.z);
       const nearby=distance<this.recruitmentKioskPosition.radius+(this.recruitmentKioskNearby?45:0);
@@ -5029,6 +5099,7 @@ export class VillageMapRenderer{
     this.resize();if(this.destroyed)return;this.renderer.render(this.scene,this.camera);
     this.syncStudentHallBoardScreenRects();
     this.syncProjectLobbyBoardScreenRect();
+    this.syncSmartCityScreenRect();
     if(this.clubBoothCardAnchors.length){
       const rect=this.renderer.domElement.getBoundingClientRect();
       gameEvents.emit('club-booth-card-screen-positions',this.clubBoothCardAnchors.map(object=>{
@@ -5044,7 +5115,9 @@ export class VillageMapRenderer{
         const depthB=bounds&&localCenter?new THREE.Vector3(localCenter.x,bounds.max.y+.02,localCenter.z+halfDepth).applyMatrix4(object.matrixWorld):center.clone().add(new THREE.Vector3(0,0,.6));
         const projected=center.clone().project(this.camera),projectScreen=(point:THREE.Vector3)=>{const value=point.project(this.camera);return new THREE.Vector2((value.x+1)*rect.width/2,(1-value.y)*rect.height/2)};
         const screenA=projectScreen(edgeA),screenB=projectScreen(edgeB),screenDepthA=projectScreen(depthA),screenDepthB=projectScreen(depthB);
-        return {x:rect.left+(projected.x+1)*rect.width/2,y:rect.top+(1-projected.y)*rect.height/2,width:screenA.distanceTo(screenB),height:screenDepthA.distanceTo(screenDepthB),rotation:THREE.MathUtils.radToDeg(Math.atan2(screenB.y-screenA.y,screenB.x-screenA.x)),visible:projected.z>=-1&&projected.z<=1&&Math.abs(projected.x)<=1.15&&Math.abs(projected.y)<=1.15};
+        const projectedWidth=screenA.distanceTo(screenB),projectedDepth=screenDepthA.distanceTo(screenDepthB),widthIsLong=projectedWidth>=projectedDepth;
+        const longA=widthIsLong?screenA:screenDepthA,longB=widthIsLong?screenB:screenDepthB;
+        return {x:rect.left+(projected.x+1)*rect.width/2,y:rect.top+(1-projected.y)*rect.height/2,width:Math.max(projectedWidth,projectedDepth),height:Math.min(projectedWidth,projectedDepth),rotation:THREE.MathUtils.radToDeg(Math.atan2(longB.y-longA.y,longB.x-longA.x)),visible:projected.z>=-1&&projected.z<=1&&Math.abs(projected.x)<=1.15&&Math.abs(projected.y)<=1.15};
       }));
     }
   }
@@ -5087,6 +5160,7 @@ export class VillageMapRenderer{
     if(this.options.campusFeaturePortals||this.options.studentHallFeatures)gameEvents.emit('campus-feature-portal-proximity-changed',null);
     if(this.options.studentHallFeatures)gameEvents.emit('student-hall-board-screen-rects',null);
     if(this.projectLobbyBoardScreen)gameEvents.emit('project-lobby-board-screen-rect',null);
+    if(this.smartCityScreen)gameEvents.emit('smart-city-screen-rect',null);
     if(this.projectLobbyBoardNearby)gameEvents.emit('project-lobby-board-proximity-changed',false);
     if(this.projectLobbyBoardFocused){gameEvents.emit('project-lobby-board-focus-mode-changed',false);gameEvents.emit('game-input-lock',false)}
     if(this.studentHallBoardActive){gameEvents.emit('student-hall-board-focus-mode-changed',null);gameEvents.emit('game-input-lock',false)}
@@ -5126,6 +5200,8 @@ export class VillageMapRenderer{
     this.projectRoomScreenTextures=[];
     this.studentHallFeatureTargets=[];this.studentHallAiTreeEffect=undefined;this.studentHallBoardScreens.clear();this.lastStudentHallBoardRects.clear();
     this.projectLobbyBoardScreen=undefined;this.lastProjectLobbyBoardRect=undefined;this.projectLobbyBoardPosition=undefined;this.projectLobbyBoardNearby=false;this.projectLobbyBoardFocused=false;this.projectLobbyBoardFocusView=undefined;this.projectLobbyBoardFocusTransition=undefined;
+    if(this.smartCityTableNearby)gameEvents.emit('smart-city-table-proximity-changed',false);
+    this.smartCityScreen=undefined;this.lastSmartCityScreenRect=undefined;this.smartCityTableNearby=false;this.smartCityTablePosition=undefined;
     this.governmentWebUiOutlines.forEach(outline=>{outline.geometry.dispose();(outline.material as THREE.Material).dispose()});
     this.governmentWebUiOutlines.clear();this.governmentWebUiPositions.clear();this.governmentWebUiViews.clear();this.governmentWebUiScreens.clear();
     this.governmentWebUiTextures.forEach(texture=>texture.dispose());this.governmentWebUiTextures=[];
