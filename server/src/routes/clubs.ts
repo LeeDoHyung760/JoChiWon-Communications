@@ -9,6 +9,7 @@ type ClubMember = {
   userId: string;
   name: string;
   joinedAt: string;
+  role?: 'chair' | 'executive' | 'member';
 };
 
 type ActivityVoter = {
@@ -269,6 +270,7 @@ router.post('/:clubId/join', async (request, response) => {
       userId: currentUserId,
       name: currentUserName,
       joinedAt: new Date().toISOString(),
+      role: 'member',
     });
 
     await saveClubs(clubs);
@@ -280,6 +282,42 @@ router.post('/:clubId/join', async (request, response) => {
     response.status(500).json({
       message: '동아리에 가입하지 못했습니다.',
     });
+  }
+});
+
+router.patch('/:clubId/members/:memberId/role', async (request, response) => {
+  try {
+    const { clubId, memberId } = request.params;
+    const { actorId, role } = request.body as { actorId?: string; role?: 'executive' | 'member' };
+    if (role !== 'executive' && role !== 'member') {
+      response.status(400).json({ message: '임원 또는 부원 역할만 지정할 수 있어요.' });
+      return;
+    }
+    const clubs = await readClubs();
+    const club = clubs.find((item) => item.id === clubId);
+    if (!club) {
+      response.status(404).json({ message: '동아리를 찾을 수 없어요.' });
+      return;
+    }
+    if (!actorId?.trim() || club.ownerId !== actorId.trim()) {
+      response.status(403).json({ message: '회장만 구성원의 역할을 변경할 수 있어요.' });
+      return;
+    }
+    if (memberId === club.ownerId) {
+      response.status(400).json({ message: '회장 역할은 변경할 수 없어요.' });
+      return;
+    }
+    const member = club.members.find((item) => item.userId === memberId);
+    if (!member) {
+      response.status(404).json({ message: '구성원을 찾을 수 없어요.' });
+      return;
+    }
+    member.role = role;
+    await saveClubs(clubs);
+    response.json(club);
+  } catch (error) {
+    console.error('[Clubs] 역할 변경 실패:', error);
+    response.status(500).json({ message: '역할을 변경하지 못했어요.' });
   }
 });
 

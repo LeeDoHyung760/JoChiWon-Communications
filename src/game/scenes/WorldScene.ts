@@ -2,7 +2,7 @@ import Phaser from 'phaser';import type { UserProfile } from '../../types';impor
 import { mapAssetManifest } from '../../data/mapAssetManifest';
 import { characterSettings } from '../character/characterSettings';
 import { directionFromMovement,directionYaw,jumpInputBlocked,motionState,movementInputBlocked,movementYaw,normalizedMovement,shortestAngleDelta } from '../character/characterMotion';
-import { BEAR_PLAY_ZONE_SPAWN,BEAR_TREE_PARK_SPAWN,CAMPUS_SPAWN,GARDEN_SPAWN,GOVERNMENT_CENTRAL_PLAZA_SPAWN,GOVERNMENT_OBSERVATORY_SPAWN,GOVERNMENT_SPAWN,LAKE_PARK_SPAWN,PROJECT_ROOM_SPAWN,PROJECT_ROOM_WORLD_HEIGHT,PROJECT_ROOM_WORLD_WIDTH,RECRUITMENT_CENTER_SPAWN,RECRUITMENT_CENTER_WORLD_HEIGHT,SEJONG_SMART_CITY_SPAWN,STUDENT_HALL_SPAWN,type VillageMapRenderer } from '../renderers/VillageMapRenderer';
+import { BEAR_PLAY_ZONE_SPAWN,BEAR_TREE_PARK_SPAWN,CAMPUS_SPAWN,GARDEN_SPAWN,GOVERNMENT_CENTRAL_PLAZA_SPAWN,GOVERNMENT_OBSERVATORY_SPAWN,GOVERNMENT_SPAWN,LAKE_PARK_SPAWN,PROJECT_ROOM_SPAWN,PROJECT_ROOM_WORLD_HEIGHT,PROJECT_ROOM_WORLD_WIDTH,RECRUITMENT_CENTER_SPAWN,RECRUITMENT_CENTER_WORLD_HEIGHT,SEJONG_SMART_CITY_SPAWN,SEJONG_SMART_CITY_WORLD_HEIGHT,STUDENT_HALL_SPAWN,type VillageMapRenderer } from '../renderers/VillageMapRenderer';
 import type { GameReturnState } from '../gameReturnState';
 import { saveLocalPlayerResumeState } from '../playerResumeState';
 interface Remote { avatar:AvatarContainer; targetX:number; targetY:number; targetYaw:number; state:PlayerState;lastAnimationAt:number }
@@ -11,6 +11,8 @@ const labels:Record<MapId,string>={town:'세종호수공원','arts-center':'세�
 const MAIN={width:2400,height:1900};const DETAIL={width:1600,height:1100};
 const PROJECT_ROOM_SIZE={width:PROJECT_ROOM_WORLD_WIDTH,height:PROJECT_ROOM_WORLD_HEIGHT};
 const RECRUITMENT_CENTER_SIZE={width:MAIN.width,height:RECRUITMENT_CENTER_WORLD_HEIGHT};
+const SEJONG_SMART_CITY_SIZE={width:MAIN.width,height:SEJONG_SMART_CITY_WORLD_HEIGHT};
+const movementSize=(mapId:MapId)=>mapId==='project-room'?PROJECT_ROOM_SIZE:mapId==='recruitment-center'?RECRUITMENT_CENTER_SIZE:mapId==='sejong-smart-city'?SEJONG_SMART_CITY_SIZE:MAIN;
 type DetailMapId=Exclude<MapId,'town'|'arts-center'|'festival-experience'|'food-experience'|'club-street-festival'|'bear-tree-park'|'bear-play-zone'|'garden'|'campus'|'student-hall'|'recruitment-center'|'project-room'|'government'|'government-central-plaza'|'government-observatory'|'sejong-smart-city'>;
 type IllustratedDetailMapId=keyof typeof mapAssetManifest;
 export class WorldScene extends Phaser.Scene{
@@ -84,7 +86,7 @@ export class WorldScene extends Phaser.Scene{
   this.isMoving=!!(movement.x||movement.y);const running=this.isMoving&&this.keys.SHIFT.isDown,state=motionState(movement,running);
   if(this.isMoving){
     this.targetYaw=movementYaw({x:worldMovement.x,y:worldMovement.z});this.direction=directionFromMovement(movement,this.direction);
-    const size=this.worldRenderer?(this.mapId==='project-room'?PROJECT_ROOM_SIZE:this.mapId==='recruitment-center'?RECRUITMENT_CENTER_SIZE:MAIN):DETAIL,speed=running?characterSettings.runSpeed:characterSettings.walkSpeed,nextX=Phaser.Math.Clamp(this.player.x+worldMovement.x*speed*deltaSeconds,35,size.width-35),nextY=Phaser.Math.Clamp(this.groundY+worldMovement.z*speed*deltaSeconds,90,size.height-35);
+    const size=this.worldRenderer?movementSize(this.mapId):DETAIL,speed=running?characterSettings.runSpeed:characterSettings.walkSpeed,nextX=Phaser.Math.Clamp(this.player.x+worldMovement.x*speed*deltaSeconds,35,size.width-35),nextY=Phaser.Math.Clamp(this.groundY+worldMovement.z*speed*deltaSeconds,90,size.height-35);
     if(this.worldRenderer){this.player.x=nextX;this.groundY=nextY}else{if(this.jumpHeight>8||this.canMove(nextX,this.groundY))this.player.x=nextX;if(this.jumpHeight>8||this.canMove(this.player.x,nextY))this.groundY=nextY}
   }
   const focusedRemote=this.encounterPlayerId?this.remotes.get(this.encounterPlayerId):undefined;

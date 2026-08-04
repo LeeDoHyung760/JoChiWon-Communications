@@ -22,6 +22,7 @@ export const PROFILE_ZONES: ProfileZone[] = [
   { id: 'arts-center', label: '세종예술의전당', maps: ['arts-center'], icon: '🎭' },
   { id: 'festival-experience', label: '축제 체험장', maps: ['festival-experience'], icon: '🎪' },
   { id: 'food-experience', label: '먹거리 체험장', maps: ['food-experience'], icon: '🍽️' },
+  { id: 'club-street-festival', label: '동아리 거리제', maps: ['club-street-festival'], icon: '🎪' },
   { id: 'bear-tree-park', label: '베어트리파크', maps: ['bear-tree-park'], icon: '🐻' },
   { id: 'bear-play-zone', label: 'AI 생태 연구소', maps: ['bear-play-zone'], icon: '🔬' },
   { id: 'garden', label: '국립세종수목원', maps: ['garden'], icon: '🌿' },
@@ -106,7 +107,7 @@ export function buildProfileProgress(profile: UserProfile) {
   campusSignals.forEach(signal=>records.push({id:`campus-signal-${signal.id}`,zone:signal.zone,title:signal.title,note:signal.note,point:signal.point,at:signal.at,image:imageForMap(signal.mapId),breakdown:[{label:'선택 행동',point:signal.point}]}));
   const harnessHistory = loadExperienceActivityHistory(profile.nickname);
   harnessHistory.forEach(activity => {
-    const zone = activity.mapId === 'arts-center' ? '세종예술의전당' : activity.mapId === 'food-experience' ? '먹거리 체험장' : '축제 체험장';
+    const zone = MAP_LABELS[activity.mapId];
     records.push({ id: `harness-${activity.id}`, zone, title: activity.title, note: activity.note, point: activity.point, breakdown: activity.breakdown, at: activity.recordedAt, image: imageForMap(activity.mapId) });
   });
   if(festivalKeywords.length)records.push({
@@ -169,6 +170,11 @@ export function buildProfileProgress(profile: UserProfile) {
   if (localStorage.getItem(`bear-tree-photo-completed-v1:${user}`) === 'true') records.push({ id: 'bear-photo', zone: '베어트리파크', title: '자연 포토 기록', note: '베어트리파크에서 추억을 남겼어요', point: 12, image: '/images/government-complex-diorama.png' });
   const governmentPlan = readJson<{title?:string;items?:Array<{placeName?:string}>;generatedAt?:number}|null>(`government-visit-plans:${profile.nickname}`, null);
   if (governmentPlan) {const places=governmentPlan.items?.map(item=>item.placeName).filter((name):name is string=>Boolean(name)).slice(0,4)??[];records.push({ id: 'government-plan', zone: '정부세종청사', title: governmentPlan.title?`${governmentPlan.title} 저장`:'나만의 세종 방문 계획 저장', note: places.length?`방문 순서: ${places.join(' → ')}`:'선택한 장소와 이동 조건으로 맞춤 코스를 완성했어요', point: 20,at:validDate(governmentPlan.generatedAt), image: '/images/government-complex-diorama.png' });}
+  const smartCityResult = readJson<{completedAt?:number;visited?:string[];ratings?:Record<string,number>}|null>(`sejong-smart-city-experience-v2:${user}`, null);
+  if(smartCityResult){
+    const experienced=Array.isArray(smartCityResult.visited)?smartCityResult.visited.length:0;
+    records.push({id:'sejong-smart-city-experience',zone:'스마트시티 전시관',title:'미래 세종 디지털 트윈 체험 완료',note:`AI 행정·스마트 교통·친환경 에너지·디지털 트윈·스마트 헬스케어 ${experienced}/5개 기술을 체험했어요`,point:25,at:validDate(smartCityResult.completedAt),image:'/images/government-complex-diorama.png',breakdown:[{label:'미래 기술 체험',point:20},{label:'AI 결과 저장',point:5}]});
+  }
   const applications = readJson<Array<{ id: string; applicantId: string; createdAt?: string }>>('sejong-project-room-applications-v1', []);
   applications.filter(item => item.applicantId === profile.nickname).forEach(item => records.push({ id: `project-${item.id}`, zone: '프로젝트실', title: '공동 프로젝트 지원', note: '세종 프로젝트에 참여 의사를 남겼어요', point: 15, at: item.createdAt, image: '/images/government-complex-diorama.png' }));
   if (bearTravel.result) records.push({ id: 'bear-travel', zone: '베어트리파크', title: '나의 여행 스타일 발견', note: bearTravel.result.title, point: 20, at: bearTravel.result.completedAt, image: '/images/government-complex-diorama.png' });
@@ -190,7 +196,7 @@ export function buildProfileProgress(profile: UserProfile) {
     nature: Math.min(100, zones.filter(z => ['town', 'bear-tree-park', 'bear-play-zone', 'garden', 'jochwon-park'].includes(z.id) && z.visited).length * 9 + greenhouse.collected.length * 4+campusAxes.nature),
     culture: Math.min(100, zones.filter(z => ['arts-center', 'festival-experience'].includes(z.id) && z.visited).length * 12 + countArray(lake?.activities) * 8 + performancePoints * 3 + festivalSignal+campusAxes.culture),
     food: Math.min(100, foodSignal * 3 + (visitedIds.has('food-experience') ? 5 : 0)+campusAxes.food),
-    relation: Math.min(100, zones.filter(z => ['campus', 'student-hall', 'project-room'].includes(z.id) && z.visited).length * 6 + campus.length * 5+campusAxes.relation),
+    relation: Math.min(100, zones.filter(z => ['campus', 'student-hall', 'project-room','club-street-festival'].includes(z.id) && z.visited).length * 6 + campus.length * 5+campusAxes.relation+harnessHistory.filter(item=>['campus','student-hall','recruitment-center','project-room','club-street-festival'].includes(item.mapId)).length*4),
     record: Math.min(100, sortedRecords.filter(item=>!item.id.startsWith('campus-signal-')).length * 4 + greenhouse.memoryLeaves.length * 8 + performanceRecords.length * 5 + (festivalPlanning?6:0)+campusAxes.record),
     explore: Math.min(100, visitedIds.size * 3 + (bearTravel.result ? 15 : 0) + performanceWatchCount * 6 + festivalKeywords.length*2 + (festivalPlanning?8:0) + Math.min(20,foodRecords.length*5+countArray(lake?.foodPlaceInterests)*3)+campusAxes.explore),
   };

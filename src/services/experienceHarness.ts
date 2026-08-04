@@ -2,7 +2,7 @@ import type {MapId} from '../../shared/socket-events';
 import {API_BASE_URL} from '../config/api';
 import {gameEvents} from '../game/events';
 
-type HarnessMap=Extract<MapId,'arts-center'|'food-experience'|'festival-experience'>;
+type HarnessMap=MapId;
 type Action={type:string;at?:number;[key:string]:unknown};
 export type GeneratedExperienceProfile={source:string;generatorSource?:'openai'|'fallback';title?:string;tags:string[];traits?:Array<{key:string;label:string;score:number;confidence:number}>;summary:string;evidence?:string[];updatedAt:string};
 export type ExperienceActivityRecord={id:string;mapId:HarnessMap;title:string;note:string;point:number;breakdown:Array<{label:string;point:number}>;recordedAt:string};
@@ -12,7 +12,10 @@ export const EXPERIENCE_ACTIVITY_HISTORY_KEY='sejong-experience-activity-history
 export const FESTIVAL_INTEREST_HISTORY_KEY='sejong-festival-interest-history-v1';
 type FestivalInterestEntry={id:string;title:string;categories:string[];opens:number;saved:boolean;sections:string[];updatedAt:string};
 export type FestivalKeywordInsight={keyword:string;score:number;count:number;festivals:string[]};
-const isHarnessMap=(mapId:MapId):mapId is HarnessMap=>mapId==='arts-center'||mapId==='food-experience'||mapId==='festival-experience';
+const isHarnessMap=(mapId:MapId):mapId is HarnessMap=>Boolean(mapId);
+const MAP_NAMES:Record<MapId,string>={
+  town:'세종호수공원','arts-center':'세종예술의전당','festival-experience':'축제 체험장','food-experience':'먹거리 체험장','club-street-festival':'동아리 거리제','bear-tree-park':'베어트리파크','bear-play-zone':'AI 생태 연구소',garden:'국립세종수목원',campus:'공동캠퍼스','student-hall':'학생회관','recruitment-center':'모집센터','project-room':'프로젝트실',government:'정부세종청사','government-central-plaza':'정부청사 중앙광장','government-policy-hall':'정책 체험관','government-observatory':'정부청사 전망대','sejong-smart-city':'스마트시티 전시관','jochwon-station':'조치원역','traditional-market':'세종전통시장','jochwon-park':'조치원공원','college-street':'대학로',
+};
 const userKey=(nickname:string)=>nickname.trim().toLowerCase()||'guest';
 let activeUserKey='guest';
 export function setActiveExperienceUser(nickname:string){activeUserKey=userKey(nickname)}
@@ -125,6 +128,29 @@ function mergeExperienceActivities(nickname:string,records:ExperienceActivityRec
   records.forEach(record=>merged.set(record.id,record));
   cacheExperienceActivities(nickname,[...merged.values()].sort((a,b)=>Date.parse(a.recordedAt)-Date.parse(b.recordedAt)));
 }
+const GENERIC_ACTION_LABELS:Record<string,string>={
+  'map-enter':'입장','map-exit':'탐험','club-open':'동아리 부스 살펴보기','club-detail':'동아리 상세 보기','club-join':'동아리 가입','club-save':'관심 동아리 저장','club-activity':'동아리 활동 참여','club-vote':'동아리 제안 투표','photo':'사진 기록','favorite':'관심 저장','save':'저장','complete':'체험 완료','apply':'참여 신청','join':'참여','select':'선택','open':'상세 보기','interaction':'공간 체험',
+};
+const meaningfulValue=(action:Action,keys:string[])=>keys.map(key=>action[key]).find(value=>typeof value==='string'&&value.trim());
+function genericActionCopy(action:Action){
+  const subject=String(meaningfulValue(action,['clubName','activityName','title','itemName','festivalTitle','placeName','projectName','label','name'])??'').trim();
+  const tags=Array.isArray(action.tags)?action.tags.filter((value):value is string=>typeof value==='string').slice(0,4):[];
+  const detail=String(meaningfulValue(action,['note','description','category','section','zone','booth','choice','role'])??'').trim();
+  const known=GENERIC_ACTION_LABELS[action.type]??Object.entries(GENERIC_ACTION_LABELS).find(([key])=>action.type.includes(key))?.[1]??action.type.replaceAll(/[-_]/g,' ');
+  return {title:subject?`${subject} ${known}`:known,note:[subject&&`${subject}에서`,detail,tags.length&&`관심 키워드: ${tags.join(' · ')}`].filter(Boolean).join(' · ')||`${known} 활동을 했어요.`};
+}
+function cacheGenericActivity(nickname:string,payload:{mapId:HarnessMap;sessionId:string;events:Action[]}){
+  if(['arts-center','food-experience','festival-experience'].includes(payload.mapId))return;
+  const actions=payload.events.filter(event=>event.type!=='map-enter');
+  const representative=[...actions].reverse().find(event=>event.type!=='map-exit')??actions.at(-1);
+  const duration=Math.max(1,Math.round((Number(actions.at(-1)?.at) || 0)/1000));
+  const copy=representative?genericActionCopy(representative):{title:`${MAP_NAMES[payload.mapId]} 방문`,note:`${MAP_NAMES[payload.mapId]}에 입장해 공간을 탐색했어요.`};
+  const specificCount=actions.filter(event=>!['map-exit'].includes(event.type)).length;
+  const breakdown=[{label:`${MAP_NAMES[payload.mapId]} 탐색`,point:2},...(specificCount?[{label:`구체적인 활동 ${specificCount}개`,point:Math.min(12,specificCount*3)}]:[])];
+  const record:ExperienceActivityRecord={id:`${payload.mapId}:${payload.sessionId}`,mapId:payload.mapId,title:copy.title,note:`${copy.note}${duration>=5?` · 약 ${duration}초 동안 활동`:''}`,point:breakdown.reduce((sum,item)=>sum+item.point,0),breakdown,recordedAt:new Date().toISOString()};
+  mergeExperienceActivities(nickname,[record]);
+  window.dispatchEvent(new CustomEvent('sejong-experience-profile-updated',{detail:{activityRecords:[record],optimistic:true}}));
+}
 const performanceNames:Record<string,{title:string;type:string}>={
   '0':{title:'뮤지컬 〈서편제〉',type:'뮤지컬 공연'},
   '1':{title:'연극 〈렁스〉',type:'연극 공연'},
@@ -227,7 +253,7 @@ export class ExperienceHarnessCollector{
     gameEvents.on('arts-center-seat-proximity-changed',this.onSeat);
     gameEvents.on('experience-analysis-request',this.onAnalysisRequest);
   }
-  enter(mapId:MapId){if(!isHarnessMap(mapId)){this.map=undefined;return}this.map=mapId;this.sessionId=crypto.randomUUID();this.startedAt=Date.now();this.events=[];this.activeSince.clear();if(mapId==='arts-center')this.push({type:'enter'});if(mapId==='festival-experience')this.push({type:'zone-first',zone:'entrance'})}
+  enter(mapId:MapId){if(!isHarnessMap(mapId)){this.map=undefined;return}this.map=mapId;this.sessionId=crypto.randomUUID();this.startedAt=Date.now();this.events=[];this.activeSince.clear();this.push({type:'map-enter',title:MAP_NAMES[mapId]});if(mapId==='arts-center')this.push({type:'enter'});if(mapId==='festival-experience')this.push({type:'zone-first',zone:'entrance'})}
   exit(){
     if(!this.map)return;
     for(const [key,since] of this.activeSince){
@@ -235,17 +261,18 @@ export class ExperienceHarnessCollector{
       if(key.startsWith('performance:'))this.push({type:'browse',performanceId:key.slice(12),durationSeconds:(Date.now()-since)/1000});
       if(key==='seat')this.push({type:'sit',durationSeconds:(Date.now()-since)/1000});
     }
-    this.activeSince.clear();
+    this.activeSince.clear();this.push({type:'map-exit',title:MAP_NAMES[this.map],durationSeconds:(Date.now()-this.startedAt)/1000});
     const payload={mapId:this.map,sessionId:this.sessionId,events:this.events};
     this.map=undefined;this.events=[];void this.send(payload);
   }
   destroy(){this.exit();gameEvents.off('experience-action',this.onAction);gameEvents.off('food-truck-kiosk-mode-changed',this.onFoodMode);gameEvents.off('arts-center-poster-focus-mode-changed',this.onPerformanceMode);gameEvents.off('arts-center-seat-proximity-changed',this.onSeat);gameEvents.off('experience-analysis-request',this.onAnalysisRequest)}
   private push=(action:Action)=>{if(this.map)this.events.push({...action,at:Math.max(0,Date.now()-this.startedAt)})};
-  private onAction=(action:Action)=>{this.push(action);if((this.map==='festival-experience'&&(action.type==='festival-open'||action.type==='festival-close'||action.type==='festival-booth-complete'||(action.type==='festival-save'&&action.saved!==false)))||(this.map==='arts-center'&&(['browse','watch','finish'].includes(action.type)||(action.type==='favorite'&&action.saved!==false)))||(this.map==='food-experience'&&['food_card_open','food_reopen','food_save','food_truck_complete'].includes(action.type)))this.flushCurrentSession()};
+  private onAction=(action:Action)=>{this.push(action);if((this.map==='festival-experience'&&(action.type==='festival-open'||action.type==='festival-close'||action.type==='festival-booth-complete'||(action.type==='festival-save'&&action.saved!==false)))||(this.map==='arts-center'&&(['browse','watch','finish'].includes(action.type)||(action.type==='favorite'&&action.saved!==false)))||(this.map==='food-experience'&&['food_card_open','food_reopen','food_save','food_truck_complete'].includes(action.type))||(this.map&&!['arts-center','food-experience','festival-experience'].includes(this.map)&&action.type!=='map-enter'))this.flushCurrentSession()};
   private send=async(payload:{mapId:HarnessMap;sessionId:string;events:Action[]})=>{
     cacheLocalPerformanceActivity(this.nickname,payload);
     cacheLocalFestivalActivity(this.nickname,payload);
     cacheLocalFoodActivity(this.nickname,payload);
+    cacheGenericActivity(this.nickname,payload);
     try{
       const response=await fetch(`${API_BASE_URL}/account/me/experience/map-exit`,{method:'POST',credentials:'include',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       if(!response.ok)throw new Error(`profile update ${response.status}`);
