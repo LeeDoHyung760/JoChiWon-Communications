@@ -1385,10 +1385,17 @@ export class VillageMapRenderer{
   private lastArtsCenterStageScreenRect?:{left:number;top:number;width:number;height:number};
   private observatoryTelescopeNearby=false;
   private observatoryTelescopeActive=false;
-  private observatoryTelescopePosition?:{x:number;z:number;radius:number};
-  private observatoryTelescopeView?:{target:THREE.Vector3;camera:THREE.Vector3};
+  private observatoryTelescopeHotspots:Array<{
+    id:string;
+    position:{x:number;z:number;radius:number};
+    view:{target:THREE.Vector3;camera:THREE.Vector3};
+    outline:THREE.Box3Helper;
+  }> = [];
+  private observatoryTelescopeCurrent?:string;
   private observatoryTelescopeTransition?:{target:THREE.Vector3;camera:THREE.Vector3;fov:number;elapsed:number};
-  private observatoryTelescopeOutline?:THREE.Box3Helper;
+  private observatorySofaNearby?:{id:string;seated?:boolean};
+  private observatorySofaActive?:string;
+  private observatorySofaPositions:Array<{id:string;x:number;z:number;seatHeight:number;yaw:number;standX:number;standZ:number}> = [];
   private natureChapterCompletion={bear:false,garden:false,photo:false};
   private portalRoot?:THREE.Group;
   private fixedPortalRoots:THREE.Group[]=[];
@@ -1535,6 +1542,7 @@ export class VillageMapRenderer{
     if(options.recruitmentKioskWeb)gameEvents.on('recruitment-kiosk-close',this.exitRecruitmentKiosk);
     if(options.observatoryTelescopeInteraction)gameEvents.on('observatory-telescope-enter',this.enterObservatoryTelescope);
     if(options.observatoryTelescopeInteraction)gameEvents.on('observatory-telescope-exit',this.exitObservatoryTelescope);
+    if(options.observatoryTelescopeInteraction)gameEvents.on('observatory-sofa-toggle',this.toggleObservatorySofa);
     if(options.artsCenterPosterWeb)gameEvents.on('arts-center-seat-toggle',this.toggleArtsCenterSeat);
     if(options.artsCenterPosterWeb)gameEvents.on('arts-center-poster-focus-close',this.exitArtsCenterPosterFocus);
     if(options.foodTruckExperience)gameEvents.on('food-truck-kiosk-activate',this.enterFoodTruckKiosk);
@@ -2118,15 +2126,21 @@ export class VillageMapRenderer{
     const treeCenter=tree?new THREE.Box3().setFromObject(tree).getCenter(new THREE.Vector3()):new THREE.Vector3();
     const table=model.getObjectByName('Collaboration_Table_Inset');
     const tableCenter=table?new THREE.Box3().setFromObject(table).getCenter(new THREE.Vector3()):new THREE.Vector3();
+    const extraSofaIds=[
+      'tripo_node_d2b5f472a75344d79b9f42e02b7542d3',
+      'tripo_node_d2b5f472a75344d79b9f42e02b7542d3002',
+    ];
+    const isExtraSofa=(name:string)=>extraSofaIds.some(id=>normalizedModelObjectName(name).startsWith(id));
     const seats:ProjectRoomSeat[]=[];
     model.updateMatrixWorld(true);
     model.traverse(object=>{
-      if(!(object instanceof THREE.Mesh))return;
+      if(!(object instanceof THREE.Mesh)&&!isExtraSofa(object.name))return;
       const isLobbySofa=/^Lobby_Sofa_Cushion_\d+$/.test(object.name);
       const isCollaborationStool=/^Stool_Seat_\d+$/.test(object.name);
-      if(!isLobbySofa&&!isCollaborationStool)return;
+      const extra=isExtraSofa(object.name);
+      if(!isLobbySofa&&!isCollaborationStool&&!extra)return;
       const bounds=new THREE.Box3().setFromObject(object),center=bounds.getCenter(new THREE.Vector3());
-      const furnitureCenter=isCollaborationStool?tableCenter:treeCenter;
+      const furnitureCenter=isCollaborationStool?tableCenter:extra?center.clone().setY(treeCenter.y):treeCenter;
       const outward=center.clone().sub(furnitureCenter);outward.y=0;
       if(outward.lengthSq()<.001)outward.set(0,0,1);else outward.normalize();
       const inward=outward.clone().negate();
@@ -2147,7 +2161,7 @@ export class VillageMapRenderer{
   private updateProjectRoomSeatProximity(x:number,z:number){
     if(!this.projectRoomSeats.length||this.projectRoomActiveSeat)return;
     const nearest=this.projectRoomSeats.map(seat=>({seat,distance:Math.hypot(x-seat.x,z-seat.z)})).sort((a,b)=>a.distance-b.distance)[0];
-    const nearby=nearest&&nearest.distance<105?nearest.seat:undefined;
+    const nearby=nearest&&nearest.distance<(nearest.seat.id.startsWith('tripo_node_')?165:105)?nearest.seat:undefined;
     if(nearby?.id===this.projectRoomSeatNearby?.id)return;
     this.projectRoomSeatNearby=nearby;
     gameEvents.emit('project-room-seat-proximity-changed',nearby?{id:nearby.id}:null);
@@ -2325,7 +2339,7 @@ export class VillageMapRenderer{
     if(!visible&&this.projectRoomInteractionNearby){this.projectRoomInteractionNearby=undefined;this.projectRoomInteractionOutlines.forEach(outline=>{outline.visible=false});gameEvents.emit('project-room-interaction-proximity-changed',null)}
     if(!visible&&this.governmentWebUiNearby){this.governmentWebUiNearby=undefined;this.governmentWebUiOutlines.forEach(outline=>{outline.visible=false});gameEvents.emit('government-webui-proximity-changed',null)}
     if(!visible&&this.governmentWebUiActive)this.exitGovernmentWebUi();
-    if(!visible&&this.observatoryTelescopeNearby){this.observatoryTelescopeNearby=false;if(this.observatoryTelescopeOutline)this.observatoryTelescopeOutline.visible=false;gameEvents.emit('observatory-telescope-proximity-changed',false)}
+    if(!visible&&this.observatoryTelescopeNearby){this.observatoryTelescopeNearby=false;this.observatoryTelescopeCurrent=undefined;this.observatoryTelescopeHotspots.forEach(hotspot=>{hotspot.outline.visible=false});gameEvents.emit('observatory-telescope-proximity-changed',false)}
     if(!visible&&this.observatoryTelescopeActive)this.exitObservatoryTelescope();
     if(!visible&&this.lakeExperienceNearby){this.lakeExperienceNearby=undefined;gameEvents.emit('lake-experience-proximity-changed',null)}
     if(!visible&&this.wildlifeClueNearby){this.wildlifeClueNearby=undefined;gameEvents.emit('bear-clue-proximity-changed',null)}
@@ -3588,45 +3602,88 @@ export class VillageMapRenderer{
     gameEvents.emit('government-webui-screen-rect',null);gameEvents.emit('government-webui-mode-changed',null);
   };
   private setupObservatoryTelescope(model:THREE.Object3D){
-    const body=model.getObjectByName('Telescope_left_body');
-    const lenses=[
-      model.getObjectByName('Telescope_left_lens_+1'),
-      model.getObjectByName('Telescope_left_lens_-1'),
-    ].filter((object):object is THREE.Object3D=>!!object);
-    if(!body||!lenses.length)return;
-    body.updateWorldMatrix(true,true);
-    lenses.forEach(lens=>lens.updateWorldMatrix(true,true));
-    const bodyBounds=new THREE.Box3().setFromObject(body);
-    const bodyCenter=bodyBounds.getCenter(new THREE.Vector3());
-    const lensCenter=lenses.reduce(
-      (sum,lens)=>sum.add(new THREE.Box3().setFromObject(lens).getCenter(new THREE.Vector3())),
-      new THREE.Vector3(),
-    ).multiplyScalar(1/lenses.length);
-    const viewDirection=lensCenter.clone().sub(bodyCenter);
-    viewDirection.y*=.12;
-    viewDirection.normalize();
-    const camera=bodyCenter.clone().addScaledVector(viewDirection,-72);
-    camera.y+=12;
-    const target=bodyCenter.clone().addScaledVector(viewDirection,1450);
-    target.y+=8;
-    const approach=bodyCenter.clone().addScaledVector(viewDirection,-135);
-    this.observatoryTelescopePosition={x:approach.x,z:this.sceneToWorldZ(approach.z),radius:230};
-    this.observatoryTelescopeView={camera,target};
-    const outlineBounds=bodyBounds.clone();
-    lenses.forEach(lens=>outlineBounds.expandByObject(lens));
-    const outline=new THREE.Box3Helper(outlineBounds,0x67dcff);
-    outline.name='observatory-telescope-outline';
-    outline.visible=false;
-    outline.renderOrder=90;
-    const material=outline.material as THREE.LineBasicMaterial;
-    material.transparent=true;
-    material.opacity=.9;
-    material.depthTest=false;
-    this.scene.add(outline);
-    this.observatoryTelescopeOutline=outline;
+    this.observatoryTelescopeHotspots.forEach(hotspot=>this.scene.remove(hotspot.outline));
+    this.observatoryTelescopeHotspots=[];
+    this.observatoryTelescopeCurrent=undefined;
+    this.observatorySofaPositions=[];
+    this.observatorySofaNearby=undefined;
+    this.observatorySofaActive=undefined;
+    const collectByPrefix=(root:THREE.Object3D,prefix:string)=>{
+      const matches:THREE.Object3D[]=[];
+      root.traverse(object=>{if(object.name.startsWith(prefix))matches.push(object)});
+      return matches;
+    };
+    const sofaIds=[
+      'tripo_node_d2b5f472-a753-44d7-9b9f-42e02b7542d3',
+      'tripo_node_d2b5f472-a753-44d7-9b9f-42e02b7542d3.002',
+      'tripo_node_d2b5f472-a753-44d7-9b9f-42e02b7542d3002',
+    ].map(id=>normalizedModelObjectName(id));
+    const configs=[
+      {id:'left',bodyName:'Telescope_left_body',lensPrefix:'Telescope_left_lens_'},
+      {id:'right',bodyName:'Telescope_right_body',lensPrefix:'Telescope_right_lens_'},
+    ];
+    for(const config of configs){
+      const body=model.getObjectByName(config.bodyName);
+      const lenses=collectByPrefix(model,config.lensPrefix);
+      if(!body||!lenses.length)continue;
+      body.updateWorldMatrix(true,true);
+      lenses.forEach(lens=>lens.updateWorldMatrix(true,true));
+      const bodyBounds=new THREE.Box3().setFromObject(body);
+      const bodyCenter=bodyBounds.getCenter(new THREE.Vector3());
+      const lensCenter=lenses.reduce(
+        (sum,lens)=>sum.add(new THREE.Box3().setFromObject(lens).getCenter(new THREE.Vector3())),
+        new THREE.Vector3(),
+      ).multiplyScalar(1/lenses.length);
+      const viewDirection=lensCenter.clone().sub(bodyCenter);
+      viewDirection.y*=.12;
+      viewDirection.normalize();
+      const camera=bodyCenter.clone().addScaledVector(viewDirection,-72);
+      camera.y+=12;
+      const target=bodyCenter.clone().addScaledVector(viewDirection,1450);
+      target.y+=8;
+      const approach=bodyCenter.clone().addScaledVector(viewDirection,-135);
+      const position={x:approach.x,z:this.sceneToWorldZ(approach.z),radius:230};
+      const view={camera,target};
+      const outlineBounds=bodyBounds.clone();
+      lenses.forEach(lens=>outlineBounds.expandByObject(lens));
+      const outline=new THREE.Box3Helper(outlineBounds,0x67dcff);
+      outline.name=`observatory-telescope-outline-${config.id}`;
+      outline.visible=false;
+      outline.renderOrder=90;
+      const material=outline.material as THREE.LineBasicMaterial;
+      material.transparent=true;
+      material.opacity=.9;
+      material.depthTest=false;
+      this.scene.add(outline);
+      this.observatoryTelescopeHotspots.push({id:config.id,position,view,outline});
+    }
+    model.traverse(object=>{
+      const normalized=normalizedModelObjectName(object.name);
+      if(!sofaIds.includes(normalized))return;
+      const bounds=new THREE.Box3().setFromObject(object);
+      const center=bounds.getCenter(new THREE.Vector3());
+      const size=bounds.getSize(new THREE.Vector3());
+      const forward=new THREE.Vector3(0,0,-1).transformDirection(object.matrixWorld).setY(0);
+      if(forward.lengthSq()<.001)forward.set(0,0,1);else forward.normalize();
+      const yaw=Math.atan2(forward.x,-forward.z);
+      const seatDepth=Math.max(24,Math.min(36,Math.max(size.x,size.z)*.12));
+      const seat=center.clone().addScaledVector(forward,-seatDepth);
+      const stand=center.clone().addScaledVector(forward,150);
+      this.observatorySofaPositions.push({
+        id:object.name,
+        x:seat.x,
+        z:this.sceneToWorldZ(seat.z),
+        seatHeight:bounds.min.y+size.y*.45,
+        yaw,
+        standX:stand.x,
+        standZ:this.sceneToWorldZ(stand.z),
+      });
+    });
   }
   private enterObservatoryTelescope=()=>{
-    if(!this.observatoryTelescopeNearby||!this.observatoryTelescopeView||this.observatoryTelescopeActive)return;
+    if(!this.observatoryTelescopeNearby||this.observatoryTelescopeActive)return;
+    const hotspot=this.observatoryTelescopeHotspots.find(item=>item.id===this.observatoryTelescopeCurrent)??this.observatoryTelescopeHotspots.find(item=>item.id==='left')??this.observatoryTelescopeHotspots[0];
+    if(!hotspot)return;
     this.observatoryTelescopeActive=true;
     this.observatoryTelescopeTransition={
       target:this.cameraTarget.clone(),
@@ -3634,7 +3691,7 @@ export class VillageMapRenderer{
       fov:this.camera instanceof THREE.PerspectiveCamera?this.camera.fov:46,
       elapsed:0,
     };
-    if(this.observatoryTelescopeOutline)this.observatoryTelescopeOutline.visible=false;
+    hotspot.outline.visible=false;
     this.setProjectRoomCharactersVisible(false);
     gameEvents.emit('observatory-telescope-mode-changed',true);
   };
@@ -3643,8 +3700,22 @@ export class VillageMapRenderer{
     this.observatoryTelescopeActive=false;
     this.observatoryTelescopeTransition=undefined;
     this.setProjectRoomCharactersVisible(true);
-    if(this.observatoryTelescopeOutline)this.observatoryTelescopeOutline.visible=this.observatoryTelescopeNearby;
+    this.observatoryTelescopeHotspots.forEach(hotspot=>{hotspot.outline.visible=this.observatoryTelescopeNearby&&hotspot.id===this.observatoryTelescopeCurrent});
     gameEvents.emit('observatory-telescope-mode-changed',false);
+  };
+  private toggleObservatorySofa=()=>{
+    if(!this.observatorySofaNearby&& !this.observatorySofaActive)return;
+    if(this.observatorySofaActive){
+      this.observatorySofaActive=undefined;
+      this.localCharacter.setSeated(false);
+      gameEvents.emit('observatory-sofa-proximity-changed',this.observatorySofaNearby??null);
+      return;
+    }
+    const seat=this.observatorySofaNearby;
+    if(!seat)return;
+    this.observatorySofaActive=seat.id;
+    this.localCharacter.setSeated(true);
+    gameEvents.emit('observatory-sofa-proximity-changed',{id:seat.id,seated:true});
   };
   private setupProjectRoomHologram(model:THREE.Object3D){
     const table=model.getObjectByName('Collaboration_Table_Inset');
@@ -4601,7 +4672,7 @@ export class VillageMapRenderer{
       }
       return {x:this.localX,z:this.localZ,groundHeight:this.localGround};
     }
-    const activeSeat=this.artsCenterActiveSeat??this.foodActiveSeat??this.projectRoomActiveSeat;
+    const activeSeat=this.artsCenterActiveSeat??this.foodActiveSeat??this.projectRoomActiveSeat??(this.observatorySofaActive&&this.observatorySofaPositions.find(seat=>seat.id===this.observatorySofaActive));
     if(activeSeat){
       const seat=activeSeat,characterHeight=this.options.characterHeight??CHARACTER_HEIGHT;
       this.localX=seat.x;this.localZ=seat.z;
@@ -4609,9 +4680,10 @@ export class VillageMapRenderer{
       // Apply map-specific lifts so the avatar's hips rest on the cushion top.
       const foodSeatLift=this.foodActiveSeat?22:0;
       const projectRoomSeatLift=this.projectRoomActiveSeat?24:0;
-      const position=this.localRenderPosition.set(seat.x,seat.seatHeight-characterHeight*.53+foodSeatLift+projectRoomSeatLift,this.worldToSceneZ(seat.z));
+      const observatorySofaLift=this.observatorySofaActive?12:0;
+      const position=this.localRenderPosition.set(seat.x,seat.seatHeight-characterHeight*.56+foodSeatLift+projectRoomSeatLift+observatorySofaLift,this.worldToSceneZ(seat.z));
       const cameraGround=this.followTarget.set(seat.x,seat.seatHeight,this.worldToSceneZ(seat.z));
-      this.localCharacter.update(position,this.localNormal,seat.yaw,'idle',delta);
+      this.localCharacter.update(position,this.localNormal,seat.yaw??0,'idle',delta);
       this.followCharacter(cameraGround,delta);if(this.artsCenterActiveSeat)this.syncArtsCenterStageScreenRect();this.adjustQuality(delta);this.renderAccumulator+=delta;
       if(this.renderAccumulator>=this.renderInterval){this.renderAccumulator%=this.renderInterval;this.render()}
       return {x:seat.x,z:seat.z,groundHeight:this.localGround};
@@ -4793,13 +4865,31 @@ export class VillageMapRenderer{
         gameEvents.emit('project-room-interaction-proximity-changed',nearby??null);
       }
     }
-    if(this.options.observatoryTelescopeInteraction&&this.observatoryTelescopePosition&&!this.observatoryTelescopeActive){
-      const distance=Math.hypot(nextX-this.observatoryTelescopePosition.x,nextZ-this.observatoryTelescopePosition.z);
-      const nearby=distance<this.observatoryTelescopePosition.radius+(this.observatoryTelescopeNearby?45:0);
-      if(nearby!==this.observatoryTelescopeNearby){
-        this.observatoryTelescopeNearby=nearby;
-        if(this.observatoryTelescopeOutline)this.observatoryTelescopeOutline.visible=nearby;
-        gameEvents.emit('observatory-telescope-proximity-changed',nearby);
+    if(this.options.observatoryTelescopeInteraction&&!this.observatoryTelescopeActive&&this.observatoryTelescopeHotspots.length){
+      const closest=this.observatoryTelescopeHotspots
+        .map(hotspot=>({...hotspot,distance:Math.hypot(nextX-hotspot.position.x,nextZ-hotspot.position.z)}))
+        .sort((a,b)=>a.distance-b.distance)[0];
+      const same=closest?.id===this.observatoryTelescopeCurrent;
+      const nearby=!!closest&&closest.distance<closest.position.radius+(same?45:0)?closest:undefined;
+      const isNearby=!!nearby;
+      if((nearby?.id??undefined)!==this.observatoryTelescopeCurrent){
+        this.observatoryTelescopeCurrent=nearby?.id;
+        this.observatoryTelescopeHotspots.forEach(hotspot=>{hotspot.outline.visible=isNearby&&hotspot.id===nearby?.id});
+      }
+      if(isNearby!==this.observatoryTelescopeNearby){
+        this.observatoryTelescopeNearby=isNearby;
+        gameEvents.emit('observatory-telescope-proximity-changed',isNearby);
+      }
+    }
+    if(this.options.observatoryTelescopeInteraction&&this.observatorySofaPositions.length&&!this.observatoryTelescopeActive){
+      const closest=this.observatorySofaPositions
+        .map(seat=>({...seat,distance:Math.hypot(nextX-seat.standX,nextZ-seat.standZ)}))
+        .sort((a,b)=>a.distance-b.distance)[0];
+      const same=closest?.id===this.observatorySofaNearby?.id;
+      const nearby=closest&&closest.distance<(same?320:260)?closest:undefined;
+      if(nearby?.id!==this.observatorySofaNearby?.id){
+        this.observatorySofaNearby=nearby?{id:nearby.id,seated:undefined}:undefined;
+        gameEvents.emit('observatory-sofa-proximity-changed',this.observatorySofaNearby);
       }
     }
     if(this.options.governmentCentralPlazaWebUi&&!this.governmentWebUiActive){
@@ -4959,7 +5049,9 @@ export class VillageMapRenderer{
         return;
       }
       if(this.observatoryTelescopeActive){
-        const view=this.observatoryTelescopeView,transition=this.observatoryTelescopeTransition;
+        const currentId=this.observatoryTelescopeCurrent??'left';
+        const view=this.observatoryTelescopeHotspots.find(hotspot=>hotspot.id===currentId)?.view??this.observatoryTelescopeHotspots[0]?.view;
+        const transition=this.observatoryTelescopeTransition;
         if(!view)return;
         if(transition){
           transition.elapsed=Math.min(.72,transition.elapsed+delta);
@@ -5135,6 +5227,7 @@ export class VillageMapRenderer{
     if(this.recruitmentKioskNearby)gameEvents.emit('recruitment-kiosk-proximity-changed',false);
     if(this.observatoryTelescopeNearby)gameEvents.emit('observatory-telescope-proximity-changed',false);
     if(this.observatoryTelescopeActive)gameEvents.emit('observatory-telescope-mode-changed',false);
+    if(this.observatorySofaNearby)gameEvents.emit('observatory-sofa-proximity-changed',null);
     if(this.lakeExperienceNearby)gameEvents.emit('lake-experience-proximity-changed',null);
     if(this.bearPhotoNearby)gameEvents.emit('bear-photo-proximity-changed',false);
     if(this.wildlifeClueNearby)gameEvents.emit('bear-clue-proximity-changed',null);
@@ -5208,7 +5301,7 @@ export class VillageMapRenderer{
     this.recruitmentKioskTexture?.dispose();this.recruitmentKioskTexture=undefined;this.recruitmentKioskPosition=undefined;this.recruitmentKioskScreen=undefined;this.recruitmentKioskView=undefined;this.recruitmentKioskTransition=undefined;
     this.artsCenterPosterTextures.forEach(texture=>texture.dispose());this.artsCenterPosterTextures=[];this.artsCenterPosterScreens=[];this.artsCenterSeats=[];this.foodSeats=[];this.artsCenterStageBackdrop=undefined;
     if(this.festivalStageBackdrop)gameEvents.emit('festival-stage-screen-rect',null);this.festivalStageBackdrop=undefined;this.lastFestivalStageScreenRect=undefined;this.festivalStageFocusView=undefined;this.festivalStageFocusTransition=undefined;
-    if(this.observatoryTelescopeOutline){this.observatoryTelescopeOutline.geometry.dispose();(this.observatoryTelescopeOutline.material as THREE.Material).dispose();this.observatoryTelescopeOutline=undefined}
+    this.observatoryTelescopeHotspots.forEach(hotspot=>{hotspot.outline.geometry.dispose();(hotspot.outline.material as THREE.Material).dispose()});this.observatoryTelescopeHotspots=[];this.observatoryTelescopeCurrent=undefined;
     this.localCharacter?.destroy();this.guideNpc?.destroy();this.localNpcs.forEach(npc=>npc.character.destroy());this.localNpcs=[];this.remotes.forEach(character=>character.destroy());this.remotes.clear();this.remoteGrounds.clear();
     this.scene.traverse(object=>{if(object instanceof THREE.Mesh||object instanceof THREE.Points){object.geometry.dispose();const materials=Array.isArray(object.material)?object.material:[object.material];materials.forEach(material=>material.dispose())}if(object instanceof THREE.Sprite){object.material.map?.dispose();object.material.dispose()}});
     this.renderer.dispose();this.renderer.forceContextLoss();this.renderer.domElement.remove();
