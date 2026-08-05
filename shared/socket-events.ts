@@ -1,4 +1,4 @@
-export type MapId = 'town' | 'arts-center' | 'festival-experience' | 'food-experience' | 'club-street-festival' | 'bear-tree-park' | 'bear-play-zone' | 'garden' | 'campus' | 'student-hall' | 'recruitment-center' | 'project-room' | 'government' | 'government-central-plaza' | 'government-policy-hall' | 'government-observatory' | 'sejong-smart-city' | 'jochwon-station' | 'traditional-market' | 'jochwon-park' | 'college-street';
+export type MapId = 'personal-farm' | 'town' | 'arts-center' | 'festival-experience' | 'food-experience' | 'club-street-festival' | 'bear-tree-park' | 'bear-play-zone' | 'garden' | 'campus' | 'student-hall' | 'recruitment-center' | 'project-room' | 'government' | 'government-central-plaza' | 'government-policy-hall' | 'government-observatory' | 'sejong-smart-city' | 'jochwon-station' | 'traditional-market' | 'jochwon-park' | 'college-street';
 export type Direction = 'up' | 'down' | 'left' | 'right';
 export type MotionState = 'idle' | 'walk' | 'run';
 export type CharacterEmote = 'hi' | 'clapping' | 'talking';
@@ -9,11 +9,11 @@ export interface PlayerState { id:string; mapId:MapId; projectRoomId?:string; x:
 export interface JoinMapPayload { mapId:MapId; projectRoomId?:string; nickname:string; appearance:Appearance; model:CharacterModel; x:number; y:number; matchProfile?:PublicMatchProfile }
 export interface MovementPayload { mapId:MapId; x:number; y:number; direction:Direction; isMoving:boolean; yaw:number; motionState:MotionState; jumpHeight?:number; timestamp:number }
 export interface RespawnPosition { x:number; z:number; yaw:number }
-export const FIXED_LAKE_RESPAWN:Readonly<RespawnPosition>={x:1870,z:1180,yaw:2.1};
+export const FIXED_LAKE_RESPAWN:Readonly<RespawnPosition>={x:1980,z:944,yaw:Math.PI/2};
 export interface PlayerResumeState extends RespawnPosition { mapId:MapId;savedAt?:number }
-export interface PortalPosition { destination:Extract<MapId,'town'|'arts-center'|'festival-experience'|'food-experience'|'club-street-festival'|'bear-tree-park'|'garden'|'campus'|'recruitment-center'|'project-room'|'government'|'government-central-plaza'|'government-policy-hall'|'government-observatory'|'sejong-smart-city'>; x:number; z:number }
+export interface PortalPosition { destination:MapId; x:number; z:number }
 export interface BearTreePortalPositions { town:{x:number;z:number}; photo:{x:number;z:number} }
-export interface WorldInteractionPosition { destination:Extract<MapId,'bear-tree-park'|'bear-play-zone'>; x:number; z:number }
+export interface WorldInteractionPosition { destination:Extract<MapId,'bear-tree-park'>; x:number; z:number }
 export type LakeExperienceId = 'central-plaza' | 'activity-zone' | 'food-shop-zone' | 'wind-hill';
 export interface LakeExperiencePosition { experience:LakeExperienceId; x:number; z:number }
 export type CampusFeaturePortalId='people'|'clubs'|'recruit'|'government';

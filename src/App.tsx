@@ -302,22 +302,18 @@ export default function App() {
   }, [hasLoginIdentity, membershipComplete, setProfile]);
 
   const startExperience = () => {
-    setPage(
-      canExperience
-        ? 'game'
-        : 'login',
-    );
+    setPage('game');
   };
 
   const enterWorld = (mapId:MapId) => {
     const entryPoints:Partial<Record<MapId,GameReturnState>>={
-      town:{mapId:'town',x:1870,z:1180,yaw:2.1},
+      'personal-farm':{mapId:'personal-farm',x:1050,z:1510,yaw:Math.PI},
+      town:{mapId:'town',x:1980,z:944,yaw:Math.PI/2},
       'arts-center':{mapId:'arts-center',x:1200,z:370,yaw:0},
       'festival-experience':{mapId:'festival-experience',x:1200,z:1530,yaw:Math.PI},
       'food-experience':{mapId:'food-experience',x:1200,z:1530,yaw:Math.PI},
       'club-street-festival':{mapId:'club-street-festival',x:1200,z:1510,yaw:Math.PI},
       'bear-tree-park':{mapId:'bear-tree-park',x:1200,z:1610,yaw:Math.PI},
-      'bear-play-zone':{mapId:'bear-play-zone',x:1200,z:1570,yaw:Math.PI},
       garden:{mapId:'garden',x:1200,z:1180,yaw:Math.PI},
       campus:{mapId:'campus',x:1200,z:1500,yaw:Math.PI},
       'student-hall':{mapId:'student-hall',x:1200,z:1510,yaw:Math.PI},
