@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { ClubModel } from '../models/Club.js';
+import {authenticatedUserIdFromCookie} from '../middleware/authenticatedUser.js';
 
 type ClubMember = {
   userId: string;
@@ -175,7 +176,7 @@ router.post('/', async (request, response) => {
       return;
     }
 
-    const creatorId = ownerId?.trim() || 'anonymous-user';
+    const creatorId = authenticatedUserIdFromCookie(request.headers.cookie) || ownerId?.trim() || 'anonymous-user';
     const creatorName = ownerName?.trim() || '익명';
 
     const newClub: Club = {
@@ -233,7 +234,7 @@ router.post('/:clubId/join', async (request, response) => {
       userName?: string;
     };
 
-    const currentUserId = userId?.trim() || 'anonymous-user';
+    const currentUserId = authenticatedUserIdFromCookie(request.headers.cookie) || userId?.trim() || 'anonymous-user';
     const currentUserName = userName?.trim() || '익명';
 
     const clubs = await readClubs();

@@ -8,6 +8,20 @@ const flowerInterestSchema=new Schema({
   revisitCount:{type:Number,default:0,min:0},interestScore:{type:Number,default:0,min:0},lastInteractedAt:{type:Date},
 },{_id:false});
 
+const profileEvidenceSchema=new Schema({
+  kind:{type:String,required:true,trim:true,maxlength:50},
+  values:{type:[String],default:[]},
+  occurredAt:{type:Date,default:Date.now},
+},{_id:false});
+
+const placeBehaviorRecordSchema=new Schema({
+  placeId:{type:String,required:true,trim:true,maxlength:80},
+  visitCount:{type:Number,default:0,min:0},
+  activeStaySeconds:{type:Number,default:0,min:0},
+  revisitCount:{type:Number,default:0,min:0},
+  lastVisitedAt:{type:Date},
+},{_id:false});
+
 const userSchema = new Schema(
   {
     kakaoId: {
@@ -106,13 +120,29 @@ const userSchema = new Schema(
         flowerInterests:{type:[flowerInterestSchema],default:[]},
         processedEventIds:{type:[String],default:[],select:false},
       },
+      clubs:{
+        interestedCategories:{type:[String],default:[]},
+        preferredGroupSize:{type:String,trim:true,maxlength:30},
+        participationRole:{type:String,trim:true,maxlength:50},
+        evidence:{type:[profileEvidenceSchema],default:[]},
+      },
+      collaborationProjects:{
+        interests:{type:[String],default:[]},
+        preferredRoles:{type:[String],default:[]},
+        collaborationStyle:{type:String,trim:true,maxlength:80},
+        availableTimes:{type:[String],default:[]},
+        evidence:{type:[profileEvidenceSchema],default:[]},
+      },
+      placeBehavior:{
+        records:{type:[placeBehaviorRecordSchema],default:[]},
+      },
     },
 
     experienceHarness: {
       processedSessionIds: { type: [String], default: [], select: false },
       performance: { scores: { type: Map, of: Number }, evidence: { type: [String], default: [] } },
       food: { scores: { type: Map, of: Number }, evidence: { type: [String], default: [] }, sessionSummary: Schema.Types.Mixed },
-      festival: { scores: { type: Map, of: Number }, evidence: { type: [String], default: [] } },
+      festival: { scores: { type: Map, of: Number }, evidence: { type: [String], default: [] }, sessionSummary: Schema.Types.Mixed },
       profileFragments: { type: [Schema.Types.Mixed], default: [] },
       activityRecords: { type: [Schema.Types.Mixed], default: [] },
       generatedProfile: { source: String, generatorSource: { type: String, enum: ['openai','fallback'] }, title: String, tags: { type: [String], default: [] }, traits: { type: [{ key: String, label: String, score: Number, confidence: Number }], default: [] }, summary: String, evidence: { type: [String], default: [] }, updatedAt: Date },
