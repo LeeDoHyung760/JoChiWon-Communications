@@ -7,7 +7,7 @@ export class RoomStore {
  bearExplorationCards=new Map<BearExplorationCardId,string>();bearExplorationAnalyzed=new Set<BearExplorationCardId>();bearExplorationAnalyses=new Map<BearExplorationCardId,BearExplorationAnalysis>();bearExplorationJoinedAt=new Map<string,number>();bearExplorationStory='';bearExplorationReport?:BearExplorationReport;completedBearRoutes:string[][]=[];
  portalPositions=new Map<PortalPosition['destination'],PortalPosition>([['bear-tree-park',{destination:'bear-tree-park',x:2122,z:944}],['town',{destination:'town',x:1120,z:1731}],['garden',{destination:'garden',x:682,z:735}],['campus',{destination:'campus',x:1178,z:122}]]);
  bearTreePortalPositions:BearTreePortalPositions={town:{x:980,z:1580},photo:{x:1569,z:1525}};
- interactionPositions=new Map<WorldInteractionPosition['destination'],WorldInteractionPosition>([['bear-play-zone',{destination:'bear-play-zone',x:1616,z:601}],['bear-tree-park',{destination:'bear-tree-park',x:1200,z:1650}]]);
+ interactionPositions=new Map<WorldInteractionPosition['destination'],WorldInteractionPosition>([['bear-tree-park',{destination:'bear-tree-park',x:1200,z:1650}]]);
  lakeExperiencePositions=new Map<LakeExperienceId,LakeExperiencePosition>([['central-plaza',{experience:'central-plaza',x:1219,z:1462}],['activity-zone',{experience:'activity-zone',x:603,z:452}],['food-shop-zone',{experience:'food-shop-zone',x:491,z:1556}],['wind-hill',{experience:'wind-hill',x:1908,z:549}]]);
  campusFeaturePortalPositions=new Map<CampusFeaturePortalId,CampusFeaturePortalPosition>([['people',{portal:'people',x:881,z:950}],['clubs',{portal:'clubs',x:450,z:882}],['recruit',{portal:'recruit',x:508,z:1382}],['government',{portal:'government',x:1656,z:1501}]]);
  respawnPosition:RespawnPosition={...FIXED_LAKE_RESPAWN};
@@ -65,7 +65,7 @@ export class RoomStore {
   return {missionId:`bear-${date}`,...variants[index]};
  }
  bearExplorationState(playerId:string):BearExplorationState{
-  const mission=this.bearExplorationMission(),present=this.playersIn('bear-play-zone'),presentIds=new Set(present.map(player=>player.id));
+  const mission=this.bearExplorationMission(),present=this.playersIn('bear-tree-park'),presentIds=new Set(present.map(player=>player.id));
   for(const id of this.bearExplorationJoinedAt.keys())if(!presentIds.has(id))this.bearExplorationJoinedAt.delete(id);
   present.forEach(player=>{if(!this.bearExplorationJoinedAt.has(player.id))this.bearExplorationJoinedAt.set(player.id,Date.now())});
   const active=present.sort((a,b)=>(this.bearExplorationJoinedAt.get(a.id)??0)-(this.bearExplorationJoinedAt.get(b.id)??0)).slice(0,3);
@@ -82,7 +82,7 @@ export class RoomStore {
  collectBearExplorationCard(playerId:string,pointId:BearExplorationPointId){
   const player=this.players.get(playerId),points:Record<BearExplorationPointId,{x:number;y:number;card:BearExplorationCardId}>={waterfall:{x:2099,y:829,card:'card_1'},cave:{x:1545,y:267,card:'card_2'},tree:{x:562,y:585,card:'card_3'}},point=points[pointId];
   if(!point)return {ok:false,message:'알 수 없는 조사 지점입니다.'};
-  if(!player||player.mapId!=='bear-play-zone')return {ok:false,message:'곰 탐험 공간에서만 기록을 찾을 수 있어요.'};
+  if(!player||player.mapId!=='bear-tree-park')return {ok:false,message:'곰 탐험 공간에서만 기록을 찾을 수 있어요.'};
   if(Math.hypot(player.x-point.x,player.y-point.y)>150)return {ok:false,message:'조사 지점에 더 가까이 가주세요.'};
   if(this.bearExplorationState(playerId).role!=='explorer')return {ok:false,message:'현장 단서 수집은 탐험가의 역할이에요.'};
   if(this.bearExplorationCards.has(point.card))return {ok:false,message:'이미 발견한 탐험 기록입니다.'};

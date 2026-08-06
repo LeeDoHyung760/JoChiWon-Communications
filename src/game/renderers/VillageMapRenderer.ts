@@ -33,7 +33,7 @@ import { gameEvents } from '../events';
 import { characterSettings } from '../character/characterSettings';
 import { canAccessPersonalFarmPortal } from '../../services/personalFarmPortalAccess';
 import {getCachedPersonalFarmProgress} from '../../services/personalFarmApi';
-import type {PersonalFarmProgressDto} from '../../../shared/personal-farm';
+import {BEAR_FEED_SPOT_IDS,type PersonalFarmProgressDto} from '../../../shared/personal-farm';
 import { applyColorsToThreeScene } from '../../utils/modelColorizer';
 import { greenhousePlants,GREENHOUSE_MEMORY_TREE_OBJECT,GREENHOUSE_PLANT_TOTAL,greenhousePlantIdByObjectName } from '../../data/greenhouse-plants';
 import { CAMPUS_FRIEND_NPCS } from '../../data/campusNpc';
@@ -43,6 +43,10 @@ import { FESTIVAL_NPCS } from '../../data/festivalNpc';
 import { PROJECT_ROOM_INTERACTIONS,isProjectRoomKioskInteraction,type ProjectRoomInteractionId,type ProjectRoomKioskInteractionId } from '../projectRoomInteractions';
 import { GOVERNMENT_CENTRAL_PLAZA_WEB_UI,type GovernmentCentralPlazaWebUiId } from '../governmentCentralPlazaWebUi';
 import { ARTS_CENTER_PERFORMANCES,artsCenterPerformanceImageUrl,type ArtsCenterPerformance } from '../artsCenterPerformances';
+import { createFlowerObjectById } from '../../services/flowerAssetFactory';
+import { topFlowerInterests } from '../../services/flowerInterestProfile';
+import { createBearStatueObject } from '../../services/bearStatueAssetFactory';
+import type { FlowerInterestRecord } from '../../../shared/flower-interest';
 
 const WORLD_WIDTH=2400;
 const WORLD_HEIGHT=1900;
@@ -78,8 +82,11 @@ const INTERACTION_EXIT_DISTANCE=110;
 const PORTAL_ARRIVAL_CLEARANCE=Math.max(KEY_PORTAL_EXIT_DISTANCE,INTERACTION_EXIT_DISTANCE)+18;
 const LAKE_EXPERIENCE_OPEN_DISTANCE=92;
 const LAKE_EXPERIENCE_EXIT_DISTANCE=118;
-const GREENHOUSE_OPEN_DISTANCE=210;
-const GREENHOUSE_EXIT_DISTANCE=245;
+// Garden plant nodes are distributed across the walkable area. Keep the
+// interaction envelope large enough to reach every real node and use a
+// larger exit envelope to avoid prompt flicker at the boundary.
+const GREENHOUSE_OPEN_DISTANCE=520;
+const GREENHOUSE_EXIT_DISTANCE=620;
 const DEFAULT_BEAR_PHOTO_PORTAL_POSITION={x:1569,z:1525} as const;
 const BEAR_PHOTO_STAGE_FRONT_INSET=10;
 const BEAR_PHOTO_CAMERA_YAW=0;
@@ -107,7 +114,8 @@ export const preloadCampusDownload=()=>preloadWorldMapDownload(campusModelUrl,'C
 export const preloadBearTreeParkDownload=()=>preloadWorldMapDownload(bearTreeParkModelUrl,'Bear Tree Park');
 export const LAKE_PARK_SPAWN:{x:number;z:number;yaw:number}={...FIXED_LAKE_RESPAWN};
 export const BEAR_TREE_PARK_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1610,yaw:Math.PI};
-export const GARDEN_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1180,yaw:Math.PI};
+// Keep the default entrance on the authored path, away from the central tree.
+export const GARDEN_SPAWN:{x:number;z:number;yaw:number}={x:1000,z:900,yaw:Math.PI};
 export const CAMPUS_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1500,yaw:Math.PI};
 export const STUDENT_HALL_SPAWN:{x:number;z:number;yaw:number}={x:1200,z:1510,yaw:Math.PI};
 const STUDENT_HALL_CAMERA_DOWN_LIMIT_Z=1380;
@@ -197,6 +205,7 @@ type StudentHallBoardId='occupancy'|'activity';
 type StudentHallBoardScreenRect={left:number;top:number;width:number;height:number;quad?:readonly [{x:number;y:number},{x:number;y:number},{x:number;y:number},{x:number;y:number}]};
 type ProjectLobbyBoardScreenRect=StudentHallBoardScreenRect;
 type ResidentConfig={modelUrl:string;format?:'gltf'|'fbx';x:number;z:number;height:number;yaw:number;stationary?:boolean;patrol?:readonly {x:number;z:number}[];walkSpeed?:number};
+type BearFeedingAnchor={x:number;z:number;radius?:number};
 type WildlifeClueConfig={id:'bearA'|'bearB'|'cave'|'food'|'water';x:number;z:number;icon:string;label:string};
 type FeedSpotAnchorConfig={id:`BEAR_FEED_SPOT_0${1|2|3|4|5}`;x:number;z:number};
 type LowQualityFallback={maxTextureSize:number;performancePixelRatio:number;performanceFrameRate:number;balancedTextureQuality:boolean};
@@ -226,6 +235,7 @@ export type WorldMapRendererOptions={
   residentDecor?:ResidentConfig[];
   wildlifeClues?:WildlifeClueConfig[];
   feedSpotAnchors?:readonly FeedSpotAnchorConfig[];
+  bearFeedingAnchor?:BearFeedingAnchor;
   bearCollisionRadius?:number;
   lowQualityFallback?:LowQualityFallback;
   cameraScreenOffsetY?:number;
@@ -289,6 +299,17 @@ export type WorldMapRendererOptions={
  * clear immediately, so walking back into the portal always works.
  */
 export function portalArrivalSpawn(options:WorldMapRendererOptions,sourceMapId:MapId){
+  if(options.greenhouse){
+    const bySource:Partial<Record<MapId,{x:number;z:number;yaw:number}>>={
+      // The bear-tree return portal opens at the garden's north gate. Keep the
+      // arrival on the open path beyond the fence, not inside the planted bed.
+      'bear-tree-park':{x:1200,z:1430,yaw:Math.PI},
+      'personal-farm':{x:1570,z:900,yaw:Math.PI},
+      town:{x:980,z:900,yaw:Math.PI},
+    };
+    const authored=bySource[sourceMapId]??GARDEN_SPAWN;
+    return authored;
+  }
   const campusEntrances=(options.campusFeaturePortals??[]).map(feature=>({
     ...feature,
     destination:CAMPUS_FEATURE_PORTAL_DESTINATIONS[feature.id],
@@ -322,16 +343,14 @@ export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={
   fixedPortals:[
     {x:682,z:735,destination:'garden',label:'세종수목원',appearance:'white-circle',fixedPosition:true,chargeSeconds:3,positionEditable:true},
     {x:1450,z:1440,destination:'personal-farm',label:'개인 팜으로 이동',appearance:'white-circle',fixedPosition:true},
-    {x:1060,z:520,destination:'bear-play-zone',label:'AI 곰 체험소',appearance:'white-circle',fixedPosition:true,chargeSeconds:3},
   ],
-  resident:{modelUrl:personalFarmBearModelUrl,format:'fbx',x:1250,z:1120,height:168,yaw:2.75,stationary:true},
+  resident:{modelUrl:personalFarmBearModelUrl,format:'fbx',x:1250,z:1120,height:168,yaw:2.75,stationary:false,patrol:[{x:1200,z:1100},{x:1320,z:1100},{x:1320,z:1210},{x:1200,z:1210}],walkSpeed:22},
+  bearFeedingAnchor:{x:1250,z:1120,radius:150},
   residentDecor:[
     {modelUrl:personalFarmBearModelUrl,format:'fbx',x:1640,z:820,height:142,yaw:-1.15,stationary:true},
     {modelUrl:personalFarmBearModelUrl,format:'fbx',x:760,z:520,height:154,yaw:.65,stationary:true},
   ],
   wildlifeClues:[
-    {id:'bearA',x:1250,z:1120,icon:'🐻',label:'대표 곰 관찰'},
-    {id:'bearB',x:1640,z:820,icon:'🐻',label:'먹이 구역 곰 관찰'},
     {id:'food',x:1540,z:930,icon:'🥕',label:'BEAR_FEED_SPOT_01'},
     {id:'cave',x:1710,z:760,icon:'🥕',label:'BEAR_FEED_SPOT_02'},
     {id:'water',x:690,z:650,icon:'🥕',label:'BEAR_FEED_SPOT_03'},
@@ -347,17 +366,6 @@ export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={
   geometrySimplificationRatio:0,simplifiedCollision:false,bearPhotoZone:true,bearCollisionRadius:72,
   lowQualityFallback:{maxTextureSize:512,performancePixelRatio:.75,performanceFrameRate:30,balancedTextureQuality:false},
 };
-export const BEAR_PLAY_ZONE_RENDERER_OPTIONS:WorldMapRendererOptions={
-  ...BEAR_TREE_PARK_RENDERER_OPTIONS,
-  mapName:'AI 탐험 연구소',
-  spawn:{x:1200,z:1320,yaw:Math.PI},
-  fixedPortals:[{x:80,z:120,destination:'bear-tree-park',label:'베어트리파크로 돌아가기',appearance:'white-circle',fixedPosition:true,chargeSeconds:3}],
-  portal:undefined,
-  wildlifeClues:[
-    {id:'bearA',x:1200,z:1040,icon:'🐻',label:'AI 곰 생태 관찰'},
-    {id:'bearB',x:930,z:1120,icon:'🔬',label:'곰 행동 연구 안내'},
-  ],
-};
 const PERSONAL_FARM_WALKABLE_PREFIXES=['ENV_Grass_Island','ENV_Stepping_Stone_','ENV_Fountain_Piazza','ARCH_Porch_Step_','ARCH_Interior_Floor'] as const;
 const PERSONAL_FARM_COLLIDER_PREFIXES=[
   'ARCH_Back_Wall','ARCH_Left_Wall','ARCH_Right_Wall','ARCH_Main_Door','ARCH_Bedroom_Partition',
@@ -367,6 +375,17 @@ const PERSONAL_FARM_COLLIDER_PREFIXES=[
   'FURN_Bed_Frame','FURN_Mattress','FURN_Bed_Headboard','FURN_Sofa_Base','FURN_Sofa_Back','FURN_Sofa_Arm_',
   'FURN_Kitchen_Cabinet_','FURN_Kitchen_Counter','FURN_Stove','FURN_Fridge_Body','FURN_Dining_Table','FURN_Bookcase_Body',
 ] as const;
+const PERSONAL_FARM_FRONT_BUSH_CLEAR_RADIUS=300;
+const PERSONAL_FARM_FLOWER_SLOTS=([
+  {slotId:'FARM_FLOWER_SLOT_01',x:930,z:1395,rotationY:-.18,targetHeight:92},
+  {slotId:'FARM_FLOWER_SLOT_02',x:1010,z:1395,rotationY:.22,targetHeight:92},
+  {slotId:'FARM_FLOWER_SLOT_03',x:1090,z:1395,rotationY:-.08,targetHeight:92},
+  {slotId:'FARM_FLOWER_SLOT_04',x:970,z:1460,rotationY:.35,targetHeight:92},
+  {slotId:'FARM_FLOWER_SLOT_05',x:1050,z:1460,rotationY:-.3,targetHeight:92},
+] as const);
+// Reward anchor is deliberately on the yard side opposite the authored fountain/water area.
+// Keep this separate from the flower and memory-tree anchors so it can be tuned without map edits.
+const FARM_BEAR_STATUE_ANCHOR={x:1600,z:1040,rotationY:-Math.PI*.35,targetHeight:150} as const;
 export const PERSONAL_FARM_SPAWN={x:1050,z:1510,yaw:Math.PI} as const;
 export const PERSONAL_FARM_RENDERER_OPTIONS:WorldMapRendererOptions={
   modelUrl:personalFarmModelUrl,mapName:'개인 팜',spawn:PERSONAL_FARM_SPAWN,personalFarm:true,
@@ -375,7 +394,7 @@ export const PERSONAL_FARM_RENDERER_OPTIONS:WorldMapRendererOptions={
     {x:1780,z:1510,destination:'bear-tree-park',label:'베어트리파크로 돌아가기',appearance:'white-circle',fixedPosition:true},
     {x:500,z:1510,destination:'garden',label:'수목원으로 돌아가기',appearance:'white-circle',fixedPosition:true},
   ],
-  residentDecor:[{modelUrl:personalFarmBearModelUrl,format:'fbx',x:760,z:1260,height:105,yaw:.55,stationary:true}],
+  residentDecor:[],
   perspectiveCamera:true,cameraElevationDeg:37,cameraAzimuthDeg:0,cameraDistance:1280,cameraFov:47,cameraScreenOffsetY:0,cameraTargetHeight:120,
   cameraFollowBounds:{minX:590,maxX:1810,minZ:690,maxZ:1660},characterHeight:105,mapScaleMultiplier:.92,
   groundFillColor:0x6f9c50,sceneBackgroundColor:'#a9cbb5',toneMappingExposure:1.02,lightingIntensityMultiplier:.9,
@@ -1525,7 +1544,16 @@ export class VillageMapRenderer{
   private personalFarmOccluders:THREE.Mesh[]=[];
   private personalFarmOccluderOpacity=new Map<THREE.Material,number>();
   private personalFarmPlantAnchorNearby=false;
+  private personalFarmMemoryTree?:{x:number;z:number;name:string;bounds:THREE.Box3};
+  private personalFarmMemoryTreeNearby=false;
+  private personalFarmFlowerRoot?:THREE.Group;
+  private personalFarmFlowerRecords:FlowerInterestRecord[]=[];
+  private personalFarmFlowerRenderToken=0;
+  private personalFarmBearStatueAnchor:{x:number;z:number;rotationY:number;targetHeight:number}={...FARM_BEAR_STATUE_ANCHOR};
+  private personalFarmFlowerSlots:Array<{slotId:string;x:number;z:number;rotationY:number;targetHeight:number}>=PERSONAL_FARM_FLOWER_SLOTS.map(slot=>({...slot}));
   private personalFarmRewardsRoot?:THREE.Group;
+  private personalFarmBearStatueRoot?:THREE.Group;
+  private personalFarmBearStatueRenderToken=0;
   private personalFarmProgress?:PersonalFarmProgressDto;
   private clubBoothCardAnchors:THREE.Object3D[]=[];
   private bearPhotoStage?:THREE.Object3D;
@@ -1533,6 +1561,7 @@ export class VillageMapRenderer{
   private wildlifeClueNearby?:string;
   private feedSpotRoots=new Map<FeedSpotAnchorConfig['id'],THREE.Group>();
   private feedSpotNearby?:FeedSpotAnchorConfig['id'];
+  private bearFeedingNearby=false;
   private pendingHabitatResource?:HabitatResourceId;
   private localRenderPosition=new THREE.Vector3();
   private remoteRenderPosition=new THREE.Vector3();
@@ -1544,8 +1573,9 @@ export class VillageMapRenderer{
     const navigatorWithMemory=navigator as Navigator&{deviceMemory?:number};
     const lowEndDevice=(navigator.hardwareConcurrency>0&&navigator.hardwareConcurrency<=4)||(navigatorWithMemory.deviceMemory!==undefined&&navigatorWithMemory.deviceMemory<=4);
     const qualityOverride=lowEndDevice&&options.lowQualityFallback?options.lowQualityFallback:{};
-    options=this.options={...options,...qualityOverride,wildlifeClues:options.wildlifeClues?.map(config=>({...config}))};
+    options=this.options={...options,...qualityOverride,wildlifeClues:options.wildlifeClues?.filter(config=>config.id!=='bearA'&&config.id!=='bearB').map(config=>({...config}))};
     if(options.personalFarm)this.personalFarmProgress=getCachedPersonalFarmProgress();
+    if(options.personalFarm)gameEvents.on('flower-interest-profile-changed',this.onFlowerInterestProfileChanged);
     // The lake is the busiest hub. Avoid the expensive body-path raycast grid
     // and start slightly below native resolution; adaptive quality can still
     // raise or lower it from here based on measured frame time.
@@ -1796,6 +1826,7 @@ export class VillageMapRenderer{
         }
       }
       if(this.options.greenhouse)this.setupGreenhouse(model);
+      if(this.options.personalFarm)this.setupPersonalFarmMemoryTree(model);
       const safeSpawn=this.options.personalFarm
         ?this.findSafeSpawn(this.localX,this.localZ,'outdoor')??this.findSafeSpawn(PERSONAL_FARM_SPAWN.x,PERSONAL_FARM_SPAWN.z,'outdoor')
         :this.findSafeSpawn(this.localX,this.localZ);
@@ -1807,6 +1838,7 @@ export class VillageMapRenderer{
         // first playable frame instead of letting the stale value overwrite it.
         if(this.options.personalFarm)this.pendingTeleport={x:safeSpawn.x,z:safeSpawn.z,groundHeight:safeSpawn.ground.height};
       }
+      if(this.options.personalFarm)void this.renderPersonalFarmFlowers();
       if(this.options.personalFarm&&import.meta.env.DEV){
         const walkable=this.mapMeshes.filter(mesh=>PERSONAL_FARM_WALKABLE_PREFIXES.some(prefix=>mesh.name.startsWith(prefix))).map(mesh=>mesh.name);
         const colliders=this.mapMeshes.filter(mesh=>PERSONAL_FARM_COLLIDER_PREFIXES.some(prefix=>mesh.name.startsWith(prefix))).map(mesh=>mesh.name);
@@ -1952,6 +1984,10 @@ export class VillageMapRenderer{
       }
       if(this.destroyed)return;
       this.mapReady=true;
+      // Progress can arrive while the GLB is still loading. Re-apply it after
+      // the renderer is ready so deferred rewards (including the bear statue)
+      // are actually instantiated instead of being skipped by mapReady guards.
+      if(this.personalFarmProgress)this.applyPersonalFarmProgress(this.personalFarmProgress);
       if(this.guideIntroActive)this.guideIntroStartedAt=performance.now();
       this.render();
       console.log(`[${this.options.mapName} world] unified 3D scene ready`,{meshes:this.mapMeshes.length,scale});
@@ -2000,6 +2036,7 @@ export class VillageMapRenderer{
       const marker=new THREE.Sprite(new THREE.SpriteMaterial({map:this.greenhouseMarkerTexture('🔒'),transparent:true,depthTest:false,depthWrite:false}));
       marker.name='greenhouse-marker-memory-tree';marker.position.copy(center);marker.scale.set(68,68,1);marker.visible=false;marker.renderOrder=80;this.scene.add(marker);
       const target:GreenhouseTarget={id:'memory-tree',objects:[treeObject],bounds,center,marker,kind:'memory-tree'};this.greenhouseTargets.set(target.id,target);this.greenhouseObjectIds.set(treeObject,target.id);treeObject.userData.greenhousePlantId=target.id;
+      if(import.meta.env.DEV)console.info('[garden central tree]',{objectName:treeObject.name,bounds:{min:bounds.min.toArray(),max:bounds.max.toArray()},worldPosition:{x:center.x,z:this.sceneToWorldZ(center.z)}});
       const effect=new THREE.Group();effect.position.set(center.x,bounds.min.y+25,center.z);effect.visible=false;
       const positions:number[]=[];for(let index=0;index<42;index++){const angle=index/42*Math.PI*2,radius=55+(index%7)*12;positions.push(Math.cos(angle)*radius,(index%6)*18+12,Math.sin(angle)*radius)}
       const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
@@ -2026,7 +2063,12 @@ export class VillageMapRenderer{
   private updateGreenhouseProximity(x:number,z:number){
     if(!this.options.greenhouse)return;
     const sceneZ=this.worldToSceneZ(z);
-    const ranked=[...this.greenhouseTargets.values()].map(target=>({target,distance:this.greenhouseTargetDistance(target,x,sceneZ)})).sort((a,b)=>a.distance-b.distance);
+    // Prefer undiscovered plants so repeated E presses in a flower cluster
+    // advance to the next real plant instead of reopening the same record.
+    const ranked=[...this.greenhouseTargets.values()]
+      .filter(target=>target.kind==='memory-tree'||!this.greenhouseCollected.has(target.id))
+      .map(target=>({target,distance:this.greenhouseTargetDistance(target,x,sceneZ)}))
+      .sort((a,b)=>a.distance-b.distance);
     ranked.forEach(({target,distance})=>{target.marker.visible=distance<GREENHOUSE_EXIT_DISTANCE});
     const closest=ranked[0];
     const same=closest?.target===this.greenhouseNearby;
@@ -2327,14 +2369,50 @@ export class VillageMapRenderer{
     if(spawn){
       // The traveller must leave the arrival portal before it can activate
       // again, preventing an immediate bounce back to the previous map.
-      this.localX=spawn.x;
-      this.localZ=spawn.z;
-      const ground=this.sampleGround(spawn.x,spawn.z,this.localGround,true,1200);
+      const safe=this.options.greenhouse
+        ?this.resolveGardenSafeSpawn(spawn)??this.resolveGardenSafeSpawn(GARDEN_SPAWN)
+        :undefined;
+      const resolved=safe?{x:safe.x,z:safe.z,ground:safe.ground}:undefined;
+      const fallback=this.options.greenhouse?GARDEN_SPAWN:spawn;
+      this.localX=resolved?.x??fallback.x;
+      this.localZ=resolved?.z??fallback.z;
+      const ground=resolved?.ground??this.sampleGround(fallback.x,fallback.z,this.localGround,true,1200);
       if(ground){this.localGround=ground.height;this.localNormal.copy(ground.normal)}
+      this.pendingTeleport={x:this.localX,z:this.localZ,groundHeight:this.localGround};
       this.portalEntryArmed=false;
       this.interactionEntryArmed=false;
+      if(import.meta.env.DEV){
+        const requestedGround=this.sampleGround(spawn.x,spawn.z,0,true,1200);
+        console.info('[GardenSpawn]',{sourceMapId,requestedSpawn:spawn,resolvedSpawn:{x:this.localX,z:this.localZ},groundY:this.localGround,blockedObject:requestedGround?this.gardenSpawnBlockedObject(spawn.x,spawn.z,requestedGround.height)??null:null,escapeDirections:this.canEscapeSpawn(this.localX,this.localZ,this.localGround)});
+      }
+      return {x:this.localX,z:this.localZ,yaw:spawn.yaw};
     }
     return spawn;
+  }
+
+  private resolveGardenSafeSpawn(requested:{x:number;z:number;yaw:number}){
+    const candidates:Array<{x:number;z:number}>=[{x:requested.x,z:requested.z}];
+    for(const radius of [55,90,130,180,240,320])for(let index=0;index<16;index++){
+      const angle=index/16*Math.PI*2;candidates.push({x:requested.x+Math.cos(angle)*radius,z:requested.z+Math.sin(angle)*radius});
+    }
+    for(const candidate of candidates){
+      const ground=this.sampleGround(candidate.x,candidate.z,0,true,1200);
+      if(!ground||ground.normal.y<.72||!this.spawnSpaceClear(candidate.x,candidate.z,ground.height))continue;
+      const blockedObject=this.gardenSpawnBlockedObject(candidate.x,candidate.z,ground.height);
+      if(blockedObject)continue;
+      if(this.canEscapeSpawn(candidate.x,candidate.z,ground.height))return {x:candidate.x,z:candidate.z,ground,blockedObject:undefined};
+    }
+    return undefined;
+  }
+
+  private gardenSpawnBlockedObject(x:number,z:number,groundY:number){
+    const sceneZ=this.worldToSceneZ(z),height=this.options.characterHeight??CHARACTER_HEIGHT;
+    const blockedName=/tree|bush|shrub|hedge|fence|building|greenhouse|wall/i;
+    return this.mapMeshes.find(mesh=>{
+      if(!blockedName.test(mesh.name))return false;
+      const bounds=this.mapMeshBounds.get(mesh);if(!bounds)return false;
+      return x+COLLISION_RADIUS>=bounds.min.x&&x-COLLISION_RADIUS<=bounds.max.x&&sceneZ+COLLISION_RADIUS>=bounds.min.z&&sceneZ-COLLISION_RADIUS<=bounds.max.z&&groundY+height>=bounds.min.y&&groundY<=bounds.max.y;
+    })?.name;
   }
 
   private setupFoodSeats(model:THREE.Object3D){
@@ -2464,8 +2542,9 @@ export class VillageMapRenderer{
     const target=id?this.greenhouseTargets.get(id):undefined;
     if(import.meta.env.DEV)console.info('[수목원 클릭]',{mesh:hit.object.name,plantId:id??null,distance:target?Math.round(this.greenhouseTargetDistance(target,this.localX,this.worldToSceneZ(this.localZ))):null});
     if(!target)return;
-    const distance=this.greenhouseTargetDistance(target,this.localX,this.worldToSceneZ(this.localZ));
-    if(distance>=GREENHOUSE_EXIT_DISTANCE)return;
+    // A direct click on a visible plant is an explicit interaction, so it is
+    // not gated by avatar proximity. Keyboard E continues to use the nearby
+    // distance envelope above.
     gameEvents.emit(target.kind==='plant'?'greenhouse-observe-plant':'greenhouse-observe-tree',target.id);
   };
 
@@ -4190,6 +4269,7 @@ export class VillageMapRenderer{
     const asset=await this.loadResidentAsset(config);
     if(this.destroyed)return;
     const visual=asset.visual;visual.updateMatrixWorld(true);sharpenObjectTextures(visual);
+    visual.traverse(object=>{if(object instanceof THREE.Mesh){const materials=Array.isArray(object.material)?object.material:[object.material];materials.forEach(material=>{material.transparent=false;material.opacity=1;material.alphaTest=0;material.depthWrite=true;material.blending=THREE.NormalBlending;material.needsUpdate=true})}});
     const bounds=new THREE.Box3().setFromObject(visual),size=bounds.getSize(new THREE.Vector3()),scale=config.height/Math.max(size.y,.001);
     visual.scale.setScalar(scale);visual.position.y=-bounds.min.y*scale;
     visual.traverse(object=>{if(object instanceof THREE.Mesh){object.castShadow=true;object.receiveShadow=true}});
@@ -4203,6 +4283,7 @@ export class VillageMapRenderer{
     const asset=await this.loadResidentAsset(config);
     if(this.destroyed)return;
     const visual=asset.visual;visual.updateMatrixWorld(true);sharpenObjectTextures(visual);
+    visual.traverse(object=>{if(object instanceof THREE.Mesh){const materials=Array.isArray(object.material)?object.material:[object.material];materials.forEach(material=>{material.transparent=false;material.opacity=1;material.alphaTest=0;material.depthWrite=true;material.blending=THREE.NormalBlending;material.needsUpdate=true})}});
     const bounds=new THREE.Box3().setFromObject(visual),size=bounds.getSize(new THREE.Vector3()),scale=config.height/Math.max(size.y,.001);
     visual.scale.setScalar(scale);visual.position.y=-bounds.min.y*scale;
     visual.traverse(object=>{if(object instanceof THREE.Mesh){object.castShadow=true;object.receiveShadow=true}});
@@ -4726,7 +4807,10 @@ export class VillageMapRenderer{
       const ground=this.sampleGround(x,z,0,!!this.options.groundObjectPrefixes?.length,1200);
       // Railings, boat hulls and tree canopies can all be hit by the ground
       // ray. Only an upward-facing surface is safe for an upright avatar.
-      const farmSafe=!this.options.personalFarm||!farmMode||(this.personalFarmSpawnAllowed(x,z,farmMode)&&this.canEscapeSpawn(x,z,ground?.height??0));
+      const requiresEscape=this.options.personalFarm||this.options.greenhouse;
+      const farmSafe=!this.options.personalFarm||!farmMode
+        ?(!requiresEscape||this.canEscapeSpawn(x,z,ground?.height??0))
+        :(this.personalFarmSpawnAllowed(x,z,farmMode)&&this.canEscapeSpawn(x,z,ground?.height??0));
       if(ground&&ground.normal.y>=.72&&this.spawnSpaceClear(x,z,ground.height)&&farmSafe)return {x,z,ground};
     }
     return undefined;
@@ -4820,21 +4904,126 @@ export class VillageMapRenderer{
     this.feedSpotRoots.forEach((root,id)=>{const done=progress.bearMission.completedFeedSpotIds.includes(id);root.traverse(object=>{if(object instanceof THREE.Mesh&&object.material instanceof THREE.MeshBasicMaterial){object.material.color.set(done?0x5aae63:0xd9a441);object.material.opacity=done?.62:.3}})});
     if(!this.options.personalFarm)return;
     const active=progress.farm.activeRewardIds;
-    this.residentDecorRoots.forEach(root=>{root.visible=progress.farm.unlockedRewardIds.includes('bear-statue')&&(!active.length||active.includes('bear-statue'))});
+    // The bear statue is a mission reward, not an optional active decoration.
+    // Once the server grants it, it must be visible regardless of the active
+    // reward selection used for cosmetic toggles.
+    // The server normally includes bear-statue in unlockedRewardIds. Keep the
+    // derived mission flag as a compatibility fallback for older progress
+    // documents that have completed the mission but lack the reward array.
+    const bearMissionComplete=progress.bearMission.completed
+      ||(progress.bearMission.bearFed&&progress.bearMission.completedFeedSpotIds.length>=BEAR_FEED_SPOT_IDS.length);
+    const bearStatueUnlocked=progress.farm.unlockedRewardIds.includes('bear-statue')||bearMissionComplete;
+    void this.renderPersonalFarmBearStatue(bearStatueUnlocked);
     this.personalFarmRewardsRoot?.removeFromParent();
     const root=new THREE.Group();root.name='personal-farm-server-rewards';
-    const colors={tulip:0xe86f7d,sunflower:0xf2c84b,hydrangea:0xa88ad5,camellia:0xd95058,iris:0x7665c9} as const;
-    const showPlantedFlowers=!active.length||active.includes('flower-garden');
-    (showPlantedFlowers?progress.gardenMission.plantedFlowerIds:[]).forEach((id,index)=>{
-      const x=820+(index%3)*58,z=1390+Math.floor(index/3)*62,ground=this.sampleGround(x,z,0,true);if(!ground)return;
-      const flower=new THREE.Group();flower.position.set(x,ground.height+3,this.worldToSceneZ(z));
-      const stem=new THREE.Mesh(new THREE.CylinderGeometry(2.2,3,30,8),new THREE.MeshStandardMaterial({color:0x4d8a48}));stem.position.y=15;
-      const bloom=new THREE.Mesh(new THREE.SphereGeometry(10,12,8),new THREE.MeshStandardMaterial({color:colors[id],roughness:.8}));bloom.position.y=34;flower.add(stem,bloom);root.add(flower);
-    });
     if(progress.farm.unlockedRewardIds.includes('nature-complete-emblem')&&(!active.length||active.includes('nature-complete-emblem'))){
       const emblem=new THREE.Mesh(new THREE.TorusGeometry(24,5,12,32),new THREE.MeshStandardMaterial({color:0xf4c75c,emissive:0x6d4b08,emissiveIntensity:.35}));emblem.name='nature-complete-emblem';emblem.position.set(960,62,this.worldToSceneZ(1325));emblem.rotation.x=Math.PI/2;root.add(emblem);
     }
     this.personalFarmRewardsRoot=root;this.scene.add(root);
+  }
+
+  private async renderPersonalFarmBearStatue(unlocked:boolean){
+    const token=++this.personalFarmBearStatueRenderToken;
+    this.personalFarmBearStatueRoot?.removeFromParent();
+    this.personalFarmBearStatueRoot=undefined;
+    if(!unlocked||this.destroyed||!this.mapReady)return;
+    try{
+      const anchor=this.personalFarmBearStatueAnchor;
+      const statue=await createBearStatueObject({targetHeight:anchor.targetHeight,rotationY:anchor.rotationY});
+      if(token!==this.personalFarmBearStatueRenderToken||this.destroyed||!this.options.personalFarm)return;
+      statue.updateMatrixWorld(true);
+      const before=new THREE.Box3().setFromObject(statue);
+      const center=before.getCenter(new THREE.Vector3());
+      const ground=this.sampleGround(anchor.x,anchor.z,0,true)
+        ??this.sampleExperienceGround(anchor.x,anchor.z,true)
+        ??this.sampleVisibleSurfaceGround(anchor.x,anchor.z)
+        ??{height:this.localGround};
+      statue.position.set(anchor.x-center.x,ground.height-before.min.y+1,this.worldToSceneZ(anchor.z)-center.z);
+      statue.name='personal-farm-bear-statue';
+      this.personalFarmBearStatueRoot=statue;
+      this.scene.add(statue);
+    }catch(error){
+      if(import.meta.env.DEV)console.warn('[personal-farm bear statue failed]',error instanceof Error?error.message:'unknown error');
+    }
+  }
+
+  private setupPersonalFarmMemoryTree(model:THREE.Object3D){
+    const farmCenterScene=this.mapBounds.getCenter(new THREE.Vector3());
+    const farmCenter={x:farmCenterScene.x,z:this.sceneToWorldZ(farmCenterScene.z)};
+    const waterObject=model.getObjectByName('ENV_Fountain_Piazza')??model.getObjectByName('ENV_Fountain_Foundation');
+    if(waterObject){
+      const waterScene=new THREE.Box3().setFromObject(waterObject).getCenter(new THREE.Vector3());
+      const lakeCenter={x:waterScene.x,z:this.sceneToWorldZ(waterScene.z)};
+      const mirrored={x:farmCenter.x*2-lakeCenter.x,z:farmCenter.z*2-lakeCenter.z};
+      const candidates=([0,90,-90,150,-150] as const).flatMap(offset=>[
+        {x:mirrored.x+offset,z:mirrored.z},
+        {x:mirrored.x,z:mirrored.z+offset},
+      ]);
+      const safe=candidates.map(candidate=>({...candidate,ground:this.sampleGround(candidate.x,candidate.z,0,true,1200)})).find(candidate=>{
+        if(!candidate.ground||candidate.ground.normal.y<.72||!this.spawnSpaceClear(candidate.x,candidate.z,candidate.ground.height))return false;
+        if(this.personalFarmOverlappingColliders(candidate.x,candidate.z,candidate.ground.height).length)return false;
+        return this.canEscapeSpawn(candidate.x,candidate.z,candidate.ground.height);
+      });
+      if(safe){
+        this.personalFarmBearStatueAnchor={x:safe.x,z:safe.z,rotationY:Math.atan2(farmCenter.x-lakeCenter.x,farmCenter.z-lakeCenter.z),targetHeight:FARM_BEAR_STATUE_ANCHOR.targetHeight};
+      }
+      if(import.meta.env.DEV)console.info('[personal-farm bear statue anchor]',{farmCenter,lakeCenter,mirroredPosition:mirrored,finalPosition:{x:this.personalFarmBearStatueAnchor.x,z:this.personalFarmBearStatueAnchor.z},rotationY:this.personalFarmBearStatueAnchor.rotationY});
+    }
+    const candidates:{x:number;z:number;name:string;bounds:THREE.Box3}[]=[];
+    model.updateMatrixWorld(true);
+    model.traverse(object=>{
+      if(!object.name.startsWith('ENV_Tree_Trunk_'))return;
+      const bounds=new THREE.Box3().setFromObject(object),center=bounds.getCenter(new THREE.Vector3());
+      candidates.push({x:center.x,z:this.sceneToWorldZ(center.z),name:object.name,bounds});
+    });
+    this.personalFarmMemoryTree=candidates.sort((a,b)=>Math.hypot(a.x-1200,a.z-1200)-Math.hypot(b.x-1200,b.z-1200))[0];
+    const door=this.mapMeshes.find((mesh)=>mesh.name.startsWith('EXTERIOR_Front_Door')||mesh.name.startsWith('ARCH_Main_Door'));
+    if(door){
+      const bounds=new THREE.Box3().setFromObject(door),center=bounds.getCenter(new THREE.Vector3()),doorX=center.x,doorZ=this.sceneToWorldZ(center.z)+180;
+      // Clear only the authored shrubs immediately in front of the house so
+      // the flower-bouquet clones occupy the bed instead of being hidden by it.
+      model.traverse(object=>{
+        if(!object.name.startsWith('ENV_Bush_'))return;
+        const shrubBounds=new THREE.Box3().setFromObject(object);if(shrubBounds.isEmpty())return;
+        const shrubCenter=shrubBounds.getCenter(new THREE.Vector3());
+        const shrubZ=this.sceneToWorldZ(shrubCenter.z);
+        if(Math.hypot(shrubCenter.x-doorX,shrubZ-doorZ)<PERSONAL_FARM_FRONT_BUSH_CLEAR_RADIUS)object.visible=false;
+      });
+      this.personalFarmFlowerSlots=PERSONAL_FARM_FLOWER_SLOTS.map((slot,index)=>({...slot,x:doorX+([-120,-40,40,-80,0][index]??0),z:doorZ+(index>2?65:0)}));
+    }
+    if(import.meta.env.DEV)console.info('[personal-farm memory tree]',this.personalFarmMemoryTree?{objectName:this.personalFarmMemoryTree.name,position:{x:this.personalFarmMemoryTree.x,z:this.personalFarmMemoryTree.z},bounds:{min:this.personalFarmMemoryTree.bounds.min.toArray(),max:this.personalFarmMemoryTree.bounds.max.toArray()}}:{found:false});
+  }
+
+  private onFlowerInterestProfileChanged=(records:FlowerInterestRecord[])=>{
+    this.personalFarmFlowerRecords=Array.isArray(records)?records:[];
+    if(this.options.personalFarm&&this.mapReady)void this.renderPersonalFarmFlowers();
+  };
+
+  private async renderPersonalFarmFlowers(){
+    if(!this.options.personalFarm)return;
+    const token=++this.personalFarmFlowerRenderToken;
+    this.personalFarmFlowerRoot?.removeFromParent();
+    this.personalFarmFlowerRoot=undefined;
+    const selected=topFlowerInterests(this.personalFarmFlowerRecords).slice(0,this.personalFarmFlowerSlots.length);
+    if(!selected.length)return;
+    const root=new THREE.Group();root.name='personal-farm-interest-flowers';
+    for(const [index,flower] of selected.entries()){
+      const slot=this.personalFarmFlowerSlots[index];
+      try{
+        const object=await createFlowerObjectById(flower.flowerId);
+        if(token!==this.personalFarmFlowerRenderToken||this.destroyed)return;
+        object.position.set(0,0,0);object.rotation.set(0,slot.rotationY,0);object.scale.setScalar(1);
+        const initial=new THREE.Box3().setFromObject(object),size=initial.getSize(new THREE.Vector3());
+        if(size.y<=.01)continue;
+        object.scale.multiplyScalar(slot.targetHeight/size.y);
+        const bounds=new THREE.Box3().setFromObject(object),center=bounds.getCenter(new THREE.Vector3()),ground=this.sampleGround(slot.x,slot.z,0,true);
+        if(!ground)continue;
+        object.position.set(slot.x-center.x,ground.height-bounds.min.y+1,this.worldToSceneZ(slot.z)-center.z);
+        object.name=`${slot.slotId}-${flower.flowerId}`;root.add(object);
+      }catch(error){if(import.meta.env.DEV)console.warn('[personal-farm flower asset failed]',{flowerId:flower.flowerId,error:error instanceof Error?error.message:'unknown'})}
+    }
+    if(token!==this.personalFarmFlowerRenderToken||this.destroyed)return;
+    this.personalFarmFlowerRoot=root;this.scene.add(root);
   }
 
   private togglePersonalFarmInterior(){
@@ -4867,6 +5056,9 @@ export class VillageMapRenderer{
       }
       const plantNearby=!this.personalFarmInterior&&Math.hypot(this.localX-880,this.localZ-1390)<(this.personalFarmPlantAnchorNearby?145:120);
       if(plantNearby!==this.personalFarmPlantAnchorNearby){this.personalFarmPlantAnchorNearby=plantNearby;gameEvents.emit('personal-farm-plant-anchor-proximity-changed',plantNearby)}
+      const tree=this.personalFarmMemoryTree;
+      const treeNearby=Boolean(tree)&&!this.personalFarmInterior&&Math.hypot(this.localX-tree!.x,this.localZ-tree!.z)<(this.personalFarmMemoryTreeNearby?155:125);
+      if(treeNearby!==this.personalFarmMemoryTreeNearby){this.personalFarmMemoryTreeNearby=treeNearby;gameEvents.emit('personal-farm-memory-tree-proximity-changed',treeNearby?{objectName:tree!.name,x:tree!.x,z:tree!.z}:null)}
     }
     this.updateGuideNpc(delta);
     this.updateLocalNpcs(delta);
@@ -4961,6 +5153,11 @@ export class VillageMapRenderer{
       const photoPortalDistance=Math.hypot(nextX-this.bearPhotoPortalPosition.x,nextZ-this.bearPhotoPortalPosition.z);
       const nearby=!this.bearPhotoMode&&photoPortalDistance<(this.bearPhotoNearby?PORTAL_EXIT_DISTANCE:PORTAL_OPEN_DISTANCE);
       if(nearby!==this.bearPhotoNearby){this.bearPhotoNearby=nearby;gameEvents.emit('bear-photo-proximity-changed',nearby)}
+    }
+    if(this.options.bearFeedingAnchor){
+      const radius=this.options.bearFeedingAnchor.radius??120;
+      const nearby=Math.hypot(nextX-this.options.bearFeedingAnchor.x,nextZ-this.options.bearFeedingAnchor.z)<radius;
+      if(nearby!==this.bearFeedingNearby){this.bearFeedingNearby=nearby;gameEvents.emit('bear-feeding-proximity-changed',nearby)}
     }
     if(this.options.wildlifeClues?.length){
       const closest=this.options.wildlifeClues.map(config=>({config,distance:Math.hypot(nextX-config.x,nextZ-config.z)})).sort((a,b)=>a.distance-b.distance)[0];
@@ -5445,9 +5642,16 @@ export class VillageMapRenderer{
 
   destroy(){
     if(this.destroyed)return;
+    if(this.options.personalFarm)gameEvents.off('flower-interest-profile-changed',this.onFlowerInterestProfileChanged);
+    this.personalFarmFlowerRenderToken++;
+    this.personalFarmFlowerRoot?.removeFromParent();
+    this.personalFarmFlowerRoot=undefined;
     if(this.artsCenterPosterActive){gameEvents.emit('game-input-lock',false);gameEvents.emit('arts-center-poster-screen-rect',null);gameEvents.emit('arts-center-poster-focus-mode-changed',{active:false,index:0,ready:false})}
     if(this.recruitmentKioskActive){gameEvents.emit('recruitment-kiosk-screen-rect',null);gameEvents.emit('recruitment-kiosk-mode-changed',false)}
     if(this.artsCenterStageBackdrop)gameEvents.emit('arts-center-stage-screen-rect',null);
+    this.personalFarmBearStatueRenderToken++;
+    this.personalFarmBearStatueRoot?.removeFromParent();
+    this.personalFarmBearStatueRoot=undefined;
     this.destroyed=true;
     if(this.guideNearby)gameEvents.emit('guide-proximity-changed',false);
     if(this.portalNearby)gameEvents.emit('world-portal-proximity-changed',null);
@@ -5459,6 +5663,7 @@ export class VillageMapRenderer{
     if(this.lakeExperienceNearby)gameEvents.emit('lake-experience-proximity-changed',null);
     if(this.bearPhotoNearby)gameEvents.emit('bear-photo-proximity-changed',false);
     if(this.wildlifeClueNearby)gameEvents.emit('bear-clue-proximity-changed',null);
+    if(this.bearFeedingNearby)gameEvents.emit('bear-feeding-proximity-changed',false);
     if(this.localNpcNearbyId){gameEvents.emit('local-npc-proximity-changed',null);gameEvents.emit('local-npc-screen-position',null)}
     if(this.overviewActive)gameEvents.emit('map-overview-changed',false);
     if(this.options.overview)gameEvents.off('map-overview-toggle',this.onMapOverviewToggle);
@@ -5473,6 +5678,7 @@ export class VillageMapRenderer{
       gameEvents.off('greenhouse-progress-changed',this.onGreenhouseProgressChanged);
       this.parent.removeEventListener('pointerdown',this.onGreenhousePointerDown);
     }
+    if(this.personalFarmMemoryTreeNearby)gameEvents.emit('personal-farm-memory-tree-proximity-changed',null);
     if(this.options.personalFarm||this.options.greenhouse||this.options.feedSpotAnchors)gameEvents.off('personal-farm-progress-changed',this.onPersonalFarmProgressChanged);
     if(this.options.personalFarm)gameEvents.emit('personal-farm-plant-anchor-proximity-changed',false)
     if(this.artsCenterPosterScreens.length)this.parent.removeEventListener('pointerdown',this.onArtsCenterPosterPointerDown);

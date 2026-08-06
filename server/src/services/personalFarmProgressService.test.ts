@@ -6,7 +6,7 @@ import {MongoMemoryServer} from 'mongodb-memory-server';
 import {PersonalFarmProgressModel} from '../models/PersonalFarmProgress.js';
 import {UserModel} from '../models/User.js';
 import {BEAR_FEED_IDS,BEAR_FEED_SPOT_IDS,GARDEN_FLOWER_IDS} from '../../../shared/personal-farm.js';
-import {collectBearFeed,collectGardenFlower,completeBearFeedSpot,getOrCreatePersonalFarmProgress,plantGardenFlower} from './personalFarmProgressService.js';
+import {collectBearFeed,collectGardenFlower,completeBearFeedSpot,feedBear,getOrCreatePersonalFarmProgress,plantGardenFlower} from './personalFarmProgressService.js';
 
 let mongo:MongoMemoryServer;
 before(async()=>{mongo=await MongoMemoryServer.create();await mongoose.connect(mongo.getUri(),{dbName:'personal-farm-test'})});
@@ -26,7 +26,7 @@ test('a feed spot cannot be completed before collecting feed',async()=>{const us
 test('the same feed spot cannot be completed twice',async()=>{const userId=new mongoose.Types.ObjectId().toString();await collectBearFeed(userId,'apple');await completeBearFeedSpot(userId,'BEAR_FEED_SPOT_01');await assert.rejects(()=>completeBearFeedSpot(userId,'BEAR_FEED_SPOT_01'),{code:'FEED_SPOT_ALREADY_COMPLETED'})});
 
 async function completeGarden(userId:string){for(const flower of GARDEN_FLOWER_IDS){await collectGardenFlower(userId,flower);await plantGardenFlower(userId,flower)}}
-async function completeBearMission(userId:string){for(const feed of BEAR_FEED_IDS)await collectBearFeed(userId,feed);for(const spot of BEAR_FEED_SPOT_IDS)await completeBearFeedSpot(userId,spot)}
+async function completeBearMission(userId:string){for(const feed of BEAR_FEED_IDS)await collectBearFeed(userId,feed);for(const spot of BEAR_FEED_SPOT_IDS)await completeBearFeedSpot(userId,spot);await feedBear(userId)}
 
 test('completing only one location keeps the farm locked',async()=>{
   const userId=new mongoose.Types.ObjectId().toString();
@@ -38,12 +38,23 @@ test('completing only one location keeps the farm locked',async()=>{
   assert.deepEqual(progress.farm.unlockedRewardIds,['flower-garden']);
 });
 
+test('bear completion unlocks the statue without completing the flower mission',async()=>{
+  const userId=new mongoose.Types.ObjectId().toString();
+  await completeBearMission(userId);
+  const progress=await getOrCreatePersonalFarmProgress(userId);
+  assert.equal(progress.bearMission.completed,true);
+  assert.equal(progress.gardenMission.completed,false);
+  assert.equal(progress.farm.unlocked,false);
+  assert.equal(progress.farm.unlockedRewardIds.includes('bear-statue'),true);
+  assert.equal(progress.farm.unlockedRewardIds.includes('flower-garden'),false);
+});
+
 test('completion and rewards are derived only after both locations are complete',async()=>{
   const userId=new mongoose.Types.ObjectId().toString();
   await completeGarden(userId);await completeBearMission(userId);
   const progress=await getOrCreatePersonalFarmProgress(userId);
   assert.equal(progress.gardenMission.completed,true);assert.equal(progress.bearMission.completed,true);assert.equal(progress.farm.unlocked,true);
-  assert.deepEqual([...progress.farm.unlockedRewardIds].sort(),['bear-statue','flower-garden','nature-complete-emblem','real-visit-missions-unlocked'].sort());
+  assert.deepEqual([...progress.farm.unlockedRewardIds].sort(),['bear-statue','flower-garden','nature-complete-emblem','real-visit-missions-unlocked','nature-chapter-complete'].sort());
   assert.equal(progress.farm.bearGrowthStage,'locked');
 });
 
@@ -55,7 +66,7 @@ test('server rules overwrite forged completion and unlock values',async()=>{
 });
 
 test('authenticated API ignores another user id and client completion fields',async()=>{
-  process.env.AUTH_SESSION_SECRET='personal-farm-test-secret';
+  process.env.SESSION_SECRET='personal-farm-test-secret-0123456789012345';
   const [{personalFarmRouter},{createAuthSessionToken}]=await Promise.all([import('../routes/personalFarm.js'),import('../middleware/authenticatedUser.js')]);
   const first=await UserModel.create({kakaoId:'farm-first',nickname:'first'}),second=await UserModel.create({kakaoId:'farm-second',nickname:'second'});
   const token=createAuthSessionToken(second.id);assert.ok(token);

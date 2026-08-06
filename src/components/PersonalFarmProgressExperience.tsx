@@ -7,7 +7,7 @@ import {
 import {greenhousePlantById} from '../data/greenhouse-plants';
 import {gameEvents} from '../game/events';
 import {
-  PERSONAL_FARM_PROGRESS_CHANGED,collectBearFeed,collectGardenFlower,completeBearFeedSpot,getCachedPersonalFarmProgress,
+  PERSONAL_FARM_PROGRESS_CHANGED,collectBearFeed,collectGardenFlower,completeBearFeedSpot,feedBear,getCachedPersonalFarmProgress,
   personalFarmErrorMessage,plantGardenFlower,refreshPersonalFarmProgress,setPersonalFarmProgressUser,type PersonalFarmApiError,
 } from '../services/personalFarmApi';
 import './PersonalFarmProgressExperience.css';
@@ -20,25 +20,37 @@ const feedName:Record<BearFeedId,string>={apple:'사과',carrot:'당근',acorn:'
 export function PersonalFarmProgressExperience({mapId,userKey,authenticated,onNotice}:{mapId:MapId;userKey:string;authenticated:boolean;onNotice?:(message:string)=>void}){
   setPersonalFarmProgressUser(userKey);
   const [progress,setProgress]=useState<PersonalFarmProgressDto|undefined>(()=>getCachedPersonalFarmProgress());
-  const [gardenNearby,setGardenNearby]=useState<string|null>(null),[bearClue,setBearClue]=useState<string|null>(null),[feedSpot,setFeedSpot]=useState<BearFeedSpotId|null>(null),[farmAnchor,setFarmAnchor]=useState(false);
+  const [gardenNearby,setGardenNearby]=useState<string|null>(null),[bearClue,setBearClue]=useState<string|null>(null),[feedSpot,setFeedSpot]=useState<BearFeedSpotId|null>(null),[bearNearby,setBearNearby]=useState(false),[farmAnchor,setFarmAnchor]=useState(false);
   const [selectedFlower,setSelectedFlower]=useState<GardenFlowerId|''>(''),[pending,setPending]=useState<string>(),[error,setError]=useState('');
   const userRef=useRef(userKey);
+  const previousProgressRef=useRef<PersonalFarmProgressDto|undefined>(undefined);
   const availableToPlant=useMemo(()=>progress?.gardenMission.collectedFlowerIds.filter(id=>!progress.gardenMission.plantedFlowerIds.includes(id))??[],[progress]);
+  useEffect(()=>{
+    const previous=previousProgressRef.current;
+    if(progress&&previous){
+      if(!previous.bearMission.completed&&progress.bearMission.completed)onNotice?.('베어트리파크 미션 완료! 개인 팜에 곰 동상이 추가되었습니다.');
+      if(!previous.gardenMission.interestCompleted&&progress.gardenMission.interestCompleted)onNotice?.('수목원 미션 완료! 개인 팜에 식물을 심을 수 있습니다.');
+      if(!previous.natureChapter.completed&&progress.natureChapter.completed)onNotice?.('자연 체험을 모두 완료했습니다. 개인 팜 보상이 준비되었습니다.');
+    }
+    previousProgressRef.current=progress;
+  },[onNotice,progress]);
 
   useEffect(()=>{
-    if(userRef.current!==userKey){userRef.current=userKey;setProgress(undefined)}
+    if(userRef.current!==userKey){userRef.current=userKey;previousProgressRef.current=undefined;setProgress(undefined)}
     let active=true;setError('');
-    if(authenticated)void refreshPersonalFarmProgress().then(value=>{if(active)setProgress(value)}).catch(reason=>{if(active)setError(personalFarmErrorMessage(reason))});
+    void refreshPersonalFarmProgress().then(value=>{if(active)setProgress(value)}).catch(reason=>{if(active)setError(personalFarmErrorMessage(reason))});
     const changed=(event:Event)=>{const detail=(event as CustomEvent<PersonalFarmProgressDto>).detail;if(detail)setProgress(detail)};
+    const refreshed=changed;
     window.addEventListener(PERSONAL_FARM_PROGRESS_CHANGED,changed);
-    return()=>{active=false;window.removeEventListener(PERSONAL_FARM_PROGRESS_CHANGED,changed)};
+    window.addEventListener('personal-farm-progress-refresh',refreshed);
+    return()=>{active=false;window.removeEventListener(PERSONAL_FARM_PROGRESS_CHANGED,changed);window.removeEventListener('personal-farm-progress-refresh',refreshed)};
   },[authenticated,userKey]);
-  useEffect(()=>{if(authenticated&&mapId==='personal-farm')void refreshPersonalFarmProgress().catch(reason=>setError(personalFarmErrorMessage(reason)))},[authenticated,mapId]);
+  useEffect(()=>{if(mapId==='personal-farm')void refreshPersonalFarmProgress().catch(reason=>setError(personalFarmErrorMessage(reason)))},[authenticated,mapId]);
   useEffect(()=>{
     const garden=(value:{kind:string;plantId?:string}|null)=>setGardenNearby(value?.kind==='plant'&&value.plantId?value.plantId:null);
-    const clue=(id:string|null)=>setBearClue(id);const spot=(id:BearFeedSpotId|null)=>setFeedSpot(id);const anchor=(nearby:boolean)=>setFarmAnchor(nearby);
-    gameEvents.on('greenhouse-nearby-changed',garden);gameEvents.on('bear-clue-proximity-changed',clue);gameEvents.on('bear-feed-spot-proximity-changed',spot);gameEvents.on('personal-farm-plant-anchor-proximity-changed',anchor);
-    return()=>{gameEvents.off('greenhouse-nearby-changed',garden);gameEvents.off('bear-clue-proximity-changed',clue);gameEvents.off('bear-feed-spot-proximity-changed',spot);gameEvents.off('personal-farm-plant-anchor-proximity-changed',anchor)};
+    const clue=(id:string|null)=>setBearClue(id);const spot=(id:BearFeedSpotId|null)=>setFeedSpot(id);const bear=(nearby:boolean)=>setBearNearby(nearby);const anchor=(nearby:boolean)=>setFarmAnchor(nearby);
+    gameEvents.on('greenhouse-nearby-changed',garden);gameEvents.on('bear-clue-proximity-changed',clue);gameEvents.on('bear-feed-spot-proximity-changed',spot);gameEvents.on('bear-feeding-proximity-changed',bear);gameEvents.on('personal-farm-plant-anchor-proximity-changed',anchor);
+    return()=>{gameEvents.off('greenhouse-nearby-changed',garden);gameEvents.off('bear-clue-proximity-changed',clue);gameEvents.off('bear-feed-spot-proximity-changed',spot);gameEvents.off('bear-feeding-proximity-changed',bear);gameEvents.off('personal-farm-plant-anchor-proximity-changed',anchor)};
   },[]);
   useEffect(()=>{const locked=()=>{const message=authenticated?'개인 팜은 미션 결과에 따라 장식이 추가됩니다.':'개인 팜은 소셜 로그인 후 이용할 수 있습니다.';setError(message);onNotice?.(message)};gameEvents.on('personal-farm-locked',locked);gameEvents.on('personal-farm-login-required',locked);return()=>{gameEvents.off('personal-farm-locked',locked);gameEvents.off('personal-farm-login-required',locked)}},[authenticated,onNotice]);
 
@@ -48,25 +60,28 @@ export function PersonalFarmProgressExperience({mapId,userKey,authenticated,onNo
   const canCollectFlower=gardenFlower&&!progress?.gardenMission.collectedFlowerIds.includes(gardenFlower);
   const canCollectFeed=feed&&!progress?.bearMission.collectedFeedIds.includes(feed);
   const spotDone=feedSpot?progress?.bearMission.completedFeedSpotIds.includes(feedSpot):false;
+  const canFeedBear=mapId==='bear-tree-park'&&bearNearby&&progress?.bearMission.completedFeedSpotIds.length===BEAR_FEED_SPOT_IDS.length&&!progress?.bearMission.bearFed;
   useEffect(()=>{
-    if(!authenticated)return;
     const key=(event:KeyboardEvent)=>{
       if(event.key.toLowerCase()!=='e'||event.repeat||pending)return;
       const focused=document.activeElement;if(focused instanceof HTMLInputElement||focused instanceof HTMLTextAreaElement||focused instanceof HTMLSelectElement)return;
+      if(mapId==='garden'&&gardenFlower&&canCollectFlower){event.preventDefault();void run(`flower:${gardenFlower}`,()=>collectGardenFlower(gardenFlower),`${plantName[gardenFlower]} 수집 완료`);return}
+      if(canFeedBear){event.preventDefault();void run('bear-feed',feedBear,'곰에게 먹이를 주었습니다. 베어트리파크 체험을 완료했습니다.');return}
       if(mapId==='bear-tree-park'&&feed&&canCollectFeed){event.preventDefault();void run(`feed:${feed}`,()=>collectBearFeed(feed),`${feedName[feed]}을(를) 수집했어요.`);return}
-      if(mapId==='bear-tree-park'&&feedSpot&&!spotDone&&progress?.bearMission.collectedFeedIds.length){event.preventDefault();void run(`spot:${feedSpot}`,()=>completeBearFeedSpot(feedSpot),'가상 먹이 체험 지점을 완료했어요.');return}
+      if(mapId==='bear-tree-park'&&feedSpot&&!spotDone){event.preventDefault();void run(`spot:${feedSpot}`,()=>completeBearFeedSpot(feedSpot),'먹이 지점을 완료했어요.');return}
       if(mapId==='personal-farm'&&farmAnchor&&selectedFlower){event.preventDefault();void run(`plant:${selectedFlower}`,()=>plantGardenFlower(selectedFlower),`${plantName[selectedFlower]}을(를) 팜에 심었어요.`).then(()=>setSelectedFlower(''))}
     };
     window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);
-  },[authenticated,canCollectFeed,farmAnchor,feed,feedSpot,mapId,pending,progress?.bearMission.collectedFeedIds.length,selectedFlower,spotDone]);
+  },[authenticated,canCollectFeed,canCollectFlower,canFeedBear,farmAnchor,feed,feedSpot,gardenFlower,mapId,pending,progress?.bearMission.collectedFeedIds.length,selectedFlower,spotDone]);
 
   return <div className="personal-farm-mission-ui" aria-live="polite">
+    {mapId==='bear-tree-park'&&bearNearby&&<section className="personal-farm-action-card"><span>🐻</span><div><small>베어트리파크 실제 곰</small><b>{progress?.bearMission.bearFed?'곰 급여 완료':'다섯 곳의 먹이를 마친 뒤 곰에게 먹이를 주세요'}</b></div><button type="button" disabled={!canFeedBear||!!pending} onClick={()=>void run('bear-feed',feedBear,'곰에게 먹이를 주었습니다. 베어트리파크 체험을 완료했습니다.')}>{pending==='bear-feed'?'처리 중…':progress?.bearMission.bearFed?'완료':'E · 곰에게 먹이 주기'}</button></section>}
     {error&&<button type="button" className="personal-farm-api-error" onClick={()=>setError('')}>{error}</button>}
     {!authenticated&&mapId!=='personal-farm'&&(gardenFlower||feed||feedSpot)&&<section className="personal-farm-action-card"><span>🔐</span><div><small>게스트 체험</small><b>로그인 후 생태 미션을 진행할 수 있습니다.</b></div><button type="button" onClick={()=>onNotice?.('로그인 후 생태 미션을 진행할 수 있습니다.')}>로그인하기</button><button type="button" onClick={()=>setError('계속 둘러보며 맵과 곰 서식 구역을 구경할 수 있어요.')}>계속 둘러보기</button></section>}
     {mapId==='garden'&&gardenFlower&&<section className="personal-farm-action-card"><span>🌸</span><div><small>{greenhousePlantById.get(gardenNearby!)?.displayName??plantName[gardenFlower]}</small><b>{canCollectFlower?'개인 팜에 가져갈 꽃 획득':'획득 완료'}</b></div><button type="button" disabled={!canCollectFlower||!!pending} onClick={()=>void run(`flower:${gardenFlower}`,()=>collectGardenFlower(gardenFlower),`${plantName[gardenFlower]}을(를) 수집했어요.`)}>{pending===`flower:${gardenFlower}`?'저장 중…':canCollectFlower?'획득':'완료'}</button></section>}
     {mapId==='bear-tree-park'&&feed&&<section className="personal-farm-action-card"><span>🧺</span><div><small>가상 생태 체험 먹이</small><b>{canCollectFeed?`${feedName[feed]} 획득`:'획득 완료'}</b></div><button type="button" disabled={!canCollectFeed||!!pending} onClick={()=>void run(`feed:${feed}`,()=>collectBearFeed(feed),`${feedName[feed]}을(를) 수집했어요.`)}>{pending===`feed:${feed}`?'저장 중…':canCollectFeed?'획득':'완료'}</button></section>}
     {mapId==='bear-tree-park'&&feedSpot&&<section className="personal-farm-action-card"><span>🐻</span><div><small>실제 동물 급여가 아닌 가상 생태 체험</small><b>{spotDone?'먹이 체험 완료':feedSpot}</b></div><button type="button" disabled={!!spotDone||!!pending||!progress?.bearMission.collectedFeedIds.length} onClick={()=>void run(`spot:${feedSpot}`,()=>completeBearFeedSpot(feedSpot),'가상 먹이 체험 지점을 완료했어요.')}>{pending===`spot:${feedSpot}`?'저장 중…':spotDone?'완료':'E · 체험 완료'}</button></section>}
     {mapId==='personal-farm'&&farmAnchor&&<section className="personal-farm-action-card farm-plant-card"><span>🌱</span><div><small>고정 꽃밭</small><b>수집한 꽃 심기</b><select value={selectedFlower} onChange={event=>setSelectedFlower(event.target.value as GardenFlowerId|'')}><option value="">심을 꽃 선택</option>{availableToPlant.map(id=><option value={id} key={id}>{plantName[id]}</option>)}</select></div><button type="button" disabled={!selectedFlower||!!pending} onClick={()=>selectedFlower&&void run(`plant:${selectedFlower}`,()=>plantGardenFlower(selectedFlower),`${plantName[selectedFlower]}을(를) 팜에 심었어요.`).then(()=>setSelectedFlower(''))}>{pending?.startsWith('plant:')?'저장 중…':'E · 꽃 심기'}</button></section>}
-    {mapId==='personal-farm'&&progress&&<aside className="personal-farm-reward-status"><b>나의 팜</b><span>꽃 {progress.gardenMission.plantedFlowerIds.length}/{GARDEN_FLOWER_IDS.length}</span><span>먹이 {progress.bearMission.collectedFeedIds.length}/{BEAR_FEED_IDS.length}</span><span>체험 {progress.bearMission.completedFeedSpotIds.length}/{BEAR_FEED_SPOT_IDS.length}</span><em>{progress.farm.unlocked?'정식 해금':'미션 진행 중'}</em></aside>}
+    {mapId==='personal-farm'&&progress&&<aside className="personal-farm-reward-status"><b>나의 팜</b><span>꽃 {progress.gardenMission.plantedFlowerIds.length}/{GARDEN_FLOWER_IDS.length}</span><span>먹이 {progress.bearMission.collectedFeedIds.length}/{BEAR_FEED_IDS.length}</span><span>체험 {progress.bearMission.completedFeedSpotIds.length}/{BEAR_FEED_SPOT_IDS.length}</span><em>{progress.bearMission.completed?'곰 동상 해금':'곰 미션 진행 중'}</em><em>{progress.gardenMission.completed?'꽃 심기 가능':'꽃 미션 진행 중'}</em></aside>}
   </div>;
 }
