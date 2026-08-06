@@ -1,4 +1,4 @@
-import { env } from './config/env.js';
+import { config, env } from './config/env.js';
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'node:http';
@@ -106,6 +106,10 @@ const startServer = async (): Promise<void> => {
   }).catch(error=>console.error('[campus portal sync failed]',error))},1500);
 
   httpServer.listen(env.PORT, () => {
+    if (env.NODE_ENV !== 'production') {
+      console.log(`[Env] loadedPath=${loadedEnvPath ?? 'none'}`);
+      console.log(`[Auth] sessionSecretConfigured=${Boolean(config.auth.sessionSecret)}`);
+    }
     console.log(`[Config] Environment: ${env.NODE_ENV}`);
     console.log(
       `[Config] Env file loaded: ${

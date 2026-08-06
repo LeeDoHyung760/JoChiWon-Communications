@@ -19,7 +19,7 @@ import festivalExperienceModelUrl from '../../assets/maps/festival-experience-ma
 import foodExperienceModelUrl from '../../assets/maps/food-experience-map.glb?url';
 import clubStreetFestivalModelUrl from '../../assets/maps/club-street-festival-map.glb?url';
 import personalFarmModelUrl from '../../assets/objects/personal-space-cottage.glb?url';
-import personalFarmBearModelUrl from '../../assets/characters/personal-farm-bear.fbx?url';
+import bearModelUrl from '../../assets/characters/bear.glb?url';
 import chungnyeongIdleUrl from '../../assets/characters/chungnyeong_idle.glb?url';
 import chungnyeongWalkUrl from '../../assets/characters/chungnyeong_walk.glb?url';
 import chungnyeongRunUrl from '../../assets/characters/chungnyeong_run.glb?url';
@@ -33,7 +33,7 @@ import { gameEvents } from '../events';
 import { characterSettings } from '../character/characterSettings';
 import { canAccessPersonalFarmPortal } from '../../services/personalFarmPortalAccess';
 import {getCachedPersonalFarmProgress} from '../../services/personalFarmApi';
-import {BEAR_FEED_SPOT_IDS,type PersonalFarmProgressDto} from '../../../shared/personal-farm';
+import {BEAR_FEED_SPOT_IDS,type GardenFlowerId,type PersonalFarmProgressDto} from '../../../shared/personal-farm';
 import { applyColorsToThreeScene } from '../../utils/modelColorizer';
 import { greenhousePlants,GREENHOUSE_MEMORY_TREE_OBJECT,GREENHOUSE_PLANT_TOTAL,greenhousePlantIdByObjectName } from '../../data/greenhouse-plants';
 import { CAMPUS_FRIEND_NPCS } from '../../data/campusNpc';
@@ -44,9 +44,8 @@ import { PROJECT_ROOM_INTERACTIONS,isProjectRoomKioskInteraction,type ProjectRoo
 import { GOVERNMENT_CENTRAL_PLAZA_WEB_UI,type GovernmentCentralPlazaWebUiId } from '../governmentCentralPlazaWebUi';
 import { ARTS_CENTER_PERFORMANCES,artsCenterPerformanceImageUrl,type ArtsCenterPerformance } from '../artsCenterPerformances';
 import { createFlowerObjectById } from '../../services/flowerAssetFactory';
-import { topFlowerInterests } from '../../services/flowerInterestProfile';
 import { createBearStatueObject } from '../../services/bearStatueAssetFactory';
-import type { FlowerInterestRecord } from '../../../shared/flower-interest';
+import {isInFrontOfHouse,mirroredAcrossHouseX,moveToHouseFront} from '../personalFarmLayout';
 
 const WORLD_WIDTH=2400;
 const WORLD_HEIGHT=1900;
@@ -344,11 +343,11 @@ export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={
     {x:682,z:735,destination:'garden',label:'세종수목원',appearance:'white-circle',fixedPosition:true,chargeSeconds:3,positionEditable:true},
     {x:1450,z:1440,destination:'personal-farm',label:'개인 팜으로 이동',appearance:'white-circle',fixedPosition:true},
   ],
-  resident:{modelUrl:personalFarmBearModelUrl,format:'fbx',x:1250,z:1120,height:168,yaw:2.75,stationary:false,patrol:[{x:1200,z:1100},{x:1320,z:1100},{x:1320,z:1210},{x:1200,z:1210}],walkSpeed:22},
+  resident:{modelUrl:bearModelUrl,format:'gltf',x:1250,z:1120,height:168,yaw:2.75,stationary:false,patrol:[{x:1200,z:1100},{x:1320,z:1100},{x:1320,z:1210},{x:1200,z:1210}],walkSpeed:22},
   bearFeedingAnchor:{x:1250,z:1120,radius:150},
   residentDecor:[
-    {modelUrl:personalFarmBearModelUrl,format:'fbx',x:1640,z:820,height:142,yaw:-1.15,stationary:true},
-    {modelUrl:personalFarmBearModelUrl,format:'fbx',x:760,z:520,height:154,yaw:.65,stationary:true},
+    {modelUrl:bearModelUrl,format:'gltf',x:1640,z:820,height:142,yaw:-1.15,stationary:true},
+    {modelUrl:bearModelUrl,format:'gltf',x:760,z:520,height:154,yaw:.65,stationary:true},
   ],
   wildlifeClues:[
     {id:'food',x:1540,z:930,icon:'🥕',label:'BEAR_FEED_SPOT_01'},
@@ -363,7 +362,8 @@ export const BEAR_TREE_PARK_RENDERER_OPTIONS:WorldMapRendererOptions={
   cameraFollowBounds:{minX:360,maxX:2040,minZ:260,maxZ:1690},characterHeight:125,groundFillColor:0xb8a77e,
   sceneBackgroundColor:'#b8d5bd',toneMappingExposure:1.02,lightingIntensityMultiplier:.96,performanceMode:true,
   balancedTextureQuality:true,maxTextureSize:1024,minPixelRatio:.75,performancePixelRatio:.95,maxPixelRatio:1,
-  geometrySimplificationRatio:0,simplifiedCollision:false,bearPhotoZone:true,bearCollisionRadius:72,
+  geometrySimplificationRatio:0,simplifiedCollision:false,bearPhotoZone:false,bearCollisionRadius:72,
+  hiddenObjectPrefixes:[BEAR_PHOTO_STAGE_NAME],
   lowQualityFallback:{maxTextureSize:512,performancePixelRatio:.75,performanceFrameRate:30,balancedTextureQuality:false},
 };
 const PERSONAL_FARM_WALKABLE_PREFIXES=['ENV_Grass_Island','ENV_Stepping_Stone_','ENV_Fountain_Piazza','ARCH_Porch_Step_','ARCH_Interior_Floor'] as const;
@@ -375,7 +375,6 @@ const PERSONAL_FARM_COLLIDER_PREFIXES=[
   'FURN_Bed_Frame','FURN_Mattress','FURN_Bed_Headboard','FURN_Sofa_Base','FURN_Sofa_Back','FURN_Sofa_Arm_',
   'FURN_Kitchen_Cabinet_','FURN_Kitchen_Counter','FURN_Stove','FURN_Fridge_Body','FURN_Dining_Table','FURN_Bookcase_Body',
 ] as const;
-const PERSONAL_FARM_FRONT_BUSH_CLEAR_RADIUS=300;
 const PERSONAL_FARM_FLOWER_SLOTS=([
   {slotId:'FARM_FLOWER_SLOT_01',x:930,z:1395,rotationY:-.18,targetHeight:92},
   {slotId:'FARM_FLOWER_SLOT_02',x:1010,z:1395,rotationY:.22,targetHeight:92},
@@ -385,7 +384,7 @@ const PERSONAL_FARM_FLOWER_SLOTS=([
 ] as const);
 // Reward anchor is deliberately on the yard side opposite the authored fountain/water area.
 // Keep this separate from the flower and memory-tree anchors so it can be tuned without map edits.
-const FARM_BEAR_STATUE_ANCHOR={x:1600,z:1040,rotationY:-Math.PI*.35,targetHeight:150} as const;
+const FARM_BEAR_STATUE_ANCHOR={x:1600,z:1040,rotationY:Math.atan2(1960-1600,1580-1040)+Math.PI*1.5,targetHeight:170} as const;
 export const PERSONAL_FARM_SPAWN={x:1050,z:1510,yaw:Math.PI} as const;
 export const PERSONAL_FARM_RENDERER_OPTIONS:WorldMapRendererOptions={
   modelUrl:personalFarmModelUrl,mapName:'개인 팜',spawn:PERSONAL_FARM_SPAWN,personalFarm:true,
@@ -1508,6 +1507,8 @@ export class VillageMapRenderer{
   private residentDecorRoots:THREE.Group[]=[];
   private residentDecorMixers:THREE.AnimationMixer[]=[];
   private residentMixer?:THREE.AnimationMixer;
+  private residentDanceAction?:THREE.AnimationAction;
+  private residentDancing=false;
   private residentGround=0;
   private residentX=0;
   private residentZ=0;
@@ -1544,10 +1545,10 @@ export class VillageMapRenderer{
   private personalFarmOccluders:THREE.Mesh[]=[];
   private personalFarmOccluderOpacity=new Map<THREE.Material,number>();
   private personalFarmPlantAnchorNearby=false;
+  private personalFarmFlowerNearby?:GardenFlowerId;
   private personalFarmMemoryTree?:{x:number;z:number;name:string;bounds:THREE.Box3};
   private personalFarmMemoryTreeNearby=false;
   private personalFarmFlowerRoot?:THREE.Group;
-  private personalFarmFlowerRecords:FlowerInterestRecord[]=[];
   private personalFarmFlowerRenderToken=0;
   private personalFarmBearStatueAnchor:{x:number;z:number;rotationY:number;targetHeight:number}={...FARM_BEAR_STATUE_ANCHOR};
   private personalFarmFlowerSlots:Array<{slotId:string;x:number;z:number;rotationY:number;targetHeight:number}>=PERSONAL_FARM_FLOWER_SLOTS.map(slot=>({...slot}));
@@ -1575,7 +1576,6 @@ export class VillageMapRenderer{
     const qualityOverride=lowEndDevice&&options.lowQualityFallback?options.lowQualityFallback:{};
     options=this.options={...options,...qualityOverride,wildlifeClues:options.wildlifeClues?.filter(config=>config.id!=='bearA'&&config.id!=='bearB').map(config=>({...config}))};
     if(options.personalFarm)this.personalFarmProgress=getCachedPersonalFarmProgress();
-    if(options.personalFarm)gameEvents.on('flower-interest-profile-changed',this.onFlowerInterestProfileChanged);
     // The lake is the busiest hub. Avoid the expensive body-path raycast grid
     // and start slightly below native resolution; adaptive quality can still
     // raise or lower it from here based on measured frame time.
@@ -1756,8 +1756,8 @@ export class VillageMapRenderer{
       if(collisionPrefixes?.length){
         const padding=COLLISION_RADIUS*.9;
         model.traverse(object=>{
-          const nestedFarmFountain=this.options.personalFarm&&object.name.startsWith('ENV_Fountain_');
-          if((object.parent!==model&&!nestedFarmFountain)||!collisionPrefixes.some(prefix=>object.name.startsWith(prefix)))return;
+          const nestedFarmCollider=this.options.personalFarm&&collisionPrefixes.some(prefix=>object.name.startsWith(prefix));
+          if((object.parent!==model&&!nestedFarmCollider)||!collisionPrefixes.some(prefix=>object.name.startsWith(prefix)))return;
           const bounds=new THREE.Box3().setFromObject(object);
           if(bounds.isEmpty())return;
           this.authoredCollisionZones.push({minX:bounds.min.x-padding,maxX:bounds.max.x+padding,minZ:bounds.min.z-padding,maxZ:bounds.max.z+padding});
@@ -1952,11 +1952,18 @@ export class VillageMapRenderer{
         this.wildlifeClueRoots.set(config.id,root);
       });
       this.options.feedSpotAnchors?.forEach(config=>{
-        const ground=this.sampleExperienceGround(config.x,config.z,true)??this.sampleGround(config.x,config.z,0,true);
-        if(!ground)return;
-        const anchor=new THREE.Group();anchor.name=config.id;anchor.position.set(config.x,ground.height+1.5,this.worldToSceneZ(config.z));anchor.userData.feedSpotId=config.id;
+        const candidates=[{x:config.x,z:config.z,distance:0}];
+        for(const radius of [55,90,130,175])for(let index=0;index<16;index++){
+          const angle=index/16*Math.PI*2;candidates.push({x:config.x+Math.cos(angle)*radius,z:config.z+Math.sin(angle)*radius,distance:radius});
+        }
+        const resolved=candidates.map(candidate=>({candidate,ground:this.sampleExperienceGround(candidate.x,candidate.z,false)??this.sampleGround(candidate.x,candidate.z,0,true,1200)}))
+          .filter((entry):entry is {candidate:{x:number;z:number;distance:number};ground:GroundSample}=>Boolean(entry.ground&&entry.ground.normal.y>=.78&&this.spawnSpaceClear(entry.candidate.x,entry.candidate.z,entry.ground.height)))
+          .sort((a,b)=>a.candidate.distance-b.candidate.distance)[0];
+        if(!resolved)return;
+        Object.assign(config,{x:resolved.candidate.x,z:resolved.candidate.z});
+        const anchor=new THREE.Group();anchor.name=config.id;anchor.position.set(config.x,resolved.ground.height+1.2,this.worldToSceneZ(config.z));anchor.userData.feedSpotId=config.id;
         const material=new THREE.MeshBasicMaterial({color:0xd9a441,transparent:true,opacity:.3,depthWrite:false});
-        const ring=new THREE.Mesh(new THREE.RingGeometry(24,31,32),material);ring.rotation.x=-Math.PI/2;anchor.add(ring);this.scene.add(anchor);this.feedSpotRoots.set(config.id,anchor);
+        const ring=new THREE.Mesh(new THREE.RingGeometry(13,19,32),material);ring.rotation.x=-Math.PI/2;anchor.add(ring);this.scene.add(anchor);this.feedSpotRoots.set(config.id,anchor);
       });
       const residentReady=this.options.resident?this.createResident(this.options.resident):Promise.resolve();
       const residentDecorReady=Promise.all((this.options.residentDecor??[]).map((config,index)=>this.createResidentDecor(config,index)));
@@ -4276,8 +4283,16 @@ export class VillageMapRenderer{
     const ground=this.sampleGround(config.x,config.z,0,true);if(!ground)return;
     const root=new THREE.Group();root.name='bear-cub-resident';root.position.set(config.x,ground.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(config.z));root.rotation.y=config.yaw;root.add(visual);this.scene.add(root);this.residentRoot=root;
     this.residentX=config.x;this.residentZ=config.z;this.residentGround=ground.height;
-    const residentClip=config.stationary?asset.animations.find(clip=>/idle/i.test(clip.name)):asset.animations[0];
-    if(residentClip){this.residentMixer=new THREE.AnimationMixer(visual);this.residentMixer.clipAction(residentClip).play()}
+    const movementClip=config.stationary
+      ?asset.animations.find(clip=>/idle/i.test(clip.name))
+      :asset.animations.find(clip=>/walk|locomotion|idle/i.test(clip.name));
+    const danceClip=asset.animations.find(clip=>/breakdance/i.test(clip.name))??asset.animations.find(clip=>/hip hop|rumba/i.test(clip.name));
+    if(movementClip||danceClip){
+      this.residentMixer=new THREE.AnimationMixer(visual);
+      if(movementClip)this.residentMixer.clipAction(movementClip).play();
+      if(danceClip){this.residentDanceAction=this.residentMixer.clipAction(danceClip);this.residentDanceAction.setLoop(THREE.LoopOnce,1);this.residentDanceAction.clampWhenFinished=false}
+      this.residentMixer.addEventListener('finished',event=>{if(event.action===this.residentDanceAction)this.residentDancing=false});
+    }
   }
   private async createResidentDecor(config:ResidentConfig,index:number){
     const asset=await this.loadResidentAsset(config);
@@ -4305,6 +4320,7 @@ export class VillageMapRenderer{
     if(!root||!config||config.stationary)return;
     this.residentMixer?.update(delta);
     this.residentDecorMixers.forEach(mixer=>mixer.update(delta));
+    if(this.residentDancing)return;
     const patrol=config.patrol;
     if(!root||!config||!patrol||patrol.length<2)return;
     const target=patrol[this.residentPatrolTarget%patrol.length],dx=target.x-this.residentX,dz=target.z-this.residentZ,distance=Math.hypot(dx,dz);
@@ -4317,6 +4333,11 @@ export class VillageMapRenderer{
     this.residentX=nextX;this.residentZ=nextZ;this.residentGround=ground.height;
     root.position.set(nextX,ground.height+CHARACTER_GROUND_CLEARANCE,this.worldToSceneZ(nextZ));
     root.rotation.y=config.yaw+Math.atan2(dx,dz);
+  }
+  private playResidentFeedDance(){
+    if(!this.residentDanceAction||this.residentDancing)return;
+    this.residentDancing=true;
+    this.residentDanceAction.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).play();
   }
   private updatePortals(){
     const elapsed=(Date.now()+this.worldClockOffset)/1000;
@@ -4893,7 +4914,7 @@ export class VillageMapRenderer{
     this.scene.add(root);this.layoutDecorationRoots.push(root);
   }
 
-  private onPersonalFarmProgressChanged=(progress:PersonalFarmProgressDto)=>{this.personalFarmProgress=progress;if(this.mapReady)this.applyPersonalFarmProgress(progress)};
+  private onPersonalFarmProgressChanged=(progress:PersonalFarmProgressDto)=>{const justFed=this.personalFarmProgress?.bearMission.bearFed===false&&progress.bearMission.bearFed===true;this.personalFarmProgress=progress;if(this.mapReady)this.applyPersonalFarmProgress(progress);if(justFed)this.playResidentFeedDance()};
   private applyPersonalFarmProgress(progress:PersonalFarmProgressDto){
     const feedClues={food:'apple',cave:'carrot',water:'acorn'} as const;
     for(const [clueId,feedId] of Object.entries(feedClues)){
@@ -4914,6 +4935,7 @@ export class VillageMapRenderer{
       ||(progress.bearMission.bearFed&&progress.bearMission.completedFeedSpotIds.length>=BEAR_FEED_SPOT_IDS.length);
     const bearStatueUnlocked=progress.farm.unlockedRewardIds.includes('bear-statue')||bearMissionComplete;
     void this.renderPersonalFarmBearStatue(bearStatueUnlocked);
+    void this.renderPersonalFarmFlowers();
     this.personalFarmRewardsRoot?.removeFromParent();
     const root=new THREE.Group();root.name='personal-farm-server-rewards';
     if(progress.farm.unlockedRewardIds.includes('nature-complete-emblem')&&(!active.length||active.includes('nature-complete-emblem'))){
@@ -4942,75 +4964,93 @@ export class VillageMapRenderer{
       statue.name='personal-farm-bear-statue';
       this.personalFarmBearStatueRoot=statue;
       this.scene.add(statue);
+      if(import.meta.env.DEV)console.info('[personal-farm bear statue grounded]',{finalPosition:{x:anchor.x,y:ground.height+1,z:anchor.z},rotationY:anchor.rotationY});
     }catch(error){
       if(import.meta.env.DEV)console.warn('[personal-farm bear statue failed]',error instanceof Error?error.message:'unknown error');
     }
   }
 
   private setupPersonalFarmMemoryTree(model:THREE.Object3D){
-    const farmCenterScene=this.mapBounds.getCenter(new THREE.Vector3());
-    const farmCenter={x:farmCenterScene.x,z:this.sceneToWorldZ(farmCenterScene.z)};
+    model.updateMatrixWorld(true);
+    const houseBounds=new THREE.Box3();
+    model.traverse(object=>{
+      if(!object.name.startsWith('ARCH_')&&!object.name.startsWith('EXTERIOR_'))return;
+      const bounds=new THREE.Box3().setFromObject(object);if(!bounds.isEmpty())houseBounds.union(bounds);
+    });
+    const fallbackCenterScene=this.mapBounds.getCenter(new THREE.Vector3());
+    const houseCenterScene=houseBounds.isEmpty()?fallbackCenterScene:houseBounds.getCenter(new THREE.Vector3());
+    const houseCenter={x:houseCenterScene.x,z:this.sceneToWorldZ(houseCenterScene.z)};
+    const door=model.getObjectByName('EXTERIOR_Entry_Door')??model.getObjectByName('EXTERIOR_Front_Door_Header');
+    const doorScene=door?new THREE.Box3().setFromObject(door).getCenter(new THREE.Vector3()):houseCenterScene.clone().add(new THREE.Vector3(0,0,1));
+    const doorCenter={x:doorScene.x,z:this.sceneToWorldZ(doorScene.z)};
+    const frontLength=Math.hypot(doorCenter.x-houseCenter.x,doorCenter.z-houseCenter.z)||1;
+    const houseFrontDirection={x:(doorCenter.x-houseCenter.x)/frontLength,z:(doorCenter.z-houseCenter.z)/frontLength};
     const waterObject=model.getObjectByName('ENV_Fountain_Piazza')??model.getObjectByName('ENV_Fountain_Foundation');
     if(waterObject){
       const waterScene=new THREE.Box3().setFromObject(waterObject).getCenter(new THREE.Vector3());
       const lakeCenter={x:waterScene.x,z:this.sceneToWorldZ(waterScene.z)};
-      const mirrored={x:farmCenter.x*2-lakeCenter.x,z:farmCenter.z*2-lakeCenter.z};
-      const candidates=([0,90,-90,150,-150] as const).flatMap(offset=>[
-        {x:mirrored.x+offset,z:mirrored.z},
-        {x:mirrored.x,z:mirrored.z+offset},
+      const rawMirrored=mirroredAcrossHouseX(houseCenter,lakeCenter);
+      const mirrored=moveToHouseFront(rawMirrored,houseCenter,houseFrontDirection,Math.max(180,frontLength*.7));
+      const lateral={x:-houseFrontDirection.z,z:houseFrontDirection.x};
+      const candidates=([0,70,-70,125,-125] as const).flatMap(offset=>[
+        {x:mirrored.x+lateral.x*offset,z:mirrored.z+lateral.z*offset},
+        {x:mirrored.x+houseFrontDirection.x*offset,z:mirrored.z+houseFrontDirection.z*offset},
       ]);
       const safe=candidates.map(candidate=>({...candidate,ground:this.sampleGround(candidate.x,candidate.z,0,true,1200)})).find(candidate=>{
         if(!candidate.ground||candidate.ground.normal.y<.72||!this.spawnSpaceClear(candidate.x,candidate.z,candidate.ground.height))return false;
+        if(!isInFrontOfHouse(candidate,houseCenter,houseFrontDirection))return false;
         if(this.personalFarmOverlappingColliders(candidate.x,candidate.z,candidate.ground.height).length)return false;
         return this.canEscapeSpawn(candidate.x,candidate.z,candidate.ground.height);
       });
       if(safe){
-        this.personalFarmBearStatueAnchor={x:safe.x,z:safe.z,rotationY:Math.atan2(farmCenter.x-lakeCenter.x,farmCenter.z-lakeCenter.z),targetHeight:FARM_BEAR_STATUE_ANCHOR.targetHeight};
+        const peoplePortal=this.options.portal??this.options.fixedPortals?.[0];
+        const facingTarget=peoplePortal?{x:peoplePortal.x,z:peoplePortal.z}:houseCenter;
+        this.personalFarmBearStatueAnchor={x:safe.x,z:safe.z,rotationY:Math.atan2(facingTarget.x-safe.x,facingTarget.z-safe.z)+Math.PI*1.5,targetHeight:FARM_BEAR_STATUE_ANCHOR.targetHeight};
       }
-      if(import.meta.env.DEV)console.info('[personal-farm bear statue anchor]',{farmCenter,lakeCenter,mirroredPosition:mirrored,finalPosition:{x:this.personalFarmBearStatueAnchor.x,z:this.personalFarmBearStatueAnchor.z},rotationY:this.personalFarmBearStatueAnchor.rotationY});
+      if(import.meta.env.DEV)console.info('[personal-farm bear statue anchor]',{houseCenter,houseFrontDirection,lakeCenter,mirroredPosition:mirrored,finalPosition:{x:this.personalFarmBearStatueAnchor.x,z:this.personalFarmBearStatueAnchor.z},rotationY:this.personalFarmBearStatueAnchor.rotationY,fallbackUsed:!safe});
     }
     const candidates:{x:number;z:number;name:string;bounds:THREE.Box3}[]=[];
-    model.updateMatrixWorld(true);
     model.traverse(object=>{
       if(!object.name.startsWith('ENV_Tree_Trunk_'))return;
       const bounds=new THREE.Box3().setFromObject(object),center=bounds.getCenter(new THREE.Vector3());
       candidates.push({x:center.x,z:this.sceneToWorldZ(center.z),name:object.name,bounds});
     });
     this.personalFarmMemoryTree=candidates.sort((a,b)=>Math.hypot(a.x-1200,a.z-1200)-Math.hypot(b.x-1200,b.z-1200))[0];
-    const door=this.mapMeshes.find((mesh)=>mesh.name.startsWith('EXTERIOR_Front_Door')||mesh.name.startsWith('ARCH_Main_Door'));
     if(door){
-      const bounds=new THREE.Box3().setFromObject(door),center=bounds.getCenter(new THREE.Vector3()),doorX=center.x,doorZ=this.sceneToWorldZ(center.z)+180;
+      const bedCenter={x:doorCenter.x+houseFrontDirection.x*190,z:doorCenter.z+houseFrontDirection.z*190};
+      const lateral={x:-houseFrontDirection.z,z:houseFrontDirection.x};
+      const clearedShrubs:string[]=[];
       // Clear only the authored shrubs immediately in front of the house so
       // the flower-bouquet clones occupy the bed instead of being hidden by it.
       model.traverse(object=>{
         if(!object.name.startsWith('ENV_Bush_'))return;
         const shrubBounds=new THREE.Box3().setFromObject(object);if(shrubBounds.isEmpty())return;
         const shrubCenter=shrubBounds.getCenter(new THREE.Vector3());
-        const shrubZ=this.sceneToWorldZ(shrubCenter.z);
-        if(Math.hypot(shrubCenter.x-doorX,shrubZ-doorZ)<PERSONAL_FARM_FRONT_BUSH_CLEAR_RADIUS)object.visible=false;
+        const shrub={x:shrubCenter.x,z:this.sceneToWorldZ(shrubCenter.z)};
+        const fromDoor={x:shrub.x-doorCenter.x,z:shrub.z-doorCenter.z};
+        const forward=fromDoor.x*houseFrontDirection.x+fromDoor.z*houseFrontDirection.z;
+        const side=Math.abs(fromDoor.x*lateral.x+fromDoor.z*lateral.z);
+        if(forward>=40&&forward<=330&&side<=480){object.visible=false;clearedShrubs.push(object.name)}
       });
-      this.personalFarmFlowerSlots=PERSONAL_FARM_FLOWER_SLOTS.map((slot,index)=>({...slot,x:doorX+([-120,-40,40,-80,0][index]??0),z:doorZ+(index>2?65:0)}));
+      const slotOffsets=[{side:105,front:20},{side:195,front:-25},{side:285,front:45},{side:-300,front:30},{side:-420,front:-20}];
+      this.personalFarmFlowerSlots=PERSONAL_FARM_FLOWER_SLOTS.map((slot,index)=>{const offset=slotOffsets[index];return {...slot,x:bedCenter.x+lateral.x*offset.side+houseFrontDirection.x*offset.front,z:bedCenter.z+lateral.z*offset.side+houseFrontDirection.z*offset.front}});
+      if(import.meta.env.DEV)console.info('[personal-farm front garden]',{houseCenter,doorCenter,houseFrontDirection,bedCenter,clearedShrubs,slots:this.personalFarmFlowerSlots});
     }
     if(import.meta.env.DEV)console.info('[personal-farm memory tree]',this.personalFarmMemoryTree?{objectName:this.personalFarmMemoryTree.name,position:{x:this.personalFarmMemoryTree.x,z:this.personalFarmMemoryTree.z},bounds:{min:this.personalFarmMemoryTree.bounds.min.toArray(),max:this.personalFarmMemoryTree.bounds.max.toArray()}}:{found:false});
   }
-
-  private onFlowerInterestProfileChanged=(records:FlowerInterestRecord[])=>{
-    this.personalFarmFlowerRecords=Array.isArray(records)?records:[];
-    if(this.options.personalFarm&&this.mapReady)void this.renderPersonalFarmFlowers();
-  };
 
   private async renderPersonalFarmFlowers(){
     if(!this.options.personalFarm)return;
     const token=++this.personalFarmFlowerRenderToken;
     this.personalFarmFlowerRoot?.removeFromParent();
     this.personalFarmFlowerRoot=undefined;
-    const selected=topFlowerInterests(this.personalFarmFlowerRecords).slice(0,this.personalFarmFlowerSlots.length);
+    const selected=this.personalFarmProgress?.gardenMission.plantedFlowerIds.slice(-this.personalFarmFlowerSlots.length)??[];
     if(!selected.length)return;
     const root=new THREE.Group();root.name='personal-farm-interest-flowers';
-    for(const [index,flower] of selected.entries()){
+    for(const [index,flowerId] of selected.entries()){
       const slot=this.personalFarmFlowerSlots[index];
       try{
-        const object=await createFlowerObjectById(flower.flowerId);
+        const object=await createFlowerObjectById(flowerId);
         if(token!==this.personalFarmFlowerRenderToken||this.destroyed)return;
         object.position.set(0,0,0);object.rotation.set(0,slot.rotationY,0);object.scale.setScalar(1);
         const initial=new THREE.Box3().setFromObject(object),size=initial.getSize(new THREE.Vector3());
@@ -5019,8 +5059,8 @@ export class VillageMapRenderer{
         const bounds=new THREE.Box3().setFromObject(object),center=bounds.getCenter(new THREE.Vector3()),ground=this.sampleGround(slot.x,slot.z,0,true);
         if(!ground)continue;
         object.position.set(slot.x-center.x,ground.height-bounds.min.y+1,this.worldToSceneZ(slot.z)-center.z);
-        object.name=`${slot.slotId}-${flower.flowerId}`;root.add(object);
-      }catch(error){if(import.meta.env.DEV)console.warn('[personal-farm flower asset failed]',{flowerId:flower.flowerId,error:error instanceof Error?error.message:'unknown'})}
+        object.name=`${slot.slotId}-${flowerId}`;root.add(object);
+      }catch(error){if(import.meta.env.DEV)console.warn('[personal-farm flower asset failed]',{flowerId,error:error instanceof Error?error.message:'unknown'})}
     }
     if(token!==this.personalFarmFlowerRenderToken||this.destroyed)return;
     this.personalFarmFlowerRoot=root;this.scene.add(root);
@@ -5054,8 +5094,15 @@ export class VillageMapRenderer{
         this.personalFarmDoorNearby=nearby;
         gameEvents.emit('personal-farm-door-proximity-changed',nearby?{inside:this.personalFarmInterior}:null);
       }
-      const plantNearby=!this.personalFarmInterior&&Math.hypot(this.localX-880,this.localZ-1390)<(this.personalFarmPlantAnchorNearby?145:120);
+      const flowerBedCenter=this.personalFarmFlowerSlots.reduce((center,slot)=>({x:center.x+slot.x/this.personalFarmFlowerSlots.length,z:center.z+slot.z/this.personalFarmFlowerSlots.length}),{x:0,z:0});
+      // The flower bed sits close to the entrance. The door owns the overlap
+      // area so a single E press can never trigger both interactions.
+      const plantNearby=!this.personalFarmInterior&&!nearby&&Math.hypot(this.localX-flowerBedCenter.x,this.localZ-flowerBedCenter.z)<(this.personalFarmPlantAnchorNearby?190:165);
       if(plantNearby!==this.personalFarmPlantAnchorNearby){this.personalFarmPlantAnchorNearby=plantNearby;gameEvents.emit('personal-farm-plant-anchor-proximity-changed',plantNearby)}
+      const planted=this.personalFarmProgress?.gardenMission.plantedFlowerIds??[];
+      const closestFlower=!this.personalFarmInterior&&!nearby?planted.map((flowerId,index)=>({flowerId,slot:this.personalFarmFlowerSlots[index],distance:Math.hypot(this.localX-this.personalFarmFlowerSlots[index].x,this.localZ-this.personalFarmFlowerSlots[index].z)})).sort((a,b)=>a.distance-b.distance)[0]:undefined;
+      const flowerNearby=closestFlower&&closestFlower.distance<95?closestFlower.flowerId:undefined;
+      if(flowerNearby!==this.personalFarmFlowerNearby){this.personalFarmFlowerNearby=flowerNearby;gameEvents.emit('personal-farm-flower-proximity-changed',flowerNearby??null)}
       const tree=this.personalFarmMemoryTree;
       const treeNearby=Boolean(tree)&&!this.personalFarmInterior&&Math.hypot(this.localX-tree!.x,this.localZ-tree!.z)<(this.personalFarmMemoryTreeNearby?155:125);
       if(treeNearby!==this.personalFarmMemoryTreeNearby){this.personalFarmMemoryTreeNearby=treeNearby;gameEvents.emit('personal-farm-memory-tree-proximity-changed',treeNearby?{objectName:tree!.name,x:tree!.x,z:tree!.z}:null)}
@@ -5642,7 +5689,6 @@ export class VillageMapRenderer{
 
   destroy(){
     if(this.destroyed)return;
-    if(this.options.personalFarm)gameEvents.off('flower-interest-profile-changed',this.onFlowerInterestProfileChanged);
     this.personalFarmFlowerRenderToken++;
     this.personalFarmFlowerRoot?.removeFromParent();
     this.personalFarmFlowerRoot=undefined;

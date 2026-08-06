@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Response } from 'express';
-import { env } from '../config/env.js';
+import { config, env } from '../config/env.js';
 import { UserModel } from '../models/User.js';
 import { setAuthSessionCookie } from '../middleware/authenticatedUser.js';
 import mongoose from 'mongoose';
@@ -81,7 +81,7 @@ authRouter.get('/kakao/diagnostics', async (req, res) => {
       restApiKeyConfigured: Boolean(env.KAKAO_REST_API_KEY),
       redirectUriConfigured: Boolean(env.KAKAO_REDIRECT_URI),
       clientSecretConfigured: Boolean(env.KAKAO_CLIENT_SECRET),
-      authSessionSecretConfigured: Boolean(env.AUTH_SESSION_SECRET),
+      authSessionSecretConfigured: Boolean(config.auth.sessionSecret),
       redirectUriMatchesCurrentServer: env.KAKAO_REDIRECT_URI === actualCallbackUrl,
       databaseConnected: databaseReady,
     },

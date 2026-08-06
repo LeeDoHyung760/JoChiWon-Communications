@@ -14,7 +14,7 @@ type FestivalInterestEntry={id:string;title:string;categories:string[];opens:num
 export type FestivalKeywordInsight={keyword:string;score:number;count:number;festivals:string[]};
 const isHarnessMap=(mapId:MapId):mapId is HarnessMap=>Boolean(mapId);
 const MAP_NAMES:Record<MapId,string>={
-  town:'세종호수공원','arts-center':'세종예술의전당','festival-experience':'축제 체험장','food-experience':'먹거리 체험장','club-street-festival':'동아리 거리제','bear-tree-park':'베어트리파크','bear-play-zone':'AI 생태 연구소',garden:'국립세종수목원',campus:'공동캠퍼스','student-hall':'학생회관','recruitment-center':'모집센터','project-room':'프로젝트실',government:'정부세종청사','government-central-plaza':'정부청사 중앙광장','government-policy-hall':'정책 체험관','government-observatory':'정부청사 전망대','sejong-smart-city':'스마트시티 전시관','jochwon-station':'조치원역','traditional-market':'세종전통시장','jochwon-park':'조치원공원','college-street':'대학로',
+  town:'세종호수공원','arts-center':'세종예술의전당','festival-experience':'축제 체험장','food-experience':'먹거리 체험장','club-street-festival':'동아리 거리제','bear-tree-park':'베어트리파크',garden:'국립세종수목원',campus:'공동캠퍼스','student-hall':'학생회관','recruitment-center':'모집센터','project-room':'프로젝트실',government:'정부세종청사','government-central-plaza':'정부청사 중앙광장','government-policy-hall':'정책 체험관','government-observatory':'정부청사 전망대','sejong-smart-city':'스마트시티 전시관','jochwon-station':'조치원역','traditional-market':'세종전통시장','jochwon-park':'조치원공원','college-street':'대학로','personal-farm':'개인 팜',
 };
 const userKey=(nickname:string)=>nickname.trim().toLowerCase()||'guest';
 let activeUserKey='guest';

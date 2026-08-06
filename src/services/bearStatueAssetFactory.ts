@@ -14,11 +14,11 @@ async function loadSource():Promise<THREE.Group>{
       new GLTFLoader().load(bearTreeParkModelUrl,gltf=>{
         const statue=gltf.scene.getObjectByName(BEAR_STATUE_NODE_NAME);
         if(!statue) return reject(new Error(`Missing bear statue node: ${BEAR_STATUE_NODE_NAME}`));
+        const pedestal=gltf.scene.getObjectByName(BEAR_STATUE_PEDESTAL_NODE_NAME);
+        if(!pedestal) return reject(new Error(`Missing bear statue pedestal node: ${BEAR_STATUE_PEDESTAL_NODE_NAME}`));
         const source=new THREE.Group();
         source.name='bear-statue-source';
-        source.add(statue.clone(false));
-        const pedestal=gltf.scene.getObjectByName(BEAR_STATUE_PEDESTAL_NODE_NAME);
-        if(pedestal)source.add(pedestal.clone(false));
+        source.add(statue.clone(true),pedestal.clone(true));
         source.updateMatrixWorld(true);
         if(import.meta.env.DEV){
           const bounds=new THREE.Box3().setFromObject(source);

@@ -6,8 +6,8 @@ import { loadBearHabitatProgress } from '../services/bearHabitatDecision';
 import { GreenhouseProgressService,greenhouseCompletion,type GreenhouseProgress } from '../services/greenhouseProgress';
 import './NatureDiscoveryGuide.css';
 
-type NatureMapId=Extract<MapId,'bear-tree-park'|'bear-play-zone'|'garden'>;
-const NATURE_MAPS:NatureMapId[]=['bear-tree-park','bear-play-zone','garden'];
+type NatureMapId=Extract<MapId,'bear-tree-park'|'garden'>;
+const NATURE_MAPS:NatureMapId[]=['bear-tree-park','garden'];
 const isNatureMap=(mapId:MapId):mapId is NatureMapId=>NATURE_MAPS.includes(mapId as NatureMapId);
 const progressKey=(kind:'photo'|'ai',userKey:string)=>`bear-tree-${kind}-completed-v1:${userKey.trim().toLowerCase()||'guest'}`;
 const aiJourneyComplete=(userKey:string)=>Boolean(loadBearHabitatProgress(userKey).result);
@@ -47,7 +47,7 @@ export function NatureDiscoveryGuide({userKey}:{userKey:string}){
 
   const gardenComplete=greenhouseCompletion(greenhouse).analysisUnlocked;
   useEffect(()=>{gameEvents.emit('nature-chapter-progress-changed',{bear:aiComplete,garden:gardenComplete,photo:photoComplete})},[aiComplete,gardenComplete,photoComplete,mapId]);
-  if(!isNatureMap(mapId)||mapId==='bear-play-zone')return null;
+  if(!isNatureMap(mapId))return null;
 
   const steps=[
     {id:'garden',label:'수목원 체험',done:gardenComplete},

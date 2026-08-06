@@ -11,6 +11,20 @@ export interface FlowerInterestRecord {
   lastInteractedAt?: string;
 }
 
+export interface FlowerInterestDelta {
+  eventId:string;
+  flowerId:GardenFlowerId;
+  infoViewCount?:number;
+  totalInfoViewSeconds?:number;
+  nearbyVisitCount?:number;
+  totalNearbySeconds?:number;
+  revisitCount?:number;
+}
+
+export interface GardenNatureProfile {
+  flowerInterests:FlowerInterestRecord[];
+}
+
 export const FLOWER_INTEREST_WEIGHTS = {
   infoViewOpen: 3,
   infoViewSecond: 0.5,

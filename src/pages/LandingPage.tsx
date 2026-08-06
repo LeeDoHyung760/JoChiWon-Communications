@@ -3,13 +3,11 @@ import { ArrowLeft, ArrowRight, Clock3, Gamepad2, Map, MapPin, MessageCircle, Pl
 import parkMapImage from '../assets/maps/hotspots/jochwon-park-map.jpg';
 import lakeMapPreview from '../assets/maps/previews/sejong-lake-park.png';
 import bearTreeMapPreview from '../assets/maps/previews/new-beartree.png';
-import bearLabMapPreview from '../assets/maps/previews/park-landscape.png';
 import gardenMapPreview from '../assets/maps/previews/garden.png';
 import campusMapPreview from '../assets/maps/previews/new-campus-floor.png';
 import governmentMapPreview from '../assets/maps/previews/sejong-gov.png';
 import lakeWorldUrl from '../assets/maps/sejong-lake-park.glb?url';
 import bearTreeWorldUrl from '../assets/maps/new-beartree.glb?url';
-import bearLabWorldUrl from '../assets/maps/park-landscape.glb?url';
 import gardenWorldUrl from '../assets/maps/garden.glb?url';
 import campusWorldUrl from '../assets/maps/new-campus-floor.glb?url';
 import studentHallWorldUrl from '../assets/maps/student-hall.glb?url';
@@ -54,7 +52,6 @@ const guideWorldCatalog:WorldPlace[]=[
   {name:'축제 부스',description:'세종호수공원의 축제 부스에서 이어지는 야외 축제 공간으로, 공연 무대와 체험 부스, 휴게 공간을 둘러볼 수 있어요.',people:'축제 체험',emoji:'🎪',image:festivalExperiencePreview,modelUrl:festivalExperienceWorldUrl,modelSize:'4.0MB',accent:'#7c4b9d',mapId:'festival-experience',points:['조명과 악기가 설치된 야외 공연 무대','양쪽 체험 부스와 피크닉 테이블','세종호수공원 축제 부스로 돌아가는 포털']},
   {name:'먹거리 부스',description:'세종호수공원의 먹거리 부스에서 이어지는 야외 광장으로, 푸드트럭과 테이블 사이를 걸으며 공간을 둘러볼 수 있어요.',people:'먹거리 체험',emoji:'🍜',image:foodExperiencePreview,modelUrl:foodExperienceWorldUrl,modelSize:'3.3MB',accent:'#d47a32',mapId:'food-experience',points:['서로 다른 메뉴의 푸드트럭 세 대','파라솔 테이블과 수변 휴게 공간','세종호수공원 먹거리 부스로 돌아가는 포털']},
   {name:'베어트리파크',description:'숲길과 곰 생태 공간을 탐색하고 행동 선택을 나만의 자연 여행 기록으로 남겨요.',people:'자연 탐험',emoji:'🐻',image:bearTreeMapPreview,modelUrl:bearTreeWorldUrl,modelSize:'13.9MB',accent:'#299467',mapId:'bear-tree-park',points:['숲길과 곰 생태 공간 탐색','아기곰 포토존과 생태 관찰','수목원으로 이어지는 이동 포털']},
-  {name:'AI 탐험 연구소',description:'곰의 흔적을 조사하고 관찰 결과를 모아 자연 탐험 프로필을 완성하는 체험 월드예요.',people:'생태 조사',emoji:'🔎',image:bearLabMapPreview,modelUrl:bearLabWorldUrl,modelSize:'5.8MB',accent:'#bd7b35',mapId:'bear-play-zone',points:['불곰과 반달가슴곰 단서 조사','관찰 미션과 생태 퀴즈 수행','베어트리 자연 체험 기록 완성']},
   {name:'국립세종수목원',description:'온실 속 식물을 직접 찾아 촬영하고 식물도감과 대표 식물을 만드는 기록 월드예요.',people:'식물 기록',emoji:'🌱',image:gardenMapPreview,modelUrl:gardenWorldUrl,modelSize:'8.2MB',accent:'#36a168',mapId:'garden',points:['온실별 대표 식물 발견과 촬영','식물도감·사진·메모 기록','대표 식물 선택과 취향 분석']},
   {name:'공동캠퍼스',description:'현재 캠퍼스 맵을 걸으며 학생회관·동아리관·모집센터를 방문하고 비슷한 이웃과 활동을 시작해요.',people:'이웃 연결',emoji:'🎓',image:campusMapPreview,modelUrl:campusWorldUrl,modelSize:'22.7MB',accent:'#dd7b25',mapId:'campus',points:['학생회관에서 추천 이웃 확인','동아리관 가입과 단체 채팅','모집센터와 프로젝트실 입장']},
   {name:'학생회관',description:'공동캠퍼스에서 만난 이웃과 함께 머물며 대화하고 쉬어 갈 수 있는 단층 커뮤니티 로비예요.',people:'커뮤니티 로비',emoji:'🏛️',image:studentHallPreview,modelUrl:studentHallWorldUrl,modelSize:'2.3MB',accent:'#4b9279',mapId:'student-hall',points:['중앙 원형 소파와 휴게 공간','현재 활동 중인 캠퍼스 이웃 확인','공동캠퍼스로 바로 돌아가는 포털']},
@@ -72,7 +69,6 @@ const GUIDE_WORLD_ORDER:MapId[]=[
   'festival-experience',
   'food-experience',
   'bear-tree-park',
-  'bear-play-zone',
   'garden',
   'campus',
   'student-hall',

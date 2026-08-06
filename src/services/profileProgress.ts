@@ -24,7 +24,6 @@ export const PROFILE_ZONES: ProfileZone[] = [
   { id: 'food-experience', label: '먹거리 체험장', maps: ['food-experience'], icon: '🍽️' },
   { id: 'club-street-festival', label: '동아리 거리제', maps: ['club-street-festival'], icon: '🎪' },
   { id: 'bear-tree-park', label: '베어트리파크', maps: ['bear-tree-park'], icon: '🐻' },
-  { id: 'bear-play-zone', label: 'AI 생태 연구소', maps: ['bear-play-zone'], icon: '🔬' },
   { id: 'garden', label: '국립세종수목원', maps: ['garden'], icon: '🌿' },
   { id: 'campus', label: '공동캠퍼스', maps: ['campus'], icon: '🎓' },
   { id: 'student-hall', label: '학생회관', maps: ['student-hall'], icon: '🤝' },
@@ -42,9 +41,10 @@ export const PROFILE_ZONES: ProfileZone[] = [
 ];
 
 const MAP_LABELS: Record<MapId, string> = {
+  'personal-farm':'개인 팜',
   'club-street-festival': '동아리 거리제',
   town: '세종호수공원', 'arts-center': '세종예술의전당', 'festival-experience': '축제 체험장', 'food-experience': '먹거리 체험장',
-  'bear-tree-park': '베어트리파크', 'bear-play-zone': 'AI 생태 연구소', garden: '국립세종수목원', campus: '공동캠퍼스',
+  'bear-tree-park': '베어트리파크', garden: '국립세종수목원', campus: '공동캠퍼스',
   'student-hall': '학생회관', 'recruitment-center': '모집센터', 'project-room': '프로젝트실', government: '정부세종청사', 'government-central-plaza': '정부청사 중앙광장',
   'government-policy-hall': '정책 체험관', 'government-observatory': '정부청사 전망대', 'sejong-smart-city': '스마트시티 전시관',
   'jochwon-station': '조치원역', 'traditional-market': '세종전통시장', 'jochwon-park': '조치원공원', 'college-street': '대학로',
@@ -193,7 +193,7 @@ export function buildProfileProgress(profile: UserProfile) {
   const festivalSignal=Math.min(35,festivalKeywords.reduce((sum,item)=>sum+item.count,0)*2);
   const festivalPlanning=festivalKeywords.some(item=>item.keyword==='방문·계획');
   const scores = {
-    nature: Math.min(100, zones.filter(z => ['town', 'bear-tree-park', 'bear-play-zone', 'garden', 'jochwon-park'].includes(z.id) && z.visited).length * 9 + greenhouse.collected.length * 4+campusAxes.nature),
+    nature: Math.min(100, zones.filter(z => ['town', 'bear-tree-park', 'garden', 'jochwon-park'].includes(z.id) && z.visited).length * 9 + greenhouse.collected.length * 4+campusAxes.nature),
     culture: Math.min(100, zones.filter(z => ['arts-center', 'festival-experience'].includes(z.id) && z.visited).length * 12 + countArray(lake?.activities) * 8 + performancePoints * 3 + festivalSignal+campusAxes.culture),
     food: Math.min(100, foodSignal * 3 + (visitedIds.has('food-experience') ? 5 : 0)+campusAxes.food),
     relation: Math.min(100, zones.filter(z => ['campus', 'student-hall', 'project-room','club-street-festival'].includes(z.id) && z.visited).length * 6 + campus.length * 5+campusAxes.relation+harnessHistory.filter(item=>['campus','student-hall','recruitment-center','project-room','club-street-festival'].includes(item.mapId)).length*4),

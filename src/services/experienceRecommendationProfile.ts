@@ -58,7 +58,6 @@ const lakeThemeRecords:Record<string,string>={'night-media':'야간 미디어아
 const mapRecords:Partial<Record<MapId,{record:string;categories:string[]}>>={
   garden:{record:'국립세종수목원 탐험',categories:['공원','관광명소']},
   'bear-tree-park':{record:'베어트리파크 숲 탐험',categories:['공원','관광명소']},
-  'bear-play-zone':{record:'베어트리파크 곰 관찰',categories:['공원','관광명소']},
   campus:{record:'공동캠퍼스 이웃 만남',categories:['문화시설']},
   government:{record:'정부청사 공동 계획',categories:['문화시설','관광명소']},
   'sejong-smart-city':{record:'세종 스마트시티 국가시범도시 탐험',categories:['문화시설','관광명소']},

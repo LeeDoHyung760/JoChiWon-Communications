@@ -1,17 +1,17 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { RequestHandler, Response } from 'express';
-import { env } from '../config/env.js';
+import { config, env } from '../config/env.js';
 import { UserModel } from '../models/User.js';
 
 const COOKIE_NAME = 'jochwon_session';
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 function signature(value: string): string {
-  return createHmac('sha256', env.AUTH_SESSION_SECRET ?? '').update(value).digest('base64url');
+  return createHmac('sha256', config.auth.sessionSecret ?? '').update(value).digest('base64url');
 }
 
 export function createAuthSessionToken(userId: string): string | undefined {
-  if (!env.AUTH_SESSION_SECRET) return undefined;
+  if (!config.auth.sessionSecret) return undefined;
   const payload = Buffer.from(JSON.stringify({
     userId,
     expiresAt: Date.now() + MAX_AGE_SECONDS * 1000,
@@ -35,7 +35,7 @@ function readCookie(header: string | undefined): string | undefined {
 }
 
 export function verifyAuthSessionToken(token: string): string | undefined {
-  if (!env.AUTH_SESSION_SECRET) return undefined;
+  if (!config.auth.sessionSecret) return undefined;
   const [payload, supplied] = token.split('.');
   if (!payload || !supplied) return undefined;
   const expected = signature(payload);
@@ -62,7 +62,7 @@ export function authenticatedUserIdFromCookie(cookieHeader: string | undefined):
 }
 
 export const requireAuthenticatedUser: RequestHandler = async (req, res, next) => {
-  if (!env.AUTH_SESSION_SECRET) {
+  if (!config.auth.sessionSecret) {
     return res.status(503).json({ success: false, error: { code: 'AUTH_NOT_CONFIGURED', message: 'AUTH_SESSION_SECRET가 설정되지 않았습니다.' } });
   }
   const userId = authenticatedUserIdFromCookie(req.headers.cookie);

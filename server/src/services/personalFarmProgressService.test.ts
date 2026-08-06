@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 import {MongoMemoryServer} from 'mongodb-memory-server';
 import {PersonalFarmProgressModel} from '../models/PersonalFarmProgress.js';
 import {UserModel} from '../models/User.js';
-import {BEAR_FEED_IDS,BEAR_FEED_SPOT_IDS,GARDEN_FLOWER_IDS} from '../../../shared/personal-farm.js';
+import {BEAR_FEED_IDS,BEAR_FEED_SPOT_IDS,GARDEN_FLOWER_IDS,GARDEN_PLANTABLE_FLOWER_IDS} from '../../../shared/personal-farm.js';
 import {collectBearFeed,collectGardenFlower,completeBearFeedSpot,feedBear,getOrCreatePersonalFarmProgress,plantGardenFlower} from './personalFarmProgressService.js';
 
 let mongo:MongoMemoryServer;
@@ -25,7 +25,22 @@ test('an uncollected flower cannot be planted',async()=>{const userId=new mongoo
 test('a feed spot cannot be completed before collecting feed',async()=>{const userId=new mongoose.Types.ObjectId().toString();await assert.rejects(()=>completeBearFeedSpot(userId,'BEAR_FEED_SPOT_01'),{code:'FEED_NOT_COLLECTED'})});
 test('the same feed spot cannot be completed twice',async()=>{const userId=new mongoose.Types.ObjectId().toString();await collectBearFeed(userId,'apple');await completeBearFeedSpot(userId,'BEAR_FEED_SPOT_01');await assert.rejects(()=>completeBearFeedSpot(userId,'BEAR_FEED_SPOT_01'),{code:'FEED_SPOT_ALREADY_COMPLETED'})});
 
-async function completeGarden(userId:string){for(const flower of GARDEN_FLOWER_IDS){await collectGardenFlower(userId,flower);await plantGardenFlower(userId,flower)}}
+async function completeGarden(userId:string){for(const flower of GARDEN_FLOWER_IDS)await collectGardenFlower(userId,flower);for(const flower of GARDEN_PLANTABLE_FLOWER_IDS.slice(0,5))await plantGardenFlower(userId,flower)}
+
+test('planting a sixth collected flower replaces the oldest of five slots',async()=>{
+  const userId=new mongoose.Types.ObjectId().toString(),flowers=GARDEN_PLANTABLE_FLOWER_IDS.slice(0,6);
+  for(const flower of flowers){await collectGardenFlower(userId,flower);await plantGardenFlower(userId,flower)}
+  const progress=await getOrCreatePersonalFarmProgress(userId);
+  assert.deepEqual(progress.gardenMission.plantedFlowerIds,flowers.slice(1));
+});
+
+test('both garden trees are collectible but cannot occupy flower-bed slots',async()=>{
+  const userId=new mongoose.Types.ObjectId().toString();
+  await collectGardenFlower(userId,'peach-tree');await collectGardenFlower(userId,'maple-tree');
+  const progress=await getOrCreatePersonalFarmProgress(userId);
+  assert.deepEqual(progress.gardenMission.collectedFlowerIds,['peach-tree','maple-tree']);
+  await assert.rejects(()=>plantGardenFlower(userId,'peach-tree'),{code:'FLOWER_NOT_PLANTABLE'});
+});
 async function completeBearMission(userId:string){for(const feed of BEAR_FEED_IDS)await collectBearFeed(userId,feed);for(const spot of BEAR_FEED_SPOT_IDS)await completeBearFeedSpot(userId,spot);await feedBear(userId)}
 
 test('completing only one location keeps the farm locked',async()=>{

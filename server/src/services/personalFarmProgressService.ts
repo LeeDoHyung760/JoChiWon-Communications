@@ -1,5 +1,5 @@
 import {
-  BEAR_FEED_IDS,BEAR_FEED_SPOT_IDS,FARM_REWARD_IDS,GARDEN_FLOWER_IDS,
+  BEAR_FEED_IDS,BEAR_FEED_SPOT_IDS,FARM_REWARD_IDS,GARDEN_FLOWER_IDS,GARDEN_PLANTABLE_FLOWER_IDS,
   type BearFeedId,type BearFeedSpotId,type FarmRewardId,type GardenFlowerId,type PersonalFarmProgressDto,
 } from '../../../shared/personal-farm.js';
 import {PersonalFarmProgressModel,type PersonalFarmProgressDocument,type VisitMissionRecord} from '../models/PersonalFarmProgress.js';
@@ -18,8 +18,17 @@ const containsAll=<T extends string>(actual:readonly T[],required:readonly T[])=
 const unique=<T extends string>(values:readonly T[])=>[...new Set(values)];
 function ensureProgressShape(document:PersonalFarmProgressDocument){
   document.gardenMission??={collectedFlowerIds:[],plantedFlowerIds:[],completed:false,completedFlowerIds:[],requiredFlowerCount:REQUIRED_GARDEN_FLOWER_IDS.length,interestCompleted:false};
-  document.gardenMission.collectedFlowerIds??=[];document.gardenMission.plantedFlowerIds??=[];document.gardenMission.completedFlowerIds??=[];
-  document.bearMission??={collectedFeedIds:[],completedFeedSpotIds:[],bearFed:false,completed:false};document.bearMission.collectedFeedIds??=[];document.bearMission.completedFeedSpotIds??=[];document.bearMission.bearFed??=false;
+  if(!Array.isArray(document.gardenMission.collectedFlowerIds))document.gardenMission.collectedFlowerIds=[];
+  if(!Array.isArray(document.gardenMission.plantedFlowerIds))document.gardenMission.plantedFlowerIds=[];
+  document.gardenMission.plantedFlowerIds=unique(document.gardenMission.plantedFlowerIds)
+    .filter(id=>(GARDEN_PLANTABLE_FLOWER_IDS as readonly string[]).includes(id))
+    .slice(-5);
+  if(!Array.isArray(document.gardenMission.completedFlowerIds))document.gardenMission.completedFlowerIds=[];
+  document.gardenMission.completed??=false;document.gardenMission.requiredFlowerCount??=REQUIRED_GARDEN_FLOWER_IDS.length;document.gardenMission.interestCompleted??=false;
+  document.bearMission??={collectedFeedIds:[],completedFeedSpotIds:[],bearFed:false,completed:false};
+  if(!Array.isArray(document.bearMission.collectedFeedIds))document.bearMission.collectedFeedIds=[];
+  if(!Array.isArray(document.bearMission.completedFeedSpotIds))document.bearMission.completedFeedSpotIds=[];
+  document.bearMission.bearFed??=false;document.bearMission.completed??=false;
   // Older builds could mark the final bear-feeding action before all five
   // feed spots were recorded. Treat that incomplete record as stale so the
   // player can complete the mission again instead of being permanently stuck.
@@ -27,17 +36,23 @@ function ensureProgressShape(document:PersonalFarmProgressDocument){
     document.bearMission.bearFed=false;
     document.bearMission.bearFedAt=undefined;
   }
-  document.farm??={unlocked:false,unlockedRewardIds:[],activeRewardIds:[],bearGrowthStage:'locked'};document.farm.unlockedRewardIds??=[];document.farm.activeRewardIds??=[];document.farm.bearGrowthStage??='locked';
+  document.farm??={unlocked:false,unlockedRewardIds:[],activeRewardIds:[],bearGrowthStage:'locked'};
+  if(!Array.isArray(document.farm.unlockedRewardIds))document.farm.unlockedRewardIds=[];
+  if(!Array.isArray(document.farm.activeRewardIds))document.farm.activeRewardIds=[];
+  document.farm.unlocked??=false;document.farm.bearGrowthStage??='locked';
   document.natureChapter??={gardenCompleted:false,bearTreeCompleted:false,completed:false,noticeShown:false};
+  document.natureChapter.gardenCompleted??=false;document.natureChapter.bearTreeCompleted??=false;document.natureChapter.completed??=false;document.natureChapter.noticeShown??=false;
   document.realVisit??={garden:{status:'locked',metadata:new Map()},bearTree:{status:'locked',metadata:new Map()}};
   document.realVisit.garden??={status:'locked',metadata:new Map()};document.realVisit.bearTree??={status:'locked',metadata:new Map()};
-  document.realVisit.garden.metadata??=new Map();document.realVisit.bearTree.metadata??=new Map();
+  const metadataMap=(value:unknown)=>value instanceof Map?value:new Map(Object.entries(value&&typeof value==='object'?value as Record<string,string>:{}));
+  document.realVisit.garden.status??='locked';document.realVisit.bearTree.status??='locked';
+  document.realVisit.garden.metadata=metadataMap(document.realVisit.garden.metadata);document.realVisit.bearTree.metadata=metadataMap(document.realVisit.bearTree.metadata);
   document.layoutVersion??=1;
   return document;
 }
 
 export function applyPersonalFarmUnlockRules(document:PersonalFarmProgressDocument,now=new Date(),flowerInterests:readonly FlowerInterestRecord[]=[]){
-  const gardenComplete=containsAll(document.gardenMission.collectedFlowerIds,GARDEN_FLOWER_IDS)&&containsAll(document.gardenMission.plantedFlowerIds,GARDEN_FLOWER_IDS);
+  const gardenComplete=containsAll(document.gardenMission.collectedFlowerIds,REQUIRED_GARDEN_FLOWER_IDS)&&document.gardenMission.plantedFlowerIds.length===5;
   const completedFlowerIds=REQUIRED_GARDEN_FLOWER_IDS.filter(id=>{const record=flowerInterests.find(item=>item.flowerId===id);return Boolean(record&&meaningfulFlower(record))});
   const interestCompleted=completedFlowerIds.length===REQUIRED_GARDEN_FLOWER_IDS.length;
   const bearComplete=containsAll(document.bearMission.completedFeedSpotIds,BEAR_FEED_SPOT_IDS)&&document.bearMission.bearFed===true;
@@ -77,7 +92,7 @@ export function personalFarmProgressDto(document:PersonalFarmProgressDocument):P
     farm:{unlocked:document.farm.unlocked,unlockedRewardIds:[...document.farm.unlockedRewardIds],activeRewardIds:[...document.farm.activeRewardIds],bearGrowthStage:document.farm.bearGrowthStage},
     natureChapter:{gardenCompleted:Boolean(document.natureChapter.gardenCompleted),bearTreeCompleted:Boolean(document.natureChapter.bearTreeCompleted),completed:Boolean(document.natureChapter.completed),completedAt:document.natureChapter.completedAt?.toISOString()??null,noticeShown:Boolean(document.natureChapter.noticeShown)},
     realVisit:{garden:visit(document.realVisit.garden),bearTree:visit(document.realVisit.bearTree)},layoutVersion:document.layoutVersion,
-    createdAt:document.createdAt.toISOString(),updatedAt:document.updatedAt.toISOString(),
+    createdAt:document.createdAt?.toISOString()??new Date(0).toISOString(),updatedAt:document.updatedAt?.toISOString()??new Date(0).toISOString(),
   };
 }
 
@@ -94,7 +109,17 @@ export async function getOrCreatePersonalFarmProgress(userId:string){
 async function mutate(userId:string,change:(document:PersonalFarmProgressDocument)=>void){const document=await getOrCreatePersonalFarmProgress(userId);change(document);const user=await UserModel.findById(userId).select('profile.gardenNature.flowerInterests').lean();applyPersonalFarmUnlockRules(document,new Date(),(user?.profile?.gardenNature as {flowerInterests?:FlowerInterestRecord[]}|undefined)?.flowerInterests??[]);await document.save();return document}
 
 export const collectGardenFlower=(userId:string,flowerId:GardenFlowerId)=>mutate(userId,document=>{if(document.gardenMission.collectedFlowerIds.includes(flowerId))throw new PersonalFarmProgressError('FLOWER_ALREADY_COLLECTED','This flower has already been collected.',409);document.gardenMission.collectedFlowerIds.push(flowerId)});
-export const plantGardenFlower=(userId:string,flowerId:GardenFlowerId)=>mutate(userId,document=>{if(!document.gardenMission.collectedFlowerIds.includes(flowerId))throw new PersonalFarmProgressError('FLOWER_NOT_COLLECTED','Collect this flower before planting it.',409);if(document.gardenMission.plantedFlowerIds.includes(flowerId))throw new PersonalFarmProgressError('FLOWER_ALREADY_PLANTED','This flower has already been planted.',409);document.gardenMission.plantedFlowerIds.push(flowerId)});
+export const plantGardenFlower=(userId:string,flowerId:GardenFlowerId)=>mutate(userId,document=>{
+  if(!(GARDEN_PLANTABLE_FLOWER_IDS as readonly string[]).includes(flowerId))throw new PersonalFarmProgressError('FLOWER_NOT_PLANTABLE','This plant cannot be planted.',400);
+  if(!document.gardenMission.collectedFlowerIds.includes(flowerId))throw new PersonalFarmProgressError('FLOWER_NOT_COLLECTED','Collect this flower before planting it.',409);
+  if(document.gardenMission.plantedFlowerIds.includes(flowerId))throw new PersonalFarmProgressError('FLOWER_ALREADY_PLANTED','This flower is already planted.',409);
+  if(document.gardenMission.plantedFlowerIds.length>=5)throw new PersonalFarmProgressError('FLOWER_BED_FULL','Remove a flower before planting another one.',409);
+  document.gardenMission.plantedFlowerIds.push(flowerId);
+});
+export const removeGardenFlower=(userId:string,flowerId:GardenFlowerId)=>mutate(userId,document=>{
+  if(!document.gardenMission.plantedFlowerIds.includes(flowerId))throw new PersonalFarmProgressError('FLOWER_NOT_PLANTED','This flower is not planted.',409);
+  document.gardenMission.plantedFlowerIds=document.gardenMission.plantedFlowerIds.filter(id=>id!==flowerId);
+});
 export const collectBearFeed=(userId:string,feedId:BearFeedId)=>mutate(userId,document=>{if(document.bearMission.collectedFeedIds.includes(feedId))throw new PersonalFarmProgressError('FEED_ALREADY_COLLECTED','This feed has already been collected.',409);document.bearMission.collectedFeedIds.push(feedId)});
 export const completeBearFeedSpot=(userId:string,spotId:BearFeedSpotId)=>mutate(userId,document=>{if(document.bearMission.completedFeedSpotIds.includes(spotId))throw new PersonalFarmProgressError('FEED_SPOT_ALREADY_COMPLETED','This feed spot has already been completed.',409);document.bearMission.completedFeedSpotIds.push(spotId)});
 export const feedBear=(userId:string)=>mutate(userId,document=>{if(document.bearMission.bearFed)throw new PersonalFarmProgressError('BEAR_ALREADY_FED','The bear has already been fed.',409);if(!containsAll(document.bearMission.completedFeedSpotIds,BEAR_FEED_SPOT_IDS))throw new PersonalFarmProgressError('BEAR_FEED_NOT_READY','Complete all five feed spots before feeding the bear.',409);document.bearMission.bearFed=true;document.bearMission.bearFedAt=new Date()});

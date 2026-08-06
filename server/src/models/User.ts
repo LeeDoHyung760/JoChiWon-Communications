@@ -1,4 +1,12 @@
 import { Schema, model } from 'mongoose';
+import {GARDEN_FLOWER_IDS} from '../../../shared/personal-farm.js';
+
+const flowerInterestSchema=new Schema({
+  flowerId:{type:String,enum:GARDEN_FLOWER_IDS,required:true},
+  infoViewCount:{type:Number,default:0,min:0},totalInfoViewSeconds:{type:Number,default:0,min:0},
+  nearbyVisitCount:{type:Number,default:0,min:0},totalNearbySeconds:{type:Number,default:0,min:0},
+  revisitCount:{type:Number,default:0,min:0},interestScore:{type:Number,default:0,min:0},lastInteractedAt:{type:Date},
+},{_id:false});
 
 const userSchema = new Schema(
   {
@@ -94,6 +102,10 @@ const userSchema = new Schema(
         shoes: { type: String, default: 'shoes-original' },
         accessory: String,
       },
+      gardenNature:{
+        flowerInterests:{type:[flowerInterestSchema],default:[]},
+        processedEventIds:{type:[String],default:[],select:false},
+      },
     },
 
     experienceHarness: {
@@ -109,7 +121,7 @@ const userSchema = new Schema(
     lastPosition: {
       mapId: {
         type: String,
-        enum: ['town', 'arts-center', 'festival-experience', 'food-experience', 'club-street-festival', 'bear-tree-park', 'bear-play-zone', 'garden', 'campus', 'student-hall', 'project-room', 'government', 'government-central-plaza', 'government-policy-hall', 'government-observatory', 'sejong-smart-city', 'jochwon-station', 'traditional-market', 'jochwon-park', 'college-street'],
+        enum: ['personal-farm', 'town', 'arts-center', 'festival-experience', 'food-experience', 'club-street-festival', 'bear-tree-park', 'garden', 'campus', 'student-hall', 'recruitment-center', 'project-room', 'government', 'government-central-plaza', 'government-policy-hall', 'government-observatory', 'sejong-smart-city', 'jochwon-station', 'traditional-market', 'jochwon-park', 'college-street'],
       },
       x: Number,
       z: Number,

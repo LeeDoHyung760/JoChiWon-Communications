@@ -12,7 +12,7 @@ import type { GameReturnState } from './gameReturnState';
 import { loadLocalPlayerResumeState } from './playerResumeState';
 import {ExperienceHarnessCollector,hydrateGeneratedExperienceProfile,setActiveExperienceUser} from '../services/experienceHarness';
 import {PersonalFarmProgressExperience} from '../components/PersonalFarmProgressExperience';
-import {PERSONAL_FARM_PROGRESS_CHANGED,clearGuestPersonalFarmProgress,refreshPersonalFarmProgress,setPersonalFarmProgressMode,setPersonalFarmProgressUser} from '../services/personalFarmApi';
+import {PERSONAL_FARM_PROGRESS_CHANGED,clearGuestPersonalFarmProgress,setPersonalFarmProgressMode,setPersonalFarmProgressUser} from '../services/personalFarmApi';
 import { getFlowerInterestSnapshot, mountFlowerInterestTracker } from '../services/flowerInterestTracker';
 import { MemoryTreeInterestExperience } from '../components/MemoryTreeInterestExperience';
 import { GreenhouseExperience } from '../components/GreenhouseExperience';
@@ -57,7 +57,6 @@ export const GameCanvas=memo(function GameCanvas({profile,returnState}:{profile:
   useEffect(()=>{
     const changed=(event:Event)=>gameEvents.emit(PERSONAL_FARM_PROGRESS_CHANGED,(event as CustomEvent).detail);
     window.addEventListener(PERSONAL_FARM_PROGRESS_CHANGED,changed);
-    if(authenticated)void refreshPersonalFarmProgress().catch(()=>undefined);
     return()=>{window.removeEventListener(PERSONAL_FARM_PROGRESS_CHANGED,changed);if(!authenticated){clearGuestPersonalFarmProgress();setPersonalFarmProgressMode(false)}};
   },[authenticated,profile.nickname]);
   const loadingCopy=MAP_LOADING_COPY[loadingMapId]??{place:'세종예술의전당',title:'세종예술의전당으로 이동중...',description:'공연장 로비와 무대를 준비하고 있어요',tasks:['전당 입구 확인','예술의전당 GLB 불러오기','캐릭터 배치','공연 공간 연결','호수공원 귀환 포탈 연결']};
@@ -207,5 +206,5 @@ export const GameCanvas=memo(function GameCanvas({profile,returnState}:{profile:
       Object.values(worldRenderers).forEach(renderer=>renderer?.destroy());
     };
   },[profile,entrySpawn,returnState,WORLD_RENDERER_LAYOUT_TOKEN]);
-  return <><div className="game-canvas" ref={ref}/>{loading&&<div className="game-loading" role="status" aria-live="polite"><div className="game-loading-brand"><span>🧑🏻‍🌾</span><div><b>세종한바퀴</b><small>세종 소통형 체험 공간</small></div></div><div className="game-loading-center"><i/><span>{loadingCopy.place}</span><h1>{loadingCopy.title}</h1><p>{loadError||loadingCopy.description}</p><div className="world-loading-tasks">{loadingCopy.tasks.map((task,index)=><span key={task}>{index===0?'✓':'●'} {task}</span>)}</div><div className="game-loading-progress"><em/></div></div></div>}<LakeParkExperiences/><GreenhouseExperience userKey={profile.nickname}/><PersonalFarmProgressExperience authenticated={true} userKey={profile.nickname} mapId={loadingMapId}/><MemoryTreeInterestExperience authenticated={authenticated} mapId={loadingMapId}/></>;
+  return <><div className="game-canvas" ref={ref}/>{loading&&<div className="game-loading" role="status" aria-live="polite"><div className="game-loading-brand"><span>🧑🏻‍🌾</span><div><b>세종한바퀴</b><small>세종 소통형 체험 공간</small></div></div><div className="game-loading-center"><i/><span>{loadingCopy.place}</span><h1>{loadingCopy.title}</h1><p>{loadError||loadingCopy.description}</p><div className="world-loading-tasks">{loadingCopy.tasks.map((task,index)=><span key={task}>{index===0?'✓':'●'} {task}</span>)}</div><div className="game-loading-progress"><em/></div></div></div>}<LakeParkExperiences/><GreenhouseExperience userKey={profile.nickname}/><PersonalFarmProgressExperience authenticated={authenticated} userKey={profile.nickname} mapId={loadingMapId}/><MemoryTreeInterestExperience authenticated={authenticated} mapId={loadingMapId}/></>;
 });

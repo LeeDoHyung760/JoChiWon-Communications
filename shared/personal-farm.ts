@@ -1,5 +1,11 @@
-export const GARDEN_FLOWER_IDS=['tulip','sunflower','hydrangea','camellia','iris'] as const;
+export const GARDEN_FLOWER_IDS=[
+  'magnolia','adonis','azalea','hydrangea','tulip','iris','lily','camellia',
+  'sunflower','gujeolcho','hibiscus','bird-of-paradise','peach-tree','maple-tree',
+] as const;
 export type GardenFlowerId=typeof GARDEN_FLOWER_IDS[number];
+
+export const GARDEN_PLANTABLE_FLOWER_IDS=GARDEN_FLOWER_IDS;
+export type GardenPlantableFlowerId=typeof GARDEN_PLANTABLE_FLOWER_IDS[number];
 
 export const BEAR_FEED_IDS=['apple','carrot','acorn'] as const;
 export type BearFeedId=typeof BEAR_FEED_IDS[number];

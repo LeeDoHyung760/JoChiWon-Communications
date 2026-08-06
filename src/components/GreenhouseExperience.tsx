@@ -1,6 +1,7 @@
 import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
 import { BookOpen,Check,ChevronLeft,ChevronRight,ImageOff,Leaf,Lock,MoreVertical,Search,Sparkles,Trash2,X,ZoomIn } from 'lucide-react';
 import type { MapId } from '../../shared/socket-events';
+import type {GardenFlowerId,PersonalFarmProgressDto} from '../../shared/personal-farm';
 import type { GreenhouseAnalysisStage,GreenhousePlantReflectionAnalysis,GreenhouseReflectionSource } from '../../shared/greenhouse-analysis';
 import { greenhousePlantById,greenhousePlants } from '../data/greenhouse-plants';
 import { gameEvents } from '../game/events';
@@ -9,6 +10,8 @@ import { analyzeGreenhouseDiscoveries,compareGreenhouseRecords,createFallbackGre
 import { greenhouseReflectionQuestion } from '../services/greenhouseReflection';
 import { hasUsablePlantImage,plantGallery } from '../services/plantImages';
 import { loadPublicGreenhouseMemories,publishGreenhouseMemory,type PublicGreenhouseMemory } from '../services/publicGreenhouseMemories';
+import {flowerCatalogByPlantId} from '../services/flowerInterestProfile';
+import {collectGardenFlower,getCachedPersonalFarmProgress,PERSONAL_FARM_PROGRESS_CHANGED,personalFarmErrorMessage} from '../services/personalFarmApi';
 import './GreenhouseExperience.base.css';
 import './GreenhouseExperience.css';
 
@@ -26,6 +29,8 @@ export function GreenhouseExperience({userKey}:{userKey:string}){
   const [active,setActive]=useState(false),[view,setView]=useState<View>(null),[nearby,setNearby]=useState<Nearby>(null);
   const [progress,setProgress]=useState<GreenhouseProgress>(()=>service.load());
   const [plantId,setPlantId]=useState<string|null>(null),[reflectionAnswer,setReflectionAnswer]=useState('');
+  const [farmProgress,setFarmProgress]=useState<PersonalFarmProgressDto|undefined>(()=>getCachedPersonalFarmProgress());
+  const [collectionPending,setCollectionPending]=useState(false),[collectionNotice,setCollectionNotice]=useState('');
   const [reflectionResult,setReflectionResult]=useState<GreenhousePlantReflectionAnalysis|null>(null),[reflectionSource,setReflectionSource]=useState<GreenhouseReflectionSource>('fallback');
   const [reflectionLoading,setReflectionLoading]=useState(false),[reflectionError,setReflectionError]=useState('');
   const [recordStep,setRecordStep]=useState<'observe'|'answer'>('observe'),[recordUpdateNotice,setRecordUpdateNotice]=useState(false);
@@ -88,7 +93,7 @@ export function GreenhouseExperience({userKey}:{userKey:string}){
       reflectionTitle:saved.reflectionTitle??`${saved.selectedEmotion}이 머문 마음`,
       shortReflection:saved.shortReflection,
     }:null;
-    setPlantId(id);setReflectionAnswer((saved?.userAnswer??'').slice(0,100));setReflectionResult(savedReflection);setReflectionSource(saved?.analysisSource??'fallback');setReflectionLoading(false);setReflectionError('');setRecordStep('observe');setMessage(savedMessage??'');setView('plant');
+    setPlantId(id);setReflectionAnswer((saved?.userAnswer??'').slice(0,100));setReflectionResult(savedReflection);setReflectionSource(saved?.analysisSource??'fallback');setReflectionLoading(false);setReflectionError('');setRecordStep('observe');setMessage(savedMessage??'');setCollectionNotice('');setView('plant');
     setImageFailed(false);setImageLoading(Boolean(definition.imageUrl));setLightboxIndex(null);
     if(!saved){setLoadingMessage(false);setMessage(createFallbackPlantMessage(definition))}
   },[progress.collected]);
@@ -100,7 +105,7 @@ export function GreenhouseExperience({userKey}:{userKey:string}){
     // for plants that have already been discovered.
     if(definition&&!alreadyCollected){
       publish(service.collectDiscovery(progress,plantId,createFallbackPlantMessage(definition)));
-      return;
+      if(!flowerCatalogByPlantId.has(plantId))return;
     }
     void observePlant(plantId);
   },[observePlant,progress,publish,service]);
@@ -110,6 +115,11 @@ export function GreenhouseExperience({userKey}:{userKey:string}){
   },[interactPlant,nearby,openMemoryTree]);
 
   useEffect(()=>{setProgress(service.load())},[service]);
+  useEffect(()=>{
+    const changed=(event:Event)=>setFarmProgress((event as CustomEvent<PersonalFarmProgressDto>).detail);
+    window.addEventListener(PERSONAL_FARM_PROGRESS_CHANGED,changed);
+    return()=>window.removeEventListener(PERSONAL_FARM_PROGRESS_CHANGED,changed);
+  },[]);
   useEffect(()=>{
     const mapChanged=(mapId:MapId)=>{
       const isGarden=mapId==='garden';setActive(isGarden);setNearby(null);
@@ -160,7 +170,7 @@ export function GreenhouseExperience({userKey}:{userKey:string}){
     if(!modalOpen)return;
     previousFocusRef.current=document.activeElement as HTMLElement;
     window.setTimeout(()=>modalRef.current?.querySelector<HTMLElement>('button,[href],input,textarea,[tabindex]:not([tabindex="-1"])')?.focus());
-    return()=>previousFocusRef.current?.focus();
+    return()=>{const previous=previousFocusRef.current;if(previous&&previous!==document.body){previous.focus();return}const canvas=document.querySelector<HTMLCanvasElement>('.game-canvas canvas');if(canvas){canvas.tabIndex=-1;canvas.focus()}};
   },[modalOpen]);
   useEffect(()=>{
     if(!modalOpen)return;
@@ -177,6 +187,16 @@ export function GreenhouseExperience({userKey}:{userKey:string}){
 
   if(!active)return null;
   const existing=plantId?progress.collected.find(item=>item.plantId===plantId):undefined;
+  const flowerCatalogEntry=plantId?flowerCatalogByPlantId.get(plantId):undefined;
+  const flowerCollected=Boolean(flowerCatalogEntry&&farmProgress?.gardenMission.collectedFlowerIds.includes(flowerCatalogEntry.flowerId));
+  const collectCurrentFlower=async()=>{
+    if(!flowerCatalogEntry||collectionPending)return;
+    if(flowerCollected){setCollectionNotice('이미 기억에 담은 꽃입니다.');return}
+    setCollectionPending(true);setCollectionNotice('');
+    try{const next=await collectGardenFlower(flowerCatalogEntry.flowerId as GardenFlowerId);setFarmProgress(next);setCollectionNotice('꽃을 기억에 담았습니다.')}
+    catch(error){setCollectionNotice(personalFarmErrorMessage(error))}
+    finally{setCollectionPending(false)}
+  };
   const hasReflection=Boolean(
     existing
     &&existing.includeInAnalysis!==false
@@ -331,7 +351,9 @@ export function GreenhouseExperience({userKey}:{userKey:string}){
             </div>
             <div className="greenhouse-plant-info">
               <header className="greenhouse-plant-header"><div style={{background:plant.fallbackColor}}>🌱</div><section><small>{plant.category==='flower'?'꽃':plant.category==='peach-tree'?'복숭아나무':'나무'}</small><h2>{plant.displayName}</h2>{plant.scientificName&&<i>{plant.scientificName}</i>}</section></header>
-              <p className="greenhouse-description">{plant.shortDescription}</p>
+              {flowerCatalogEntry&&<div className="greenhouse-flower-meaning"><small>꽃말</small><strong>{flowerCatalogEntry.meaning}</strong></div>}
+              <p className="greenhouse-description">{flowerCatalogEntry?.description??plant.shortDescription}</p>
+              {flowerCatalogEntry&&<section className={`greenhouse-collection-status ${flowerCollected?'collected':''}`} aria-live="polite"><b>{collectionNotice||(flowerCollected?'이미 기억에 담은 꽃입니다.':'이 꽃을 개인 팜의 기억에 담을 수 있어요.')}</b>{(flowerCollected||collectionNotice==='꽃을 기억에 담았습니다.')&&<p><strong>꽃 이름:</strong> {flowerCatalogEntry.displayName}<br/><strong>꽃말:</strong> {flowerCatalogEntry.meaning}<br/><strong>설명:</strong> {flowerCatalogEntry.description}</p>}<div><button type="button" onClick={()=>setCollectionNotice('')}>계속 살펴보기</button>{!flowerCollected&&<button className="greenhouse-primary" type="button" disabled={collectionPending} onClick={()=>void collectCurrentFlower()}>{collectionPending?'저장 중…':'채집하기'}</button>}<button type="button" onClick={close}>닫기</button></div></section>}
               <div className="greenhouse-traits">{plant.characteristics.map(item=><span key={item}>{item}</span>)}</div>
               {plant.season&&<p className="greenhouse-meta"><b>피는 계절</b>{plant.season}</p>}
               <div className="greenhouse-knowledge-grid">

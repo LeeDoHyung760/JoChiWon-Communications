@@ -71,6 +71,8 @@ const schema = z.object({
 
   AUTH_SESSION_SECRET: optionalSecret,
 
+  SESSION_SECRET: optionalSecret,
+
   OPENAI_MODEL: z.preprocess(
     (value) =>
       typeof value === 'string' && value.trim() === ''
@@ -219,6 +221,42 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+const rejectedAuthSecrets = new Set([
+  'secret',
+  'change-me',
+  'session-secret',
+  'replace-with-a-long-random-secret',
+]);
+
+const authSecretCandidate =
+  env.AUTH_SESSION_SECRET?.trim() || env.SESSION_SECRET?.trim();
+const normalizedAuthSecret = authSecretCandidate
+  ?.toLowerCase()
+  .replace(/[\s_]+/g, '-');
+const authSessionSecret = authSecretCandidate
+  && Buffer.byteLength(authSecretCandidate, 'utf8') >= 32
+  && !rejectedAuthSecrets.has(normalizedAuthSecret ?? '')
+  ? authSecretCandidate
+  : undefined;
+
+if (env.NODE_ENV === 'production' && !authSessionSecret) {
+  throw new Error(
+    'AUTH_SESSION_SECRET must be configured with at least 32 bytes and must not use an example value.',
+  );
+}
+
+if (env.NODE_ENV !== 'production' && authSecretCandidate && !authSessionSecret) {
+  console.warn(
+    '[Auth] Ignoring an invalid session secret; configure AUTH_SESSION_SECRET with at least 32 bytes.',
+  );
+}
+
+export const config = {
+  auth: {
+    sessionSecret: authSessionSecret,
+  },
+} as const;
 
 export type AiProviderMode = typeof env.AI_PROVIDER;
 export type PlaceProviderMode = typeof env.PLACE_PROVIDER;

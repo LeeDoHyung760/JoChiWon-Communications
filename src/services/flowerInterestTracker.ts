@@ -4,7 +4,12 @@ import type { PersonalFarmProgressDto } from '../../shared/personal-farm';
 
 type Delta = { eventId: string; flowerId: string; infoViewCount?: number; totalInfoViewSeconds?: number; nearbyVisitCount?: number; totalNearbySeconds?: number; revisitCount?: number };
 const API = import.meta.env.VITE_API_BASE_URL ?? '/api';
-const FLOWER_ID_BY_PLANT_ID: Record<string, string> = { 'flower-04': 'hydrangea', 'flower-05': 'tulip', 'flower-06': 'iris', 'flower-08': 'camellia', 'flower-09': 'sunflower' };
+const FLOWER_ID_BY_PLANT_ID: Record<string, string> = {
+  'flower-01':'magnolia','flower-02':'adonis','flower-03':'azalea','flower-04':'hydrangea',
+  'flower-05':'tulip','flower-06':'iris','flower-07':'lily','flower-08':'camellia',
+  'flower-09':'sunflower','flower-10':'gujeolcho','flower-11':'hibiscus','flower-12':'bird-of-paradise',
+  'peach-tree':'peach-tree','red-tree':'maple-tree',
+};
 const canonicalFlowerId = (id: string) => FLOWER_ID_BY_PLANT_ID[id] ?? id;
 
 export class FlowerInterestTracker {

@@ -68,9 +68,10 @@ accountRouter.put('/me/profile', async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ success: false, error: { code: 'INVALID_PROFILE', message: parsed.error.issues[0]?.message ?? '프로필 형식이 올바르지 않습니다.' } });
   }
+  const profileUpdates=Object.fromEntries(Object.entries(parsed.data).map(([key,value])=>[`profile.${key}`,value]));
   const user = await UserModel.findByIdAndUpdate(
     res.locals.authenticatedUserId,
-    { $set: { profile: parsed.data, onboardingCompleted: true } },
+    { $set: { ...profileUpdates, onboardingCompleted: true } },
     { returnDocument: 'after', runValidators: true },
   ).select('profile');
   if (!user) return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: '사용자를 찾을 수 없습니다.' } });
